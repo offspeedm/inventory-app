@@ -1,131 +1,99 @@
 import prisma from "@/lib/prisma";
-import { Laptop, Users, Building2, Wrench } from "lucide-react";
+import { Building2, Network, Users, MonitorSmartphone } from "lucide-react";
+import { ChartPerusahaan } from "@/components/charts/chart-perusahaan";
+import { ChartJenis } from "@/components/charts/chart-jenis";
+import { ChartTiket } from "@/components/charts/chart-tiket";
 
 export default async function DashboardPage() {
-  // Hitung data nyata dari database (berjalan paralel agar cepat)
-  const [totalDevices, totalUsers, totalBranches, tiketAktif] =
+  // ===== 1. Angka ringkas (KPI) =====
+  const [totalPerusahaan, totalCabang, totalUser, totalDevice] =
     await Promise.all([
-      prisma.device.count(),
-      prisma.user.count(),
+      prisma.company.count(),
       prisma.branch.count(),
-      prisma.ticket.count({ where: { status: { not: "Selesai" } } }),
+      prisma.user.count(),
+      prisma.device.count(),
     ]);
 
-  const stats = [
-    {
-      title: "Total Devices",
-      value: totalDevices,
-      icon: Laptop,
-      accent: "bg-blue-500",
-    },
-    {
-      title: "Total User",
-      value: totalUsers,
-      icon: Users,
-      accent: "bg-green-500",
-    },
-    {
-      title: "Total Cabang",
-      value: totalBranches,
-      icon: Building2,
-      accent: "bg-purple-500",
-    },
-    {
-      title: "Tiket Aktif",
-      value: tiketAktif,
-      icon: Wrench,
-      accent: "bg-orange-500",
-    },
+  const kpi = [
+    { label: "Perusahaan", value: totalPerusahaan, icon: Building2, color: "bg-blue-500" },
+    { label: "Cabang", value: totalCabang, icon: Network, color: "bg-emerald-500" },
+    { label: "User", value: totalUser, icon: Users, color: "bg-amber-500" },
+    { label: "Devices", value: totalDevice, icon: MonitorSmartphone, color: "bg-indigo-500" },
   ];
 
-  // Ambil 5 perangkat terbaru
-  const perangkatTerbaru = await prisma.device.findMany({
-    take: 5,
-    orderBy: { id: "desc" },
-    include: {
-      type: { select: { nama: true } },
-      company: { select: { nama: true } },
-    },
+  // ===== 2. Data grafik BATANG: perangkat per perusahaan =====
+  const companies = await prisma.company.findMany({
+    select: { nama: true, _count: { select: { devices: true } } },
+    orderBy: { id: "asc" },
   });
+  const dataPerusahaan = companies.map((c) => ({
+    nama: c.nama.replace(/^PT\.?\s*/i, ""), // ringkas: buang "PT."
+    jumlah: c._count.devices,
+  }));
+
+  // ===== 3. Data grafik PIE: perangkat per jenis =====
+  const deviceTypes = await prisma.deviceType.findMany({
+    select: { nama: true, _count: { select: { devices: true } } },
+    orderBy: { id: "asc" },
+  });
+  const dataJenis = deviceTypes
+    .map((t) => ({ nama: t.nama, jumlah: t._count.devices }))
+    .filter((t) => t.jumlah > 0); // tampilkan hanya jenis yang ada perangkatnya
+
+  // ===== 4. Data grafik GARIS: tiket per bulan (6 bulan terakhir) =====
+  const tickets = await prisma.ticket.findMany({
+    select: { tglLapor: true },
+  });
+  const namaBulan = [
+    "Jan", "Feb", "Mar", "Apr", "Mei", "Jun",
+    "Jul", "Agu", "Sep", "Okt", "Nov", "Des",
+  ];
+  const sekarang = new Date();
+  const dataTiket: { bulan: string; jumlah: number }[] = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(sekarang.getFullYear(), sekarang.getMonth() - i, 1);
+    const jumlah = tickets.filter((t) => {
+      if (!t.tglLapor) return false;
+      const td = new Date(t.tglLapor);
+      return (
+        td.getFullYear() === d.getFullYear() && td.getMonth() === d.getMonth()
+      );
+    }).length;
+    dataTiket.push({ bulan: namaBulan[d.getMonth()], jumlah });
+  }
 
   return (
     <div>
-      {/* Judul */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-800">Dashboard</h1>
-        <p className="text-slate-500 mt-1">
-          Ringkasan data inventaris dan perangkat.
-        </p>
-      </div>
+      <h1 className="text-2xl font-bold text-slate-800">Dashboard</h1>
+      <p className="text-slate-500 mt-1 mb-6">Ringkasan data aset & aktivitas.</p>
 
-      {/* Kartu Statistik */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((stat) => {
-          const Icon = stat.icon;
+      {/* Kartu KPI */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
+        {kpi.map((item) => {
+          const Icon = item.icon;
           return (
             <div
-              key={stat.title}
-              className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow"
+              key={item.label}
+              className="bg-white rounded-xl border border-slate-200 p-5 flex items-center gap-4"
             >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-500">
-                    {stat.title}
-                  </p>
-                  <p className="text-3xl font-bold text-slate-800 mt-2">
-                    {stat.value}
-                  </p>
-                </div>
-                <div
-                  className={
-                    "flex items-center justify-center h-12 w-12 rounded-lg text-white " +
-                    stat.accent
-                  }
-                >
-                  <Icon className="h-6 w-6" />
-                </div>
+              <div className={`${item.color} w-12 h-12 rounded-lg flex items-center justify-center text-white`}>
+                <Icon className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-slate-800">{item.value}</p>
+                <p className="text-sm text-slate-500">{item.label}</p>
               </div>
             </div>
           );
         })}
       </div>
 
-      {/* Perangkat Terbaru */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-6">
-        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-800 mb-3">
-            Perangkat Terbaru
-          </h2>
-          {perangkatTerbaru.length === 0 ? (
-            <p className="text-slate-400 text-sm">
-              Belum ada perangkat. Tambahkan di menu Devices.
-            </p>
-          ) : (
-            <ul className="divide-y divide-slate-100">
-              {perangkatTerbaru.map((d) => (
-                <li
-                  key={d.id}
-                  className="py-2 flex items-center justify-between text-sm"
-                >
-                  <span className="font-medium text-slate-700">{d.nama}</span>
-                  <span className="text-slate-400">
-                    {d.type?.nama ?? "-"}
-                    {d.company?.nama ? " · " + d.company.nama : ""}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-800 mb-3">
-            Tiket Terakhir
-          </h2>
-          <p className="text-slate-400 text-sm">
-            Daftar tiket troubleshooting akan tampil di sini setelah menu
-            Troubleshooting dibuat.
-          </p>
+      {/* Grafik */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <ChartPerusahaan data={dataPerusahaan} />
+        <ChartJenis data={dataJenis} />
+        <div className="lg:col-span-2">
+          <ChartTiket data={dataTiket} />
         </div>
       </div>
     </div>
