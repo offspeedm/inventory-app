@@ -36,13 +36,13 @@ export function BarisPerusahaan({
               name="nama"
               defaultValue={company.nama}
               required
-              className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm flex-1 min-w-[180px]"
+              className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm flex-1 min-w-45"
             />
             <input
               name="alamat"
               defaultValue={company.alamat ?? ""}
               placeholder="Alamat"
-              className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm flex-1 min-w-[180px]"
+              className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm flex-1 min-w-45"
             />
             <button
               type="submit"
