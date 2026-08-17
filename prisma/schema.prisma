@@ -1,0 +1,136 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Company {
+  id        Int      @id @default(autoincrement())
+  nama      String
+  alamat    String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  branches Branch[]
+  users    User[]
+  devices  Device[]
+  tickets  Ticket[]
+
+  @@map("companies")
+}
+
+model Branch {
+  id        Int      @id @default(autoincrement())
+  nama      String
+  kota      String?
+  companyId Int?     @map("company_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  company Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  users   User[]
+  devices Device[]
+  tickets Ticket[]
+
+  @@map("branches")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  nama      String
+  email     String?  @unique
+  jabatan   String?
+  role      String   @default("staff")
+  companyId Int?     @map("company_id")
+  branchId  Int?     @map("branch_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  company     Company?           @relation(fields: [companyId], references: [id])
+  branch      Branch?            @relation(fields: [branchId], references: [id])
+  devices     Device[]
+  assignments DeviceAssignment[]
+  tickets     Ticket[]
+
+  @@map("users")
+}
+
+model DeviceType {
+  id        Int      @id @default(autoincrement())
+  nama      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  devices Device[]
+
+  @@map("device_types")
+}
+
+model Device {
+  id           Int       @id @default(autoincrement())
+  nama         String
+  typeId       Int?      @map("type_id")
+  serialNumber String?   @map("serial_number")
+  tglBeli      DateTime? @map("tgl_beli") @db.Date
+  hargaBeli    Decimal?  @map("harga_beli")
+  status       String    @default("Aktif")
+  companyId    Int?      @map("company_id")
+  branchId     Int?      @map("branch_id")
+  userId       Int?      @map("user_id")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  type        DeviceType?        @relation(fields: [typeId], references: [id])
+  company     Company?           @relation(fields: [companyId], references: [id])
+  branch      Branch?            @relation(fields: [branchId], references: [id])
+  user        User?              @relation(fields: [userId], references: [id])
+  attributes  DeviceAttribute[]
+  assignments DeviceAssignment[]
+  tickets     Ticket[]
+
+  @@map("devices")
+}
+
+model DeviceAttribute {
+  id       Int     @id @default(autoincrement())
+  deviceId Int     @map("device_id")
+  key      String
+  value    String?
+
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@map("device_attributes")
+}
+
+model DeviceAssignment {
+  id         Int       @id @default(autoincrement())
+  deviceId   Int       @map("device_id")
+  userId     Int?      @map("user_id")
+  tglMulai   DateTime? @map("tgl_mulai") @db.Date
+  tglSelesai DateTime? @map("tgl_selesai") @db.Date
+
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [userId], references: [id])
+
+  @@map("device_assignments")
+}
+
+model Ticket {
+  id         Int       @id @default(autoincrement())
+  deviceId   Int?      @map("device_id")
+  userId     Int?      @map("user_id")
+  branchId   Int?      @map("branch_id")
+  companyId  Int?      @map("company_id")
+  judul      String
+  deskripsi  String?
+  prioritas  String    @default("Normal")
+  status     String    @default("Baru")
+  tglLapor   DateTime  @default(now()) @map("tgl_lapor")
+  tglSelesai DateTime? @map("tgl_selesai")
+
+  device  Device?  @relation(fields: [deviceId], references: [id])
+  user    User?    @relation(fields: [userId], references: [id])
+  branch  Branch?  @relation(fields: [branchId], references: [id])
+  company Company? @relation(fields: [companyId], references: [id])
+
+  @@map("tickets")
+}
