@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { tambahDevice } from "./actions";
+import { getFieldsForType } from "@/config/device-fields";
 
 type DeviceType = { id: number; nama: string };
 type Company = { id: number; nama: string };
@@ -23,10 +24,17 @@ export function FormDevice({
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   const [companyId, setCompanyId] = useState<string>("");
+  const [typeId, setTypeId] = useState<string>("");
 
   const filteredBranches = companyId
     ? branches.filter((b) => b.companyId === Number(companyId))
     : [];
+
+  // Cari nama jenis dari id yang dipilih, lalu ambil field dinamisnya
+  const selectedTypeName = deviceTypes.find(
+    (t) => t.id === Number(typeId)
+  )?.nama;
+  const dynamicFields = getFieldsForType(selectedTypeName);
 
   const inputClass =
     "border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500";
@@ -38,12 +46,18 @@ export function FormDevice({
         await tambahDevice(formData);
         formRef.current?.reset();
         setCompanyId("");
+        setTypeId("");
       }}
       className="bg-white rounded-lg border border-slate-200 p-4 mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
     >
       <input name="nama" placeholder="Nama perangkat" required className={inputClass} />
 
-      <select name="type_id" defaultValue="" className={inputClass}>
+      <select
+        name="type_id"
+        value={typeId}
+        onChange={(e) => setTypeId(e.target.value)}
+        className={inputClass}
+      >
         <option value="">Jenis perangkat…</option>
         {deviceTypes.map((t) => (
           <option key={t.id} value={t.id}>
@@ -105,6 +119,25 @@ export function FormDevice({
           </option>
         ))}
       </select>
+
+      {/* ===== FIELD DINAMIS (menyesuaikan jenis perangkat) ===== */}
+      {dynamicFields.length > 0 && (
+        <div className="sm:col-span-2 lg:col-span-4 border-t border-slate-100 pt-3">
+          <p className="text-xs font-medium text-slate-500 mb-2">
+            Spesifikasi {selectedTypeName}
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {dynamicFields.map((field) => (
+              <input
+                key={field}
+                name={"attr_" + field}
+                placeholder={field}
+                className={inputClass}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       <button
         type="submit"

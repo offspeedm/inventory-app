@@ -2,6 +2,7 @@ import prisma from "@/lib/prisma";
 import { FormDevice } from "./form-devices";
 import { BarisDevice } from "./baris-devices";
 
+type Attr = { key: string; value: string | null };
 type DeviceRow = {
   id: number;
   nama: string;
@@ -17,6 +18,7 @@ type DeviceRow = {
   company: { nama: string } | null;
   branch: { nama: string } | null;
   user: { nama: string } | null;
+  attributes: Attr[];
 };
 
 export default async function DevicesPage() {
@@ -41,13 +43,14 @@ export default async function DevicesPage() {
     orderBy: { nama: "asc" },
   });
 
-  // Ambil daftar device + semua relasinya
+  // Ambil daftar device + semua relasinya + field dinamis
   const devicesRaw = await prisma.device.findMany({
     include: {
       type: { select: { nama: true } },
       company: { select: { nama: true } },
       branch: { select: { nama: true } },
       user: { select: { nama: true } },
+      attributes: { select: { key: true, value: true } },
     },
     orderBy: { id: "asc" },
   });

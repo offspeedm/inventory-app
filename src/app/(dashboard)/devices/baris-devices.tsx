@@ -2,17 +2,19 @@
 
 import { useState } from "react";
 import { updateDevice, hapusDevice } from "./actions";
+import { getFieldsForType } from "@/config/device-fields";
 
 type DeviceType = { id: number; nama: string };
 type Company = { id: number; nama: string };
 type Branch = { id: number; nama: string; companyId: number | null };
 type UserOpt = { id: number; nama: string };
+type Attr = { key: string; value: string | null };
 type DeviceRow = {
   id: number;
   nama: string;
   serialNumber: string | null;
   tglBeli: Date | null;
-  hargaBeli: unknown;
+  hargaBeli: number | null;
   status: string;
   typeId: number | null;
   companyId: number | null;
@@ -22,6 +24,7 @@ type DeviceRow = {
   company: { nama: string } | null;
   branch: { nama: string } | null;
   user: { nama: string } | null;
+  attributes: Attr[];
 };
 
 const STATUS_OPTIONS = ["Aktif", "Rusak", "Perbaikan", "Tidak dipakai"];
@@ -39,11 +42,9 @@ function statusColor(status: string) {
   }
 }
 
-function formatRupiah(value: unknown): string {
-  if (value === null || value === undefined || value === "") return "-";
-  const n = Number(value);
-  if (Number.isNaN(n)) return "-";
-  return "Rp " + n.toLocaleString("id-ID");
+function formatRupiah(value: number | null): string {
+  if (value === null || value === undefined) return "-";
+  return "Rp " + Number(value).toLocaleString("id-ID");
 }
 
 function toDateInput(d: Date | null): string {
@@ -70,10 +71,22 @@ export function BarisDevice({
   const [companyId, setCompanyId] = useState<string>(
     device.companyId ? String(device.companyId) : ""
   );
+  const [typeId, setTypeId] = useState<string>(
+    device.typeId ? String(device.typeId) : ""
+  );
 
   const filteredBranches = companyId
     ? branches.filter((b) => b.companyId === Number(companyId))
     : [];
+
+  const selectedTypeName = deviceTypes.find((t) => t.id === Number(typeId))?.nama;
+  const dynamicFields = getFieldsForType(selectedTypeName);
+
+  // Cari nilai atribut yang tersimpan berdasarkan key
+  function attrValue(key: string): string {
+    const found = device.attributes.find((a) => a.key === key);
+    return found?.value ?? "";
+  }
 
   const inputClass = "border border-slate-300 rounded-lg px-3 py-1.5 text-sm";
 
@@ -98,7 +111,12 @@ export function BarisDevice({
               placeholder="Nama"
               className={inputClass}
             />
-            <select name="type_id" defaultValue={device.typeId ?? ""} className={inputClass}>
+            <select
+              name="type_id"
+              value={typeId}
+              onChange={(e) => setTypeId(e.target.value)}
+              className={inputClass}
+            >
               <option value="">Jenis…</option>
               {deviceTypes.map((t) => (
                 <option key={t.id} value={t.id}>
@@ -167,6 +185,18 @@ export function BarisDevice({
                 </option>
               ))}
             </select>
+
+            {/* Field dinamis saat edit (prefilled dengan nilai tersimpan) */}
+            {dynamicFields.map((field) => (
+              <input
+                key={field}
+                name={"attr_" + field}
+                defaultValue={attrValue(field)}
+                placeholder={field}
+                className={inputClass}
+              />
+            ))}
+
             <button
               type="submit"
               className="bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg px-3 py-1.5"
@@ -195,6 +225,13 @@ export function BarisDevice({
         {device.serialNumber && (
           <span className="block text-xs text-slate-400">
             SN: {device.serialNumber}
+          </span>
+        )}
+        {device.attributes.length > 0 && (
+          <span className="block text-xs text-slate-400 mt-0.5">
+            {device.attributes
+              .map((a) => a.key + ": " + (a.value ?? "-"))
+              .join(" · ")}
           </span>
         )}
       </td>
