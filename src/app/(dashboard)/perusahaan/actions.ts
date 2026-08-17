@@ -6,10 +6,17 @@ import { revalidatePath } from "next/cache";
 // Tambah perusahaan baru
 export async function tambahPerusahaan(formData: FormData) {
   const nama = formData.get("nama") as string;
+  const inisial = formData.get("inisial") as string;
   const alamat = formData.get("alamat") as string;
+  const noTelp = formData.get("no_telp") as string;
 
   await prisma.company.create({
-    data: { nama, alamat: alamat || null },
+    data: {
+      nama,
+      inisial: inisial || null,
+      alamat: alamat || null,
+      noTelp: noTelp || null,
+    },
   });
 
   revalidatePath("/perusahaan");
@@ -19,11 +26,18 @@ export async function tambahPerusahaan(formData: FormData) {
 export async function updatePerusahaan(formData: FormData) {
   const id = Number(formData.get("id"));
   const nama = formData.get("nama") as string;
+  const inisial = formData.get("inisial") as string;
   const alamat = formData.get("alamat") as string;
+  const noTelp = formData.get("no_telp") as string;
 
   await prisma.company.update({
     where: { id },
-    data: { nama, alamat: alamat || null },
+    data: {
+      nama,
+      inisial: inisial || null,
+      alamat: alamat || null,
+      noTelp: noTelp || null,
+    },
   });
 
   revalidatePath("/perusahaan");

@@ -11,7 +11,9 @@ datasource db {
 model Company {
   id        Int      @id @default(autoincrement())
   nama      String
+  inisial String? @map("inisial")
   alamat    String?
+  noTelp String? @map("no_telp")
   createdAt DateTime @default(now()) @map("created_at")
 
   branches Branch[]

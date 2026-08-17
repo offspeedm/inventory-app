@@ -1,12 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { Pencil, Trash2, X, Building2 } from "lucide-react";
 import { updatePerusahaan, hapusPerusahaan } from "./actions";
 
 type Company = {
   id: number;
   nama: string;
+  inisial: string | null;
   alamat: string | null;
+  noTelp: string | null;
 };
 
 export function BarisPerusahaan({
@@ -18,77 +21,173 @@ export function BarisPerusahaan({
 }) {
   const [editing, setEditing] = useState(false);
 
-  // ===== MODE EDIT =====
-  if (editing) {
-    return (
-      <tr className="border-t border-slate-100 bg-indigo-50/40">
-        <td className="px-4 py-2 text-slate-500">{index + 1}</td>
-        <td colSpan={2} className="px-4 py-2">
-          <form
-            action={async (formData: FormData) => {
-              await updatePerusahaan(formData);
-              setEditing(false);
-            }}
-            className="flex flex-wrap gap-2 items-center"
-          >
-            <input type="hidden" name="id" value={company.id} />
-            <input
-              name="nama"
-              defaultValue={company.nama}
-              required
-              className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm flex-1 min-w-45"
-            />
-            <input
-              name="alamat"
-              defaultValue={company.alamat ?? ""}
-              placeholder="Alamat"
-              className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm flex-1 min-w-45"
-            />
-            <button
-              type="submit"
-              className="bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg px-3 py-1.5"
-            >
-              Simpan
-            </button>
-            <button
-              type="button"
-              onClick={() => setEditing(false)}
-              className="bg-slate-200 hover:bg-slate-300 text-slate-700 text-sm rounded-lg px-3 py-1.5"
-            >
-              Batal
-            </button>
-          </form>
-        </td>
-      </tr>
-    );
-  }
+  const inputClass =
+    "w-full border border-slate-300 rounded-lg px-3 py-2 text-sm transition-shadow focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500";
 
-  // ===== MODE TAMPIL =====
   return (
     <tr className="border-t border-slate-100">
       <td className="px-4 py-3 text-slate-500">{index + 1}</td>
-      <td className="px-4 py-3 font-medium text-slate-800">{company.nama}</td>
-      <td className="px-4 py-3 text-slate-600">
-        <div className="flex items-center justify-between gap-2">
-          <span>{company.alamat ?? "-"}</span>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setEditing(true)}
-              className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
-            >
-              Edit
-            </button>
-            <form action={hapusPerusahaan}>
-              <input type="hidden" name="id" value={company.id} />
-              <button
-                type="submit"
-                className="text-red-600 hover:text-red-800 text-sm font-medium"
-              >
-                Hapus
-              </button>
-            </form>
-          </div>
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-2">
+          {company.inisial && (
+            <span className="inline-flex items-center justify-center rounded-md bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-1 shrink-0">
+              {company.inisial}
+            </span>
+          )}
+          <span className="font-medium text-slate-800">{company.nama}</span>
         </div>
+      </td>
+      <td className="px-4 py-3 text-slate-600">
+        {company.alamat ?? "-"}
+        {company.noTelp && (
+          <span className="block text-xs text-slate-400">
+            📞 {company.noTelp}
+          </span>
+        )}
+      </td>
+      <td className="px-4 py-3">
+        <div className="flex gap-1 justify-end">
+          <button
+            onClick={() => setEditing(true)}
+            title="Edit"
+            aria-label="Edit"
+            className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-indigo-600 hover:bg-indigo-50 transition-colors"
+          >
+            <Pencil className="w-4 h-4" />
+          </button>
+
+          <form action={hapusPerusahaan}>
+            <input type="hidden" name="id" value={company.id} />
+            <button
+              type="submit"
+              title="Hapus"
+              aria-label="Hapus"
+              className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </form>
+        </div>
+
+        {/* ===== Popup / Modal Edit ===== */}
+        {editing && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Latar gelap + blur, dengan animasi fade */}
+            <div
+              onClick={() => setEditing(false)}
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200"
+            />
+
+            {/* Kotak modal dengan animasi muncul */}
+            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg text-left animate-in fade-in zoom-in-95 duration-200">
+              {/* Header berwarna dengan ikon */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-indigo-100 text-indigo-600">
+                    <Building2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-semibold text-slate-800 leading-tight">
+                      Edit Perusahaan
+                    </h2>
+                    <p className="text-xs text-slate-400">
+                      Perbarui informasi perusahaan
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setEditing(false)}
+                  aria-label="Tutup"
+                  className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Body form */}
+              <form
+                action={async (formData: FormData) => {
+                  await updatePerusahaan(formData);
+                  setEditing(false);
+                }}
+                className="px-6 py-5 grid gap-4"
+              >
+                <input type="hidden" name="id" value={company.id} />
+
+                {/* Nama + Inisial */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      Nama Perusahaan
+                    </label>
+                    <input
+                      name="nama"
+                      defaultValue={company.nama}
+                      required
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      Inisial
+                    </label>
+                    <input
+                      name="inisial"
+                      defaultValue={company.inisial ?? ""}
+                      placeholder="SLI"
+                      maxLength={10}
+                      className={inputClass + " uppercase"}
+                    />
+                  </div>
+                </div>
+
+                {/* Alamat */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Alamat <span className="text-slate-400 font-normal">(opsional)</span>
+                  </label>
+                  <textarea
+                    name="alamat"
+                    rows={4}
+                    defaultValue={company.alamat ?? ""}
+                    placeholder="Tulis alamat lengkap: jalan, nomor, kelurahan, kota, kode pos…"
+                    className={inputClass + " resize-y"}
+                  />
+                </div>
+
+                {/* No. Telepon */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    No. Telepon <span className="text-slate-400 font-normal">(opsional)</span>
+                  </label>
+                  <input
+                    name="no_telp"
+                    defaultValue={company.noTelp ?? ""}
+                    placeholder="mis. 021-1234567"
+                    className={inputClass}
+                  />
+                </div>
+
+                {/* Footer tombol */}
+                <div className="flex justify-end gap-2 pt-2 mt-1 border-t border-slate-100 -mx-6 px-6 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setEditing(false)}
+                    className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg px-4 py-2 transition-colors"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg px-5 py-2 shadow-sm transition-colors"
+                  >
+                    Simpan Perubahan
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </td>
     </tr>
   );
