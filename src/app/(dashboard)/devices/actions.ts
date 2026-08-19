@@ -3,95 +3,111 @@
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
-// Ubah nilai form menjadi angka bila valid, atau null
 function toNullableInt(value: FormDataEntryValue | null): number | null {
   const n = Number(value);
   return value && !Number.isNaN(n) && n > 0 ? n : null;
 }
 
-// Ubah nilai form menjadi Date bila ada, atau null
 function toNullableDate(value: FormDataEntryValue | null): Date | null {
   const v = value as string;
   return v ? new Date(v) : null;
 }
 
-// Kumpulkan field dinamis (nama input diawali "attr_") menjadi daftar key-value
-function kumpulkanAtribut(
-  formData: FormData,
-  deviceId: number
-): { deviceId: number; key: string; value: string }[] {
-  const hasil: { deviceId: number; key: string; value: string }[] = [];
-  for (const [key, value] of formData.entries()) {
-    if (key.startsWith("attr_") && typeof value === "string" && value.trim() !== "") {
-      hasil.push({ deviceId, key: key.slice(5), value: value.trim() });
-    }
-  }
-  return hasil;
+// Bacakan field umum dari form
+function bacaForm(formData: FormData) {
+  const hargaRaw = formData.get("harga_beli") as string;
+  return {
+    nama: formData.get("nama") as string,
+    merk: (formData.get("merk") as string) || null,
+    tipe: (formData.get("tipe") as string) || null,
+    keterangan: (formData.get("keterangan") as string) || null,
+    serialNumber: (formData.get("serial_number") as string) || null,
+    hargaBeli: hargaRaw ? Number(hargaRaw) : null,
+    status: (formData.get("status") as string) || "Aktif",
+    tglBeli: toNullableDate(formData.get("tgl_beli")),
+    typeId: toNullableInt(formData.get("type_id")),
+    companyId: toNullableInt(formData.get("company_id")),
+    branchId: toNullableInt(formData.get("branch_id")),
+    userId: toNullableInt(formData.get("user_id")),
+  };
 }
 
-// Tambah device baru + field dinamis
+// Tambah device baru + catat riwayat awal
 export async function tambahDevice(formData: FormData) {
-  const hargaRaw = formData.get("harga_beli") as string;
+  const d = bacaForm(formData);
 
-  const device = await prisma.device.create({
-    data: {
-      nama: formData.get("nama") as string,
-      serialNumber: (formData.get("serial_number") as string) || null,
-      hargaBeli: hargaRaw ? Number(hargaRaw) : null,
-      status: (formData.get("status") as string) || "Aktif",
-      tglBeli: toNullableDate(formData.get("tgl_beli")),
-      typeId: toNullableInt(formData.get("type_id")),
-      companyId: toNullableInt(formData.get("company_id")),
-      branchId: toNullableInt(formData.get("branch_id")),
-      userId: toNullableInt(formData.get("user_id")),
-    },
-  });
+  const device = await prisma.device.create({ data: d });
 
-  const atribut = kumpulkanAtribut(formData, device.id);
-  if (atribut.length > 0) {
-    await prisma.deviceAttribute.createMany({ data: atribut });
+  // Catat riwayat pengguna awal
+  if (d.userId) {
+    await prisma.deviceAssignment.create({
+      data: { deviceId: device.id, userId: d.userId, tglMulai: new Date() },
+    });
+  }
+
+  // Catat riwayat penempatan awal
+  if (d.companyId || d.branchId) {
+    await prisma.devicePlacement.create({
+      data: {
+        deviceId: device.id,
+        companyId: d.companyId,
+        branchId: d.branchId,
+        tglMulai: new Date(),
+      },
+    });
   }
 
   revalidatePath("/devices");
 }
 
-// Ubah data device + perbarui field dinamis
+// Ubah device + catat perubahan pengguna & penempatan ke riwayat
 export async function updateDevice(formData: FormData) {
   const id = Number(formData.get("id"));
-  const hargaRaw = formData.get("harga_beli") as string;
+  const d = bacaForm(formData);
 
-  await prisma.device.update({
-    where: { id },
-    data: {
-      nama: formData.get("nama") as string,
-      serialNumber: (formData.get("serial_number") as string) || null,
-      hargaBeli: hargaRaw ? Number(hargaRaw) : null,
-      status: (formData.get("status") as string) || "Aktif",
-      tglBeli: toNullableDate(formData.get("tgl_beli")),
-      typeId: toNullableInt(formData.get("type_id")),
-      companyId: toNullableInt(formData.get("company_id")),
-      branchId: toNullableInt(formData.get("branch_id")),
-      userId: toNullableInt(formData.get("user_id")),
-    },
-  });
+  const lama = await prisma.device.findUnique({ where: { id } });
+  if (!lama) return;
 
-  // Hapus atribut lama, lalu isi ulang dengan yang baru
-  await prisma.deviceAttribute.deleteMany({ where: { deviceId: id } });
-  const atribut = kumpulkanAtribut(formData, id);
-  if (atribut.length > 0) {
-    await prisma.deviceAttribute.createMany({ data: atribut });
+  // --- Riwayat PENGGUNA: bila userId berubah ---
+  if (lama.userId !== d.userId) {
+    await prisma.deviceAssignment.updateMany({
+      where: { deviceId: id, tglSelesai: null },
+      data: { tglSelesai: new Date() },
+    });
+    if (d.userId) {
+      await prisma.deviceAssignment.create({
+        data: { deviceId: id, userId: d.userId, tglMulai: new Date() },
+      });
+    }
   }
 
+  // --- Riwayat PENEMPATAN: bila company/branch berubah ---
+  if (lama.companyId !== d.companyId || lama.branchId !== d.branchId) {
+    await prisma.devicePlacement.updateMany({
+      where: { deviceId: id, tglSelesai: null },
+      data: { tglSelesai: new Date() },
+    });
+    if (d.companyId || d.branchId) {
+      await prisma.devicePlacement.create({
+        data: {
+          deviceId: id,
+          companyId: d.companyId,
+          branchId: d.branchId,
+          tglMulai: new Date(),
+        },
+      });
+    }
+  }
+
+  await prisma.device.update({ where: { id }, data: d });
+
   revalidatePath("/devices");
+  revalidatePath(`/devices/${id}`);
 }
 
-// Hapus device (atribut ikut terhapus otomatis karena onDelete: Cascade)
+// Hapus device
 export async function hapusDevice(formData: FormData) {
   const id = Number(formData.get("id"));
-
-  await prisma.device.delete({
-    where: { id },
-  });
-
+  await prisma.device.delete({ where: { id } });
   revalidatePath("/devices");
 }

@@ -11,15 +11,15 @@ datasource db {
 model Company {
   id        Int      @id @default(autoincrement())
   nama      String
-  inisial String? @map("inisial")
   alamat    String?
-  noTelp String? @map("no_telp")
   createdAt DateTime @default(now()) @map("created_at")
-
-  branches Branch[]
-  users    User[]
-  devices  Device[]
-  tickets  Ticket[]
+  noTelp    String?  @map("no_telp")
+  inisial   String?  @map("inisial")
+  branches  Branch[]
+  devices   Device[]
+  tickets   Ticket[]
+  users     User[]
+  placements DevicePlacement[]
 
   @@map("companies")
 }
@@ -30,30 +30,32 @@ model Branch {
   kota      String?
   companyId Int?     @map("company_id")
   createdAt DateTime @default(now()) @map("created_at")
-
-  company Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  users   User[]
-  devices Device[]
-  tickets Ticket[]
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  devices   Device[]
+  tickets   Ticket[]
+  users     User[]
+  placements DevicePlacement[]
 
   @@map("branches")
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  nama      String
-  email     String?  @unique
-  jabatan   String?
-  role      String   @default("staff")
-  companyId Int?     @map("company_id")
-  branchId  Int?     @map("branch_id")
-  createdAt DateTime @default(now()) @map("created_at")
-
-  company     Company?           @relation(fields: [companyId], references: [id])
-  branch      Branch?            @relation(fields: [branchId], references: [id])
-  devices     Device[]
+  id          Int                @id @default(autoincrement())
+  nama        String
+  email       String?            @unique
+  jabatan     String?
+  role        String             @default("staff")
+  companyId   Int?               @map("company_id")
+  branchId    Int?               @map("branch_id")
+  createdAt   DateTime           @default(now()) @map("created_at")
+  divisi      String?
+  noTelp      String?            @map("no_telp")
+  status      String             @default("Aktif")
   assignments DeviceAssignment[]
+  devices     Device[]
   tickets     Ticket[]
+  branch      Branch?            @relation(fields: [branchId], references: [id])
+  company     Company?           @relation(fields: [companyId], references: [id])
 
   @@map("users")
 }
@@ -62,8 +64,7 @@ model DeviceType {
   id        Int      @id @default(autoincrement())
   nama      String
   createdAt DateTime @default(now()) @map("created_at")
-
-  devices Device[]
+  devices   Device[]
 
   @@map("device_types")
 }
@@ -71,6 +72,9 @@ model DeviceType {
 model Device {
   id           Int       @id @default(autoincrement())
   nama         String
+  merk         String?
+  tipe         String?
+  keterangan   String?
   typeId       Int?      @map("type_id")
   serialNumber String?   @map("serial_number")
   tglBeli      DateTime? @map("tgl_beli") @db.Date
@@ -87,6 +91,7 @@ model Device {
   user        User?              @relation(fields: [userId], references: [id])
   attributes  DeviceAttribute[]
   assignments DeviceAssignment[]
+  placements  DevicePlacement[]
   tickets     Ticket[]
 
   @@map("devices")
@@ -97,8 +102,7 @@ model DeviceAttribute {
   deviceId Int     @map("device_id")
   key      String
   value    String?
-
-  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  device   Device  @relation(fields: [deviceId], references: [id], onDelete: Cascade)
 
   @@map("device_attributes")
 }
@@ -109,11 +113,25 @@ model DeviceAssignment {
   userId     Int?      @map("user_id")
   tglMulai   DateTime? @map("tgl_mulai") @db.Date
   tglSelesai DateTime? @map("tgl_selesai") @db.Date
-
-  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
-  user   User?  @relation(fields: [userId], references: [id])
+  device     Device    @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  user       User?     @relation(fields: [userId], references: [id])
 
   @@map("device_assignments")
+}
+
+model DevicePlacement {
+  id         Int       @id @default(autoincrement())
+  deviceId   Int       @map("device_id")
+  companyId  Int?      @map("company_id")
+  branchId   Int?      @map("branch_id")
+  tglMulai   DateTime  @default(now()) @map("tgl_mulai")
+  tglSelesai DateTime? @map("tgl_selesai")
+
+  device  Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  company Company? @relation(fields: [companyId], references: [id])
+  branch  Branch?  @relation(fields: [branchId], references: [id])
+
+  @@map("device_placements")
 }
 
 model Ticket {
@@ -128,11 +146,10 @@ model Ticket {
   status     String    @default("Baru")
   tglLapor   DateTime  @default(now()) @map("tgl_lapor")
   tglSelesai DateTime? @map("tgl_selesai")
-
-  device  Device?  @relation(fields: [deviceId], references: [id])
-  user    User?    @relation(fields: [userId], references: [id])
-  branch  Branch?  @relation(fields: [branchId], references: [id])
-  company Company? @relation(fields: [companyId], references: [id])
+  branch     Branch?   @relation(fields: [branchId], references: [id])
+  company    Company?  @relation(fields: [companyId], references: [id])
+  device     Device?   @relation(fields: [deviceId], references: [id])
+  user       User?     @relation(fields: [userId], references: [id])
 
   @@map("tickets")
 }
