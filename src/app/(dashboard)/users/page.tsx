@@ -1,6 +1,8 @@
 import prisma from "@/lib/prisma";
 import { FormUser } from "./form-user";
-import { BarisUser } from "./baris-user";
+import { TabelUser } from "./tabel-user";
+import { StatistikUser } from "./statistik-user";
+import { Users } from "lucide-react";
 
 export default async function UsersPage() {
   const [companies, branches, users] = await Promise.all([
@@ -13,44 +15,58 @@ export default async function UsersPage() {
       orderBy: { nama: "asc" },
     }),
     prisma.user.findMany({
+      include: {
+        company: { select: { nama: true } },
+        branch: { select: { nama: true } },
+      },
       orderBy: { id: "asc" },
-      include: { company: true, branch: true },
     }),
   ]);
 
+  // ===== Statistik: jumlah user per perusahaan =====
+  const perPerusahaanMap = new Map<string, number>();
+  users.forEach((u) => {
+    const nama = u.company?.nama ?? "Belum ditempatkan";
+    perPerusahaanMap.set(nama, (perPerusahaanMap.get(nama) ?? 0) + 1);
+  });
+  const perPerusahaan = Array.from(perPerusahaanMap, ([nama, jumlah]) => ({
+    nama: nama.replace(/^PT\.?\s*/i, ""),
+    jumlah,
+  })).sort((a, b) => b.jumlah - a.jumlah);
+
+  // ===== Statistik: jumlah user per divisi =====
+  const perDivisiMap = new Map<string, number>();
+  users.forEach((u) => {
+    const nama = u.divisi ?? "Tanpa divisi";
+    perDivisiMap.set(nama, (perDivisiMap.get(nama) ?? 0) + 1);
+  });
+  const perDivisi = Array.from(perDivisiMap, ([nama, jumlah]) => ({ nama, jumlah })).sort(
+    (a, b) => b.jumlah - a.jumlah
+  );
+
   return (
     <div>
-      <h1 className="text-2xl font-bold text-slate-800">User</h1>
-      <p className="text-slate-500 mt-1 mb-4">Kelola pengguna aplikasi.</p>
+      {/* Header halaman */}
+      <div className="mb-6 flex items-center gap-3">
+        <div className="flex items-center justify-center w-11 h-11 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-sm">
+          <Users className="w-6 h-6" />
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">User</h1>
+          <p className="text-slate-500 text-sm">
+            Kelola data pengguna aplikasi. Total: {users.length} user.
+          </p>
+        </div>
+      </div>
 
+      {/* Statistik jumlah user per perusahaan & divisi */}
+      <StatistikUser perDivisi={perDivisi} perPerusahaan={perPerusahaan} />
+
+      {/* Tombol tambah (popup) */}
       <FormUser companies={companies} branches={branches} />
 
-      <div className="bg-white rounded-lg border border-slate-200 overflow-hidden overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-slate-600 text-left">
-            <tr>
-              <th className="px-4 py-3 w-16">No</th>
-              <th className="px-4 py-3">Nama</th>
-              <th className="px-4 py-3">Email</th>
-              <th className="px-4 py-3">Jabatan</th>
-              <th className="px-4 py-3">Perusahaan</th>
-              <th className="px-4 py-3">Cabang</th>
-              <th className="px-4 py-3">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map((u, i) => (
-              <BarisUser
-                key={u.id}
-                user={u as any}
-                index={i}
-                companies={companies}
-                branches={branches}
-              />
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {/* Pencarian, filter, & tabel */}
+      <TabelUser users={users} companies={companies} branches={branches} />
     </div>
   );
 }

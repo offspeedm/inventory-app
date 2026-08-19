@@ -53,7 +53,9 @@ model User {
   status      String             @default("Aktif")
   assignments DeviceAssignment[]
   devices     Device[]
-  tickets     Ticket[]
+    ticketsPelapor    Ticket[] @relation("TicketPelapor")
+  ticketsTerkendala Ticket[] @relation("TicketUserTerkendala")
+  ticketsTeknisi    Ticket[] @relation("TicketTeknisi")
   branch      Branch?            @relation(fields: [branchId], references: [id])
   company     Company?           @relation(fields: [companyId], references: [id])
 
@@ -151,21 +153,46 @@ model DeviceAttachment {
 }
 
 model Ticket {
-  id         Int       @id @default(autoincrement())
-  deviceId   Int?      @map("device_id")
-  userId     Int?      @map("user_id")
-  branchId   Int?      @map("branch_id")
-  companyId  Int?      @map("company_id")
-  judul      String
-  deskripsi  String?
-  prioritas  String    @default("Normal")
-  status     String    @default("Baru")
-  tglLapor   DateTime  @default(now()) @map("tgl_lapor")
-  tglSelesai DateTime? @map("tgl_selesai")
-  branch     Branch?   @relation(fields: [branchId], references: [id])
-  company    Company?  @relation(fields: [companyId], references: [id])
-  device     Device?   @relation(fields: [deviceId], references: [id])
-  user       User?     @relation(fields: [userId], references: [id])
+  id               Int       @id @default(autoincrement())
+  noTiket          String?   @unique @map("no_tiket")
+  deviceId         Int?      @map("device_id")
+  userId           Int?      @map("user_id")               // Pelapor
+  userTerkendalaId Int?      @map("user_terkendala_id")     // User yang mengalami kendala
+  teknisiId        Int?      @map("teknisi_id")
+  branchId         Int?      @map("branch_id")
+  companyId        Int?      @map("company_id")
+  divisi           String?
+  judul            String
+  kategori         String?
+  kendala          String?
+  diagnosa         String?
+  solusi           String?
+  catatanTeknisi   String?   @map("catatan_teknisi")
+  prioritas        String    @default("Mengganggu pekerjaan")
+  status           String    @default("Baru")
+  tglLapor         DateTime  @default(now()) @map("tgl_lapor")
+  tglSelesai       DateTime? @map("tgl_selesai")
+
+  device         Device?  @relation(fields: [deviceId], references: [id])
+  user           User?    @relation("TicketPelapor", fields: [userId], references: [id])
+  userTerkendala User?    @relation("TicketUserTerkendala", fields: [userTerkendalaId], references: [id])
+  teknisi        User?    @relation("TicketTeknisi", fields: [teknisiId], references: [id])
+  branch         Branch?  @relation(fields: [branchId], references: [id])
+  company        Company? @relation(fields: [companyId], references: [id])
+  attachments    TicketAttachment[]
 
   @@map("tickets")
+}
+
+model TicketAttachment {
+  id         Int      @id @default(autoincrement())
+  ticketId   Int      @map("ticket_id")
+  fileName   String   @map("file_name")
+  fileUrl    String   @map("file_url")
+  fileType   String?  @map("file_type")
+  uploadedAt DateTime @default(now()) @map("uploaded_at")
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@map("ticket_attachments")
 }

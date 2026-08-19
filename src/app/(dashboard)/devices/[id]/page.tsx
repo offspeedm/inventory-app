@@ -13,6 +13,7 @@ import {
   ListChecks,
 } from "lucide-react";
 import { hitungUsia, usiaBadgeColor } from "@/lib/format-usia";
+import { urgencyColor, statusColor } from "@/config/ticket-fields";
 import { FormLampiran } from "./form-lampiran";
 import { GaleriLampiran } from "./galeri-lampiran";
 
@@ -25,7 +26,7 @@ function fmtTanggal(d: Date | null): string {
   });
 }
 
-function statusColor(s: string) {
+function deviceStatusColor(s: string) {
   switch (s) {
     case "Aktif":
       return "bg-green-100 text-green-700";
@@ -104,7 +105,7 @@ export default async function DeviceDetailPage({
               <span
                 className={
                   "inline-block rounded-full px-2.5 py-0.5 text-xs font-medium " +
-                  statusColor(device.status)
+                  deviceStatusColor(device.status)
                 }
               >
                 {device.status}
@@ -135,7 +136,6 @@ export default async function DeviceDetailPage({
               <Info label="Keterangan" value={device.keterangan ?? "-"} />
             </div>
 
-            {/* Spesifikasi dinamis (RAM/CPU/Resolusi/dll.) */}
             {device.attributes.length > 0 && (
               <div className="mt-5 pt-5 border-t border-slate-100">
                 <div className="flex items-center gap-2 mb-3">
@@ -218,6 +218,7 @@ export default async function DeviceDetailPage({
           )}
         </RiwayatCard>
 
+        {/* Riwayat Troubleshooting - kini bertaut ke halaman detail tiket */}
         <RiwayatCard title="Riwayat Troubleshooting" icon={Wrench} accent="text-rose-600 bg-rose-50">
           {device.tickets.length === 0 ? (
             <Kosong text="Belum ada tiket troubleshoot." />
@@ -226,10 +227,24 @@ export default async function DeviceDetailPage({
               {device.tickets.map((t) => (
                 <li key={t.id} className="relative pl-4 border-l-2 border-slate-100">
                   <span className="absolute -left-[5px] top-1.5 w-2 h-2 rounded-full bg-rose-500" />
-                  <p className="text-sm font-medium text-slate-700">{t.judul}</p>
+                  <Link
+                    href={`/troubleshooting/${t.id}`}
+                    className="text-sm font-medium text-slate-700 hover:text-indigo-600 hover:underline"
+                  >
+                    {t.judul}
+                  </Link>
                   <p className="text-xs text-slate-400">
-                    {fmtTanggal(t.tglLapor)} · {t.status} · {t.prioritas}
+                    {fmtTanggal(t.tglLapor)}
+                    {t.noTiket ? ` · ${t.noTiket}` : ""}
                   </p>
+                  <div className="flex gap-1.5 mt-1">
+                    <span className={"inline-block rounded-full px-2 py-0.5 text-[10px] font-medium " + statusColor(t.status)}>
+                      {t.status}
+                    </span>
+                    <span className={"inline-block rounded-full px-2 py-0.5 text-[10px] font-medium " + urgencyColor(t.prioritas)}>
+                      {t.prioritas}
+                    </span>
+                  </div>
                 </li>
               ))}
             </ul>

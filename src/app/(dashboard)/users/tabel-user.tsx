@@ -29,15 +29,22 @@ export function TabelUser({
 }) {
   const [cari, setCari] = useState("");
   const [filterCompany, setFilterCompany] = useState<string>("");
+  const [filterDivisi, setFilterDivisi] = useState<string>("");
+
+  // Daftar divisi unik untuk dropdown filter
+  const divisiList = useMemo(() => {
+    const set = new Set<string>();
+    users.forEach((u) => u.divisi && set.add(u.divisi));
+    return Array.from(set).sort();
+  }, [users]);
 
   const hasil = useMemo(() => {
     const kata = cari.trim().toLowerCase();
 
     return users.filter((u) => {
-      // Filter perusahaan
       if (filterCompany && String(u.companyId) !== filterCompany) return false;
+      if (filterDivisi && u.divisi !== filterDivisi) return false;
 
-      // Pencarian bebas
       if (!kata) return true;
       const gabungan = [
         u.nama,
@@ -51,7 +58,7 @@ export function TabelUser({
         .toLowerCase();
       return gabungan.includes(kata);
     });
-  }, [users, cari, filterCompany]);
+  }, [users, cari, filterCompany, filterDivisi]);
 
   const inputClass =
     "border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500";
@@ -73,12 +80,25 @@ export function TabelUser({
         <select
           value={filterCompany}
           onChange={(e) => setFilterCompany(e.target.value)}
-          className={inputClass + " sm:w-64"}
+          className={inputClass + " sm:w-56"}
         >
           <option value="">Semua perusahaan</option>
           {companies.map((c) => (
             <option key={c.id} value={c.id}>
               {c.nama}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={filterDivisi}
+          onChange={(e) => setFilterDivisi(e.target.value)}
+          className={inputClass + " sm:w-44"}
+        >
+          <option value="">Semua divisi</option>
+          {divisiList.map((d) => (
+            <option key={d} value={d}>
+              {d}
             </option>
           ))}
         </select>
