@@ -2,6 +2,8 @@
 
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { generateKodeInventaris } from "@/lib/kode-inventaris";
+import { simpanLampiranDevice } from "@/lib/lampiran";
 
 function toNullableInt(value: FormDataEntryValue | null): number | null {
   const n = Number(value);
@@ -32,11 +34,16 @@ function bacaForm(formData: FormData) {
   };
 }
 
-// Tambah device baru + catat riwayat awal
+// Tambah device baru + kode inventaris otomatis + riwayat awal + lampiran
 export async function tambahDevice(formData: FormData) {
   const d = bacaForm(formData);
 
-  const device = await prisma.device.create({ data: d });
+  // Buat kode inventaris otomatis: JENIS-TAHUNBULAN-URUT
+  const kodeInventaris = await generateKodeInventaris(d.typeId, d.tglBeli);
+
+  const device = await prisma.device.create({
+    data: { ...d, kodeInventaris },
+  });
 
   // Catat riwayat pengguna awal
   if (d.userId) {
@@ -57,10 +64,15 @@ export async function tambahDevice(formData: FormData) {
     });
   }
 
+  // Simpan foto/lampiran yang ikut diunggah di form tambah
+  const files = formData.getAll("files") as File[];
+  await simpanLampiranDevice(device.id, files);
+
   revalidatePath("/devices");
 }
 
 // Ubah device + catat perubahan pengguna & penempatan ke riwayat
+// (kode inventaris TIDAK berubah agar tetap jadi identitas tetap aset)
 export async function updateDevice(formData: FormData) {
   const id = Number(formData.get("id"));
   const d = bacaForm(formData);

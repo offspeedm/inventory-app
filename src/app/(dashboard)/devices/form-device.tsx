@@ -1,7 +1,15 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Plus, X, MonitorSmartphone } from "lucide-react";
+import {
+  Plus,
+  X,
+  MonitorSmartphone,
+  Upload,
+  FileText,
+  Image as ImageIcon,
+  Sparkles,
+} from "lucide-react";
 import { tambahDevice } from "./actions";
 
 type DeviceType = { id: number; nama: string };
@@ -23,8 +31,11 @@ export function FormDevice({
   users: UserOpt[];
 }) {
   const formRef = useRef<HTMLFormElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const [companyId, setCompanyId] = useState<string>("");
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [saving, setSaving] = useState(false);
 
   const filteredBranches = companyId
     ? branches.filter((b) => b.companyId === Number(companyId))
@@ -32,6 +43,24 @@ export function FormDevice({
 
   const inputClass =
     "w-full border border-slate-300 rounded-lg px-3 py-2 text-sm transition-shadow focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500";
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setSelectedFiles(Array.from(e.target.files ?? []));
+  }
+
+  function hapusPilihanFile(idx: number) {
+    const sisa = selectedFiles.filter((_, i) => i !== idx);
+    const dt = new DataTransfer();
+    sisa.forEach((f) => dt.items.add(f));
+    if (fileInputRef.current) fileInputRef.current.files = dt.files;
+    setSelectedFiles(sisa);
+  }
+
+  function resetSemua() {
+    formRef.current?.reset();
+    setCompanyId("");
+    setSelectedFiles([]);
+  }
 
   return (
     <>
@@ -56,7 +85,7 @@ export function FormDevice({
 
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl text-left animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
             {/* Header */}
-            <div className="sticky top-0 bg-white flex items-center justify-between px-6 py-4 border-b border-slate-100">
+            <div className="sticky top-0 bg-white flex items-center justify-between px-6 py-4 border-b border-slate-100 z-10">
               <div className="flex items-center gap-3">
                 <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-indigo-100 text-indigo-600">
                   <MonitorSmartphone className="w-5 h-5" />
@@ -81,13 +110,24 @@ export function FormDevice({
             <form
               ref={formRef}
               action={async (formData: FormData) => {
+                setSaving(true);
                 await tambahDevice(formData);
-                formRef.current?.reset();
-                setCompanyId("");
+                resetSemua();
+                setSaving(false);
                 setOpen(false);
               }}
               className="px-6 py-5 grid gap-4"
             >
+              {/* Info kode otomatis */}
+              <div className="flex items-start gap-2 bg-indigo-50 text-indigo-700 rounded-lg px-3 py-2 text-xs">
+                <Sparkles className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>
+                  Kode inventaris akan dibuat otomatis, format:{" "}
+                  <strong>JENIS-TAHUNBULAN-URUT</strong> (mis.{" "}
+                  <span className="font-mono">LT-202601-001</span>)
+                </span>
+              </div>
+
               <div className="grid sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">
@@ -199,20 +239,75 @@ export function FormDevice({
                 />
               </div>
 
+              {/* ===== Upload Foto & Lampiran ===== */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Foto & Lampiran <span className="text-slate-400 font-normal">(opsional, bisa lebih dari satu)</span>
+                </label>
+
+                <label className="flex flex-col items-center justify-center gap-1.5 border-2 border-dashed border-slate-300 rounded-xl py-5 cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/40 transition-colors">
+                  <Upload className="w-5 h-5 text-slate-400" />
+                  <span className="text-xs text-slate-500 text-center px-4">
+                    Klik untuk pilih foto/dokumen (bisa lebih dari satu file)
+                  </span>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    name="files"
+                    multiple
+                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+                    className="hidden"
+                    onChange={handleFileChange}
+                  />
+                </label>
+
+                {selectedFiles.length > 0 && (
+                  <div className="grid gap-2 mt-2">
+                    {selectedFiles.map((f, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center justify-between gap-2 bg-slate-50 rounded-lg px-3 py-2 text-sm"
+                      >
+                        <span className="flex items-center gap-2 truncate">
+                          {f.type.startsWith("image/") ? (
+                            <ImageIcon className="w-4 h-4 text-indigo-500 shrink-0" />
+                          ) : (
+                            <FileText className="w-4 h-4 text-indigo-500 shrink-0" />
+                          )}
+                          <span className="truncate">{f.name}</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => hapusPilihanFile(i)}
+                          className="text-slate-400 hover:text-red-500 shrink-0"
+                          aria-label="Batalkan file ini"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {/* Footer */}
               <div className="sticky bottom-0 bg-white flex justify-end gap-2 mt-1 border-t border-slate-100 -mx-6 px-6 pt-4">
                 <button
                   type="button"
-                  onClick={() => setOpen(false)}
+                  onClick={() => {
+                    setOpen(false);
+                    resetSemua();
+                  }}
                   className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg px-4 py-2 transition-colors"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg px-5 py-2 shadow-sm transition-colors"
+                  disabled={saving}
+                  className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white text-sm font-medium rounded-lg px-5 py-2 shadow-sm transition-colors"
                 >
-                  Simpan
+                  {saving ? "Menyimpan…" : "Simpan"}
                 </button>
               </div>
             </form>

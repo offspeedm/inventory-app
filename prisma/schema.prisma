@@ -63,6 +63,7 @@ model User {
 model DeviceType {
   id        Int      @id @default(autoincrement())
   nama      String
+  kode String?
   createdAt DateTime @default(now()) @map("created_at")
   devices   Device[]
 
@@ -77,6 +78,7 @@ model Device {
   keterangan   String?
   typeId       Int?      @map("type_id")
   serialNumber String?   @map("serial_number")
+    kodeInventaris String? @unique @map("kode_inventaris")
   tglBeli      DateTime? @map("tgl_beli") @db.Date
   hargaBeli    Decimal?  @map("harga_beli")
   status       String    @default("Aktif")
@@ -93,6 +95,7 @@ model Device {
   assignments DeviceAssignment[]
   placements  DevicePlacement[]
   tickets     Ticket[]
+  attachments DeviceAttachment[]
 
   @@map("devices")
 }
@@ -132,6 +135,19 @@ model DevicePlacement {
   branch  Branch?  @relation(fields: [branchId], references: [id])
 
   @@map("device_placements")
+}
+
+model DeviceAttachment {
+  id         Int      @id @default(autoincrement())
+  deviceId   Int      @map("device_id")
+  fileName   String   @map("file_name")
+  fileUrl    String   @map("file_url")
+  fileType   String?  @map("file_type")
+  uploadedAt DateTime @default(now()) @map("uploaded_at")
+
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@map("device_attachments")
 }
 
 model Ticket {

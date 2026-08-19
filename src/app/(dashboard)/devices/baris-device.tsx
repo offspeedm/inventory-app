@@ -2,8 +2,17 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Pencil, Trash2, X, MonitorSmartphone, History } from "lucide-react";
+import {
+  Pencil,
+  Trash2,
+  X,
+  MonitorSmartphone,
+  History,
+  Paperclip,
+  Clock,
+} from "lucide-react";
 import { updateDevice, hapusDevice } from "./actions";
+import { hitungUsia, usiaBadgeColor } from "@/lib/format-usia";
 
 type DeviceType = { id: number; nama: string };
 type Company = { id: number; nama: string };
@@ -12,6 +21,7 @@ type UserOpt = { id: number; nama: string };
 type DeviceRow = {
   id: number;
   nama: string;
+  kodeInventaris: string | null;
   merk: string | null;
   tipe: string | null;
   keterangan: string | null;
@@ -27,6 +37,7 @@ type DeviceRow = {
   company: { nama: string } | null;
   branch: { nama: string } | null;
   user: { nama: string } | null;
+  attachmentsCount: number;
 };
 
 const STATUS = ["Aktif", "Rusak", "Perbaikan", "Tidak dipakai"];
@@ -76,6 +87,9 @@ export function BarisDevice({
   const inputClass =
     "w-full border border-slate-300 rounded-lg px-3 py-2 text-sm transition-shadow focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500";
 
+  const usia = hitungUsia(device.tglBeli);
+  const warnaUsia = usiaBadgeColor(device.tglBeli);
+
   return (
     <tr className="border-t border-slate-100 hover:bg-slate-50/60 transition-colors">
       <td className="px-4 py-3 text-slate-500">{index + 1}</td>
@@ -87,9 +101,19 @@ export function BarisDevice({
             <MonitorSmartphone className="w-5 h-5" />
           </div>
           <div className="min-w-0">
-            <p className="font-medium text-slate-800 group-hover:text-indigo-600 truncate">
+            <p className="font-medium text-slate-800 group-hover:text-indigo-600 truncate flex items-center gap-1.5">
               {device.nama}
+              {device.attachmentsCount > 0 && (
+                <span className="inline-flex items-center gap-0.5 text-[11px] text-slate-400 font-normal">
+                  <Paperclip className="w-3 h-3" /> {device.attachmentsCount}
+                </span>
+              )}
             </p>
+            {device.kodeInventaris && (
+              <p className="text-[11px] font-mono text-indigo-500">
+                {device.kodeInventaris}
+              </p>
+            )}
             <p className="text-xs text-slate-400 truncate">
               {[device.merk, device.tipe].filter(Boolean).join(" · ") || "—"}
               {device.serialNumber ? ` · SN: ${device.serialNumber}` : ""}
@@ -100,6 +124,18 @@ export function BarisDevice({
 
       {/* Jenis */}
       <td className="px-4 py-3 text-slate-600">{device.type?.nama ?? "-"}</td>
+
+      {/* Usia */}
+      <td className="px-4 py-3">
+        <span
+          className={
+            "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium " +
+            warnaUsia
+          }
+        >
+          <Clock className="w-3 h-3" /> {usia}
+        </span>
+      </td>
 
       {/* Status */}
       <td className="px-4 py-3">
@@ -120,7 +156,7 @@ export function BarisDevice({
         <div className="flex gap-1 justify-end">
           <Link
             href={`/devices/${device.id}`}
-            title="Lihat riwayat"
+            title="Lihat riwayat & lampiran"
             aria-label="Riwayat"
             className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
           >
@@ -163,7 +199,12 @@ export function BarisDevice({
                   </div>
                   <div>
                     <h2 className="text-base font-semibold text-slate-800 leading-tight">Edit Perangkat</h2>
-                    <p className="text-xs text-slate-400">Perubahan pengguna/penempatan otomatis tercatat di riwayat</p>
+                    <p className="text-xs text-slate-400">
+                      {device.kodeInventaris ? (
+                        <>Kode: <span className="font-mono">{device.kodeInventaris}</span> · </>
+                      ) : null}
+                      Perubahan pengguna/penempatan otomatis tercatat di riwayat
+                    </p>
                   </div>
                 </div>
                 <button

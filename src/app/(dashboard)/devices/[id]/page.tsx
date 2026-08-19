@@ -7,7 +7,13 @@ import {
   User,
   Building2,
   Wrench,
+  Paperclip,
+  Clock,
+  Tag,
 } from "lucide-react";
+import { hitungUsia, usiaBadgeColor } from "@/lib/format-usia";
+import { FormLampiran } from "./form-lampiran";
+import { GaleriLampiran } from "./galeri-lampiran";
 
 function fmtTanggal(d: Date | null): string {
   if (!d) return "sekarang";
@@ -58,16 +64,18 @@ export default async function DeviceDetailPage({
         orderBy: { tglMulai: "desc" },
       },
       tickets: { orderBy: { tglLapor: "desc" } },
+      attachments: { orderBy: { uploadedAt: "desc" } },
     },
   });
 
   if (!device) notFound();
 
   const harga = device.hargaBeli ? Number(device.hargaBeli) : null;
+  const usia = hitungUsia(device.tglBeli);
+  const warnaUsia = usiaBadgeColor(device.tglBeli);
 
   return (
     <div>
-      {/* Kembali */}
       <Link
         href="/devices"
         className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-indigo-600 mb-4"
@@ -86,6 +94,11 @@ export default async function DeviceDetailPage({
               <h1 className="text-xl font-bold text-slate-800">
                 {device.nama}
               </h1>
+              {device.kodeInventaris && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-slate-800 text-white px-2.5 py-0.5 text-xs font-mono font-medium">
+                  <Tag className="w-3 h-3" /> {device.kodeInventaris}
+                </span>
+              )}
               <span
                 className={
                   "inline-block rounded-full px-2.5 py-0.5 text-xs font-medium " +
@@ -94,6 +107,14 @@ export default async function DeviceDetailPage({
               >
                 {device.status}
               </span>
+              <span
+                className={
+                  "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium " +
+                  warnaUsia
+                }
+              >
+                <Clock className="w-3 h-3" /> {usia}
+              </span>
             </div>
             <p className="text-sm text-slate-500 mt-1">
               {[device.merk, device.tipe].filter(Boolean).join(" · ") || "—"}
@@ -101,44 +122,49 @@ export default async function DeviceDetailPage({
             </p>
 
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-5 text-sm">
+              <Info label="Kode Inventaris" value={device.kodeInventaris ?? "-"} mono />
               <Info label="Jenis" value={device.type?.nama ?? "-"} />
               <Info label="Perusahaan" value={device.company?.nama ?? "-"} />
               <Info label="Cabang" value={device.branch?.nama ?? "-"} />
-              <Info
-                label="Pengguna Saat Ini"
-                value={device.user?.nama ?? "-"}
-              />
-              <Info
-                label="Tanggal Beli"
-                value={device.tglBeli ? fmtTanggal(device.tglBeli) : "-"}
-              />
-              <Info
-                label="Harga Beli"
-                value={harga ? "Rp " + harga.toLocaleString("id-ID") : "-"}
-              />
+              <Info label="Pengguna Saat Ini" value={device.user?.nama ?? "-"} />
+              <Info label="Tanggal Beli" value={device.tglBeli ? fmtTanggal(device.tglBeli) : "-"} />
+              <Info label="Usia Pakai" value={usia} />
+              <Info label="Harga Beli" value={harga ? "Rp " + harga.toLocaleString("id-ID") : "-"} />
               <Info label="Keterangan" value={device.keterangan ?? "-"} />
             </div>
           </div>
         </div>
       </div>
 
+      {/* Foto & Lampiran */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 mb-6">
+        <div className="flex items-center gap-2 mb-4">
+          <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600">
+            <Paperclip className="w-4 h-4" />
+          </span>
+          <h2 className="font-semibold text-slate-800">
+            Foto & Lampiran{" "}
+            <span className="text-slate-400 font-normal text-sm">
+              ({device.attachments.length})
+            </span>
+          </h2>
+        </div>
+
+        <div className="grid md:grid-cols-[280px_1fr] gap-5">
+          <FormLampiran deviceId={device.id} />
+          <GaleriLampiran lampiran={device.attachments} deviceId={device.id} />
+        </div>
+      </div>
+
       {/* Tiga riwayat */}
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Riwayat Pengguna */}
-        <RiwayatCard
-          title="Riwayat Pengguna"
-          icon={User}
-          accent="text-amber-600 bg-amber-50"
-        >
+        <RiwayatCard title="Riwayat Pengguna" icon={User} accent="text-amber-600 bg-amber-50">
           {device.assignments.length === 0 ? (
             <Kosong text="Belum ada riwayat pengguna." />
           ) : (
             <ul className="space-y-3">
               {device.assignments.map((a) => (
-                <li
-                  key={a.id}
-                  className="relative pl-4 border-l-2 border-slate-100"
-                >
+                <li key={a.id} className="relative pl-4 border-l-2 border-slate-100">
                   <span className="absolute -left-[5px] top-1.5 w-2 h-2 rounded-full bg-amber-500" />
                   <p className="text-sm font-medium text-slate-700">
                     {a.user?.nama ?? "Tidak diketahui"}
@@ -152,21 +178,13 @@ export default async function DeviceDetailPage({
           )}
         </RiwayatCard>
 
-        {/* Riwayat Penempatan */}
-        <RiwayatCard
-          title="Riwayat Penempatan"
-          icon={Building2}
-          accent="text-emerald-600 bg-emerald-50"
-        >
+        <RiwayatCard title="Riwayat Penempatan" icon={Building2} accent="text-emerald-600 bg-emerald-50">
           {device.placements.length === 0 ? (
             <Kosong text="Belum ada riwayat penempatan." />
           ) : (
             <ul className="space-y-3">
               {device.placements.map((p) => (
-                <li
-                  key={p.id}
-                  className="relative pl-4 border-l-2 border-slate-100"
-                >
+                <li key={p.id} className="relative pl-4 border-l-2 border-slate-100">
                   <span className="absolute -left-[5px] top-1.5 w-2 h-2 rounded-full bg-emerald-500" />
                   <p className="text-sm font-medium text-slate-700">
                     {p.company?.nama ?? "-"}
@@ -181,25 +199,15 @@ export default async function DeviceDetailPage({
           )}
         </RiwayatCard>
 
-        {/* Riwayat Troubleshooting */}
-        <RiwayatCard
-          title="Riwayat Troubleshooting"
-          icon={Wrench}
-          accent="text-rose-600 bg-rose-50"
-        >
+        <RiwayatCard title="Riwayat Troubleshooting" icon={Wrench} accent="text-rose-600 bg-rose-50">
           {device.tickets.length === 0 ? (
             <Kosong text="Belum ada tiket troubleshoot." />
           ) : (
             <ul className="space-y-3">
               {device.tickets.map((t) => (
-                <li
-                  key={t.id}
-                  className="relative pl-4 border-l-2 border-slate-100"
-                >
+                <li key={t.id} className="relative pl-4 border-l-2 border-slate-100">
                   <span className="absolute -left-[5px] top-1.5 w-2 h-2 rounded-full bg-rose-500" />
-                  <p className="text-sm font-medium text-slate-700">
-                    {t.judul}
-                  </p>
+                  <p className="text-sm font-medium text-slate-700">{t.judul}</p>
                   <p className="text-xs text-slate-400">
                     {fmtTanggal(t.tglLapor)} · {t.status} · {t.prioritas}
                   </p>
@@ -213,11 +221,21 @@ export default async function DeviceDetailPage({
   );
 }
 
-function Info({ label, value }: { label: string; value: string }) {
+function Info({
+  label,
+  value,
+  mono,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
   return (
     <div>
       <p className="text-xs text-slate-400">{label}</p>
-      <p className="text-slate-700 font-medium">{value}</p>
+      <p className={"text-slate-700 font-medium" + (mono ? " font-mono" : "")}>
+        {value}
+      </p>
     </div>
   );
 }
@@ -240,12 +258,7 @@ function RiwayatCard({
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
       <div className="flex items-center gap-2 mb-4">
-        <span
-          className={
-            "inline-flex items-center justify-center w-8 h-8 rounded-lg " +
-            accent
-          }
-        >
+        <span className={"inline-flex items-center justify-center w-8 h-8 rounded-lg " + accent}>
           <Icon className="w-4 h-4" />
         </span>
         <h2 className="font-semibold text-slate-800">{title}</h2>

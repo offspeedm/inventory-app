@@ -1,42 +1,32 @@
 import prisma from "@/lib/prisma";
-import { FormDevice } from "./form-devices";
-import { TabelDevice } from "./tabel-devices";
+import { FormDevice } from "./form-device";
+import { TabelDevice } from "./tabel-device";
 import { MonitorSmartphone } from "lucide-react";
 
 export default async function DevicesPage() {
   const [deviceTypes, companies, branches, users, devicesRaw] =
     await Promise.all([
-      prisma.deviceType.findMany({
-        select: { id: true, nama: true },
-        orderBy: { nama: "asc" },
-      }),
-      prisma.company.findMany({
-        select: { id: true, nama: true },
-        orderBy: { nama: "asc" },
-      }),
-      prisma.branch.findMany({
-        select: { id: true, nama: true, companyId: true },
-        orderBy: { nama: "asc" },
-      }),
-      prisma.user.findMany({
-        select: { id: true, nama: true },
-        orderBy: { nama: "asc" },
-      }),
+      prisma.deviceType.findMany({ select: { id: true, nama: true }, orderBy: { nama: "asc" } }),
+      prisma.company.findMany({ select: { id: true, nama: true }, orderBy: { nama: "asc" } }),
+      prisma.branch.findMany({ select: { id: true, nama: true, companyId: true }, orderBy: { nama: "asc" } }),
+      prisma.user.findMany({ select: { id: true, nama: true }, orderBy: { nama: "asc" } }),
       prisma.device.findMany({
         include: {
           type: { select: { nama: true } },
           company: { select: { nama: true } },
           branch: { select: { nama: true } },
           user: { select: { nama: true } },
+          _count: { select: { attachments: true } },
         },
         orderBy: { id: "asc" },
       }),
     ]);
 
-  // Ubah Decimal (hargaBeli) menjadi number agar aman dikirim ke client
+  // Ubah Decimal (hargaBeli) jadi number, dan ratakan jumlah lampiran
   const devices = devicesRaw.map((d) => ({
     ...d,
     hargaBeli: d.hargaBeli ? Number(d.hargaBeli) : null,
+    attachmentsCount: d._count.attachments,
   }));
 
   return (
@@ -53,12 +43,7 @@ export default async function DevicesPage() {
         </div>
       </div>
 
-      <FormDevice
-        deviceTypes={deviceTypes}
-        companies={companies}
-        branches={branches}
-        users={users}
-      />
+      <FormDevice deviceTypes={deviceTypes} companies={companies} branches={branches} users={users} />
 
       <TabelDevice
         devices={devices}
