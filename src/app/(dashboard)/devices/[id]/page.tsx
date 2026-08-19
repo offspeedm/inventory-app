@@ -10,6 +10,7 @@ import {
   Paperclip,
   Clock,
   Tag,
+  ListChecks,
 } from "lucide-react";
 import { hitungUsia, usiaBadgeColor } from "@/lib/format-usia";
 import { FormLampiran } from "./form-lampiran";
@@ -52,6 +53,7 @@ export default async function DeviceDetailPage({
       company: true,
       branch: true,
       user: true,
+      attributes: true,
       assignments: {
         include: { user: { select: { nama: true } } },
         orderBy: { tglMulai: "desc" },
@@ -132,6 +134,23 @@ export default async function DeviceDetailPage({
               <Info label="Harga Beli" value={harga ? "Rp " + harga.toLocaleString("id-ID") : "-"} />
               <Info label="Keterangan" value={device.keterangan ?? "-"} />
             </div>
+
+            {/* Spesifikasi dinamis (RAM/CPU/Resolusi/dll.) */}
+            {device.attributes.length > 0 && (
+              <div className="mt-5 pt-5 border-t border-slate-100">
+                <div className="flex items-center gap-2 mb-3">
+                  <ListChecks className="w-4 h-4 text-indigo-500" />
+                  <p className="text-sm font-semibold text-slate-700">
+                    Spesifikasi {device.type?.nama}
+                  </p>
+                </div>
+                <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                  {device.attributes.map((a) => (
+                    <Info key={a.key} label={a.key} value={a.value ?? "-"} />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

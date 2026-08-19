@@ -13,11 +13,13 @@ import {
 } from "lucide-react";
 import { updateDevice, hapusDevice } from "./actions";
 import { hitungUsia, usiaBadgeColor } from "@/lib/format-usia";
+import { getFieldsForType } from "@/config/device-fields";
 
 type DeviceType = { id: number; nama: string };
 type Company = { id: number; nama: string };
 type Branch = { id: number; nama: string; companyId: number | null };
 type UserOpt = { id: number; nama: string };
+type Attr = { key: string; value: string | null };
 type DeviceRow = {
   id: number;
   nama: string;
@@ -38,6 +40,7 @@ type DeviceRow = {
   branch: { nama: string } | null;
   user: { nama: string } | null;
   attachmentsCount: number;
+  attributes: Attr[];
 };
 
 const STATUS = ["Aktif", "Rusak", "Perbaikan", "Tidak dipakai"];
@@ -79,10 +82,21 @@ export function BarisDevice({
   const [companyId, setCompanyId] = useState<string>(
     device.companyId ? String(device.companyId) : ""
   );
+  const [typeId, setTypeId] = useState<string>(
+    device.typeId ? String(device.typeId) : ""
+  );
 
   const filteredBranches = companyId
     ? branches.filter((b) => b.companyId === Number(companyId))
     : [];
+
+  const selectedTypeName = deviceTypes.find((t) => t.id === Number(typeId))?.nama;
+  const dynamicFields = getFieldsForType(selectedTypeName);
+
+  function attrValue(key: string): string {
+    const found = device.attributes.find((a) => a.key === key);
+    return found?.value ?? "";
+  }
 
   const inputClass =
     "w-full border border-slate-300 rounded-lg px-3 py-2 text-sm transition-shadow focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500";
@@ -118,6 +132,11 @@ export function BarisDevice({
               {[device.merk, device.tipe].filter(Boolean).join(" · ") || "—"}
               {device.serialNumber ? ` · SN: ${device.serialNumber}` : ""}
             </p>
+            {device.attributes.length > 0 && (
+              <p className="text-[11px] text-slate-400 truncate">
+                {device.attributes.map((a) => `${a.key}: ${a.value ?? "-"}`).join(" · ")}
+              </p>
+            )}
           </div>
         </Link>
       </td>
@@ -232,7 +251,12 @@ export function BarisDevice({
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">Jenis</label>
-                    <select name="type_id" defaultValue={device.typeId ?? ""} className={inputClass}>
+                    <select
+                      name="type_id"
+                      value={typeId}
+                      onChange={(e) => setTypeId(e.target.value)}
+                      className={inputClass}
+                    >
                       <option value="">Pilih jenis…</option>
                       {deviceTypes.map((t) => (
                         <option key={t.id} value={t.id}>
@@ -257,6 +281,30 @@ export function BarisDevice({
                     <input name="serial_number" defaultValue={device.serialNumber ?? ""} className={inputClass} />
                   </div>
                 </div>
+
+                {/* ===== FIELD SPESIFIKASI DINAMIS (terisi nilai lama) ===== */}
+                {dynamicFields.length > 0 && (
+                  <div className="rounded-xl bg-slate-50 border border-slate-200 p-3">
+                    <p className="text-xs font-semibold text-slate-500 mb-2">
+                      Spesifikasi {selectedTypeName}
+                    </p>
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      {dynamicFields.map((field) => (
+                        <div key={field}>
+                          <label className="block text-xs font-medium text-slate-600 mb-1">
+                            {field}
+                          </label>
+                          <input
+                            name={"attr_" + field}
+                            defaultValue={attrValue(field)}
+                            placeholder={field}
+                            className={inputClass + " bg-white"}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <div className="grid sm:grid-cols-3 gap-3">
                   <div>

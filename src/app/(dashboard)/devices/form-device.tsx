@@ -11,6 +11,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { tambahDevice } from "./actions";
+import { getFieldsForType } from "@/config/device-fields";
 
 type DeviceType = { id: number; nama: string };
 type Company = { id: number; nama: string };
@@ -34,12 +35,17 @@ export function FormDevice({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const [companyId, setCompanyId] = useState<string>("");
+  const [typeId, setTypeId] = useState<string>("");
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [saving, setSaving] = useState(false);
 
   const filteredBranches = companyId
     ? branches.filter((b) => b.companyId === Number(companyId))
     : [];
+
+  // Cari nama jenis dari id yang dipilih, lalu ambil field spesifikasi dinamisnya
+  const selectedTypeName = deviceTypes.find((t) => t.id === Number(typeId))?.nama;
+  const dynamicFields = getFieldsForType(selectedTypeName);
 
   const inputClass =
     "w-full border border-slate-300 rounded-lg px-3 py-2 text-sm transition-shadow focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500";
@@ -59,6 +65,7 @@ export function FormDevice({
   function resetSemua() {
     formRef.current?.reset();
     setCompanyId("");
+    setTypeId("");
     setSelectedFiles([]);
   }
 
@@ -139,7 +146,12 @@ export function FormDevice({
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">
                     Jenis
                   </label>
-                  <select name="type_id" defaultValue="" className={inputClass}>
+                  <select
+                    name="type_id"
+                    value={typeId}
+                    onChange={(e) => setTypeId(e.target.value)}
+                    className={inputClass}
+                  >
                     <option value="">Pilih jenis…</option>
                     {deviceTypes.map((t) => (
                       <option key={t.id} value={t.id}>
@@ -164,6 +176,29 @@ export function FormDevice({
                   <input name="serial_number" placeholder="Serial number" className={inputClass} />
                 </div>
               </div>
+
+              {/* ===== FIELD SPESIFIKASI DINAMIS (menyesuaikan jenis) ===== */}
+              {dynamicFields.length > 0 && (
+                <div className="rounded-xl bg-slate-50 border border-slate-200 p-3">
+                  <p className="text-xs font-semibold text-slate-500 mb-2">
+                    Spesifikasi {selectedTypeName}
+                  </p>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    {dynamicFields.map((field) => (
+                      <div key={field}>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">
+                          {field}
+                        </label>
+                        <input
+                          name={"attr_" + field}
+                          placeholder={field}
+                          className={inputClass + " bg-white"}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="grid sm:grid-cols-3 gap-3">
                 <div>

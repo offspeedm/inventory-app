@@ -8,6 +8,7 @@ type DeviceType = { id: number; nama: string };
 type Company = { id: number; nama: string };
 type Branch = { id: number; nama: string; companyId: number | null };
 type UserOpt = { id: number; nama: string };
+type Attr = { key: string; value: string | null };
 type DeviceRow = {
   id: number;
   nama: string;
@@ -28,6 +29,7 @@ type DeviceRow = {
   branch: { nama: string } | null;
   user: { nama: string } | null;
   attachmentsCount: number;
+  attributes: Attr[];
 };
 
 const STATUS = ["Aktif", "Rusak", "Perbaikan", "Tidak dipakai"];

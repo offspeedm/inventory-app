@@ -16,6 +16,7 @@ export default async function DevicesPage() {
           company: { select: { nama: true } },
           branch: { select: { nama: true } },
           user: { select: { nama: true } },
+          attributes: { select: { key: true, value: true } },
           _count: { select: { attachments: true } },
         },
         orderBy: { id: "asc" },

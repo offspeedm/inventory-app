@@ -11,7 +11,7 @@ export const deviceFields: Record<string, string[]> = {
   Printer: ["Tipe", "Konektivitas"],
   Router: ["Jumlah Port", "Kecepatan"],
   CCTV: ["Resolusi", "Lokasi Pasang"],
-  "Perangkat Lainnya": ["Keterangan"],
+  "Perangkat Lainnya": ["Keterangan Spesifikasi"],
 };
 
 // Ambil daftar field untuk sebuah nama jenis (kosong bila tidak ada).
