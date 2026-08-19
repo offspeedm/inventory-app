@@ -7,13 +7,13 @@ import { tambahPerusahaan } from "./actions";
 export function FormPerusahaan() {
   const formRef = useRef<HTMLFormElement>(null);
   const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const inputClass =
     "w-full border border-slate-300 rounded-lg px-3 py-2 text-sm transition-shadow focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500";
 
   return (
     <>
-      {/* Tombol pembuka popup */}
       <div className="flex justify-end mb-4">
         <button
           onClick={() => setOpen(true)}
@@ -26,18 +26,14 @@ export function FormPerusahaan() {
         </button>
       </div>
 
-      {/* ===== Popup / Modal Tambah ===== */}
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Latar gelap + blur, dengan animasi fade */}
           <div
             onClick={() => setOpen(false)}
             className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200"
           />
 
-          {/* Kotak modal dengan animasi muncul */}
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg text-left animate-in fade-in zoom-in-95 duration-200">
-            {/* Header berwarna dengan ikon */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <div className="flex items-center gap-3">
                 <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-indigo-100 text-indigo-600">
@@ -61,17 +57,17 @@ export function FormPerusahaan() {
               </button>
             </div>
 
-            {/* Body form */}
             <form
               ref={formRef}
               action={async (formData: FormData) => {
+                setSaving(true);
                 await tambahPerusahaan(formData);
                 formRef.current?.reset();
+                setSaving(false);
                 setOpen(false);
               }}
               className="px-6 py-5 grid gap-4"
             >
-              {/* Nama + Inisial */}
               <div className="grid grid-cols-3 gap-3">
                 <div className="col-span-2">
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">
@@ -97,23 +93,23 @@ export function FormPerusahaan() {
                 </div>
               </div>
 
-              {/* Alamat */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Alamat <span className="text-slate-400 font-normal">(opsional)</span>
+                  Alamat{" "}
+                  <span className="text-slate-400 font-normal">(opsional)</span>
                 </label>
                 <textarea
                   name="alamat"
                   rows={4}
-                  placeholder="Tulis alamat lengkap: jalan, nomor, kelurahan, kota, kode pos…"
+                  placeholder="Tulis alamat lengkap…"
                   className={inputClass + " resize-y"}
                 />
               </div>
 
-              {/* No. Telepon */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  No. Telepon <span className="text-slate-400 font-normal">(opsional)</span>
+                  No. Telepon{" "}
+                  <span className="text-slate-400 font-normal">(opsional)</span>
                 </label>
                 <input
                   name="no_telp"
@@ -122,7 +118,6 @@ export function FormPerusahaan() {
                 />
               </div>
 
-              {/* Footer tombol */}
               <div className="flex justify-end gap-2 mt-1 border-t border-slate-100 -mx-6 px-6 pt-4">
                 <button
                   type="button"
@@ -133,9 +128,10 @@ export function FormPerusahaan() {
                 </button>
                 <button
                   type="submit"
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg px-5 py-2 shadow-sm transition-colors"
+                  disabled={saving}
+                  className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white text-sm font-medium rounded-lg px-5 py-2 shadow-sm transition-colors"
                 >
-                  Simpan
+                  {saving ? "Menyimpan…" : "Simpan"}
                 </button>
               </div>
             </form>

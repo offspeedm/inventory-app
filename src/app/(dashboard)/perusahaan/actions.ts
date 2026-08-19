@@ -3,7 +3,6 @@
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
-// Tambah perusahaan baru
 export async function tambahPerusahaan(formData: FormData) {
   const nama = formData.get("nama") as string;
   const inisial = formData.get("inisial") as string;
@@ -20,9 +19,9 @@ export async function tambahPerusahaan(formData: FormData) {
   });
 
   revalidatePath("/perusahaan");
+  revalidatePath("/dashboard");
 }
 
-// Ubah data perusahaan
 export async function updatePerusahaan(formData: FormData) {
   const id = Number(formData.get("id"));
   const nama = formData.get("nama") as string;
@@ -41,9 +40,9 @@ export async function updatePerusahaan(formData: FormData) {
   });
 
   revalidatePath("/perusahaan");
+  revalidatePath(`/perusahaan/${id}`);
 }
 
-// Hapus perusahaan
 export async function hapusPerusahaan(formData: FormData) {
   const id = Number(formData.get("id"));
 
@@ -52,4 +51,5 @@ export async function hapusPerusahaan(formData: FormData) {
   });
 
   revalidatePath("/perusahaan");
+  revalidatePath("/dashboard");
 }
