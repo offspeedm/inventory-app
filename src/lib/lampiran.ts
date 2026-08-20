@@ -3,11 +3,6 @@ import { createClient } from "@/lib/supabase/server";
 
 const BUCKET = "device-attachments";
 
-/**
- * Mengunggah satu atau beberapa file (foto/lampiran) ke Supabase Storage
- * lalu mencatat setiap file ke tabel device_attachments.
- * Dipakai baik saat menambah perangkat baru maupun dari halaman detail.
- */
 export async function simpanLampiranDevice(deviceId: number, files: File[]) {
   if (!deviceId || !files || files.length === 0) return;
 

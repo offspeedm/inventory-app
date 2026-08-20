@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Pencil, Trash2, X, UserCog, Mail, Phone, History } from "lucide-react";
 import { updateUser, hapusUser } from "./actions";
@@ -33,16 +33,24 @@ export function BarisUser({
   index,
   companies,
   branches,
+  autoEditId,
 }: {
   user: UserRow;
   index: number;
   companies: Company[];
   branches: Branch[];
+  autoEditId?: number | null;
 }) {
   const [editing, setEditing] = useState(false);
   const [companyId, setCompanyId] = useState<string>(
     user.companyId ? String(user.companyId) : ""
   );
+
+  useEffect(() => {
+    if (autoEditId && autoEditId === user.id) {
+      setEditing(true);
+    }
+  }, [autoEditId, user.id]);
 
   const filteredBranches = companyId
     ? branches.filter((b) => b.companyId === Number(companyId))
@@ -63,7 +71,6 @@ export function BarisUser({
     <tr className="border-t border-slate-100 hover:bg-slate-50/60 transition-colors">
       <td className="px-4 py-3 text-slate-500">{index + 1}</td>
 
-      {/* Nama + avatar + email/telp (klik untuk lihat riwayat) */}
       <td className="px-4 py-3">
         <Link href={`/users/${user.id}`} className="group flex items-center gap-3">
           <div
@@ -91,7 +98,6 @@ export function BarisUser({
         </Link>
       </td>
 
-      {/* Divisi */}
       <td className="px-4 py-3">
         {user.divisi ? (
           <span className="inline-block rounded-full bg-slate-100 text-slate-600 text-xs font-medium px-2.5 py-1">
@@ -102,7 +108,6 @@ export function BarisUser({
         )}
       </td>
 
-      {/* Penempatan */}
       <td className="px-4 py-3 text-slate-600">
         {user.company?.nama ?? "-"}
         {user.branch && (
@@ -110,7 +115,6 @@ export function BarisUser({
         )}
       </td>
 
-      {/* Aksi */}
       <td className="px-4 py-3">
         <div className="flex gap-1 justify-end">
           <Link
@@ -142,7 +146,6 @@ export function BarisUser({
           </form>
         </div>
 
-        {/* ===== POPUP / MODAL EDIT ===== */}
         {editing && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div
@@ -151,7 +154,6 @@ export function BarisUser({
             />
 
             <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg text-left animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
-              {/* Header */}
               <div className="sticky top-0 bg-white flex items-center justify-between px-6 py-4 border-b border-slate-100 z-10">
                 <div className="flex items-center gap-3">
                   <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-indigo-100 text-indigo-600">
@@ -173,7 +175,6 @@ export function BarisUser({
                 </button>
               </div>
 
-              {/* Body form */}
               <form
                 action={async (formData: FormData) => {
                   await updateUser(formData);
@@ -269,7 +270,6 @@ export function BarisUser({
                   </div>
                 </div>
 
-                {/* Footer */}
                 <div className="sticky bottom-0 bg-white flex justify-end gap-2 mt-1 border-t border-slate-100 -mx-6 px-6 pt-4">
                   <button
                     type="button"

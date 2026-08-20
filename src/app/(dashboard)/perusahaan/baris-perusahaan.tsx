@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Pencil, Trash2, X, Building2, History } from "lucide-react";
 import { updatePerusahaan, hapusPerusahaan } from "./actions";
@@ -19,11 +19,19 @@ type Company = {
 export function BarisPerusahaan({
   company,
   index,
+  autoEditId,
 }: {
   company: Company;
   index: number;
+  autoEditId?: number | null;
 }) {
   const [editing, setEditing] = useState(false);
+
+  useEffect(() => {
+    if (autoEditId && autoEditId === company.id) {
+      setEditing(true);
+    }
+  }, [autoEditId, company.id]);
 
   const inputClass =
     "w-full border border-slate-300 rounded-lg px-3 py-2 text-sm transition-shadow focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500";
@@ -33,10 +41,7 @@ export function BarisPerusahaan({
       <td className="px-4 py-3 text-slate-500">{index + 1}</td>
 
       <td className="px-4 py-3">
-        <Link
-          href={`/perusahaan/${company.id}`}
-          className="group flex items-center gap-2"
-        >
+        <Link href={`/perusahaan/${company.id}`} className="group flex items-center gap-2">
           {company.inisial && (
             <span className="inline-flex items-center justify-center rounded-md bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-1 shrink-0">
               {company.inisial}
@@ -51,9 +56,7 @@ export function BarisPerusahaan({
       <td className="px-4 py-3 text-slate-600">
         {company.alamat ?? "-"}
         {company.noTelp && (
-          <span className="block text-xs text-slate-400">
-            📞 {company.noTelp}
-          </span>
+          <span className="block text-xs text-slate-400">📞 {company.noTelp}</span>
         )}
       </td>
 
@@ -109,9 +112,7 @@ export function BarisPerusahaan({
                     <h2 className="text-base font-semibold text-slate-800 leading-tight">
                       Edit Perusahaan
                     </h2>
-                    <p className="text-xs text-slate-400">
-                      Perbarui informasi perusahaan
-                    </p>
+                    <p className="text-xs text-slate-400">Perbarui informasi perusahaan</p>
                   </div>
                 </div>
                 <button
@@ -137,12 +138,7 @@ export function BarisPerusahaan({
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">
                       Nama Perusahaan
                     </label>
-                    <input
-                      name="nama"
-                      defaultValue={company.nama}
-                      required
-                      className={inputClass}
-                    />
+                    <input name="nama" defaultValue={company.nama} required className={inputClass} />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">
@@ -160,10 +156,7 @@ export function BarisPerusahaan({
 
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                    Alamat{" "}
-                    <span className="text-slate-400 font-normal">
-                      (opsional)
-                    </span>
+                    Alamat <span className="text-slate-400 font-normal">(opsional)</span>
                   </label>
                   <textarea
                     name="alamat"
@@ -175,16 +168,9 @@ export function BarisPerusahaan({
 
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                    No. Telepon{" "}
-                    <span className="text-slate-400 font-normal">
-                      (opsional)
-                    </span>
+                    No. Telepon <span className="text-slate-400 font-normal">(opsional)</span>
                   </label>
-                  <input
-                    name="no_telp"
-                    defaultValue={company.noTelp ?? ""}
-                    className={inputClass}
-                  />
+                  <input name="no_telp" defaultValue={company.noTelp ?? ""} className={inputClass} />
                 </div>
 
                 <div className="flex justify-end gap-2 mt-1 border-t border-slate-100 -mx-6 px-6 pt-4">

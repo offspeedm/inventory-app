@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import { Search } from "lucide-react";
 import { BarisPerusahaan } from "./baris-perusahaan";
 
@@ -17,6 +18,9 @@ type Company = {
 
 export function TabelPerusahaan({ companies }: { companies: Company[] }) {
   const [cari, setCari] = useState("");
+  const searchParams = useSearchParams();
+  const editParam = searchParams.get("edit");
+  const autoEditId = editParam ? Number(editParam) : null;
 
   const hasil = useMemo(() => {
     const kata = cari.trim().toLowerCase();
@@ -64,16 +68,18 @@ export function TabelPerusahaan({ companies }: { companies: Company[] }) {
           <tbody>
             {hasil.length === 0 && (
               <tr>
-                <td
-                  colSpan={7}
-                  className="px-4 py-8 text-center text-slate-400"
-                >
+                <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
                   Tidak ada perusahaan yang cocok.
                 </td>
               </tr>
             )}
             {hasil.map((company, i) => (
-              <BarisPerusahaan key={company.id} company={company} index={i} />
+              <BarisPerusahaan
+                key={company.id}
+                company={company}
+                index={i}
+                autoEditId={autoEditId}
+              />
             ))}
           </tbody>
         </table>

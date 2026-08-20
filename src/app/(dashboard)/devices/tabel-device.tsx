@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import { Search } from "lucide-react";
 import { BarisDevice } from "./baris-device";
 
@@ -50,6 +51,9 @@ export function TabelDevice({
   const [cari, setCari] = useState("");
   const [filterType, setFilterType] = useState<string>("");
   const [filterStatus, setFilterStatus] = useState<string>("");
+  const searchParams = useSearchParams();
+  const editParam = searchParams.get("edit");
+  const autoEditId = editParam ? Number(editParam) : null;
 
   const hasil = useMemo(() => {
     const kata = cari.trim().toLowerCase();
@@ -141,6 +145,7 @@ export function TabelDevice({
                 companies={companies}
                 branches={branches}
                 users={users}
+                autoEditId={autoEditId}
               />
             ))}
           </tbody>

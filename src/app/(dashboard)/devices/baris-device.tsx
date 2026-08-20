@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Pencil,
@@ -70,6 +70,7 @@ export function BarisDevice({
   companies,
   branches,
   users,
+  autoEditId,
 }: {
   device: DeviceRow;
   index: number;
@@ -77,6 +78,7 @@ export function BarisDevice({
   companies: Company[];
   branches: Branch[];
   users: UserOpt[];
+  autoEditId?: number | null;
 }) {
   const [editing, setEditing] = useState(false);
   const [companyId, setCompanyId] = useState<string>(
@@ -85,6 +87,12 @@ export function BarisDevice({
   const [typeId, setTypeId] = useState<string>(
     device.typeId ? String(device.typeId) : ""
   );
+
+  useEffect(() => {
+    if (autoEditId && autoEditId === device.id) {
+      setEditing(true);
+    }
+  }, [autoEditId, device.id]);
 
   const filteredBranches = companyId
     ? branches.filter((b) => b.companyId === Number(companyId))
@@ -108,7 +116,6 @@ export function BarisDevice({
     <tr className="border-t border-slate-100 hover:bg-slate-50/60 transition-colors">
       <td className="px-4 py-3 text-slate-500">{index + 1}</td>
 
-      {/* Perangkat */}
       <td className="px-4 py-3">
         <Link href={`/devices/${device.id}`} className="group inline-flex items-start gap-3">
           <div className="shrink-0 w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
@@ -141,10 +148,8 @@ export function BarisDevice({
         </Link>
       </td>
 
-      {/* Jenis */}
       <td className="px-4 py-3 text-slate-600">{device.type?.nama ?? "-"}</td>
 
-      {/* Usia */}
       <td className="px-4 py-3">
         <span
           className={
@@ -156,21 +161,18 @@ export function BarisDevice({
         </span>
       </td>
 
-      {/* Status */}
       <td className="px-4 py-3">
         <span className={"inline-block rounded-full px-2 py-0.5 text-xs font-medium " + statusColor(device.status)}>
           {device.status}
         </span>
       </td>
 
-      {/* Penempatan / Pengguna */}
       <td className="px-4 py-3 text-slate-600">
         {device.company?.nama ?? "-"}
         {device.branch && <span className="block text-xs text-slate-400">{device.branch.nama}</span>}
         {device.user && <span className="block text-xs text-slate-400">👤 {device.user.nama}</span>}
       </td>
 
-      {/* Aksi */}
       <td className="px-4 py-3">
         <div className="flex gap-1 justify-end">
           <Link
@@ -202,7 +204,6 @@ export function BarisDevice({
           </form>
         </div>
 
-        {/* ===== MODAL EDIT ===== */}
         {editing && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div
@@ -282,7 +283,6 @@ export function BarisDevice({
                   </div>
                 </div>
 
-                {/* ===== FIELD SPESIFIKASI DINAMIS (terisi nilai lama) ===== */}
                 {dynamicFields.length > 0 && (
                   <div className="rounded-xl bg-slate-50 border border-slate-200 p-3">
                     <p className="text-xs font-semibold text-slate-500 mb-2">

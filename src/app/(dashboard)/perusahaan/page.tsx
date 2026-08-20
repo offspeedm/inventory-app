@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import prisma from "@/lib/prisma";
 import { FormPerusahaan } from "./form-perusahaan";
 import { TabelPerusahaan } from "./tabel-perusahaan";
@@ -40,7 +41,9 @@ export default async function PerusahaanPage() {
 
       <FormPerusahaan />
 
-      <TabelPerusahaan companies={companies} />
+      <Suspense fallback={<p className="text-sm text-slate-400">Memuat data…</p>}>
+        <TabelPerusahaan companies={companies} />
+      </Suspense>
     </div>
   );
 }

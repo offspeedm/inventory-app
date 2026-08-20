@@ -1,62 +1,53 @@
+import { Suspense } from "react";
 import prisma from "@/lib/prisma";
 import { FormCabang } from "./form-cabang";
-import { BarisCabang } from "./baris-cabang";
-
-// Tipe data cabang (sesuai hasil query di bawah)
-type BranchWithCompany = {
-  id: number;
-  nama: string;
-  kota: string | null;
-  companyId: number | null;
-  company: { nama: string } | null;
-};
+import { TabelCabang } from "./tabel-cabang";
+import { Network } from "lucide-react";
 
 export default async function CabangPage() {
-  // Ambil daftar perusahaan (untuk pilihan di form)
-  const companies = await prisma.company.findMany({
-    select: { id: true, nama: true },
-    orderBy: { nama: "asc" },
-  });
+  const [companies, branchesRaw] = await Promise.all([
+    prisma.company.findMany({
+      select: { id: true, nama: true },
+      orderBy: { nama: "asc" },
+    }),
+    prisma.branch.findMany({
+      include: {
+        company: { select: { nama: true } },
+        _count: { select: { users: true, devices: true } },
+      },
+      orderBy: { nama: "asc" },
+    }),
+  ]);
 
-  // Ambil daftar cabang + nama perusahaannya
-  const branches = await prisma.branch.findMany({
-    include: { company: { select: { nama: true } } },
-    orderBy: { id: "asc" },
-  });
+  const branches = branchesRaw.map((b) => ({
+    id: b.id,
+    nama: b.nama,
+    kota: b.kota,
+    companyId: b.companyId,
+    company: b.company,
+    user: b._count.users,
+    device: b._count.devices,
+  }));
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-slate-800">Cabang</h1>
-      <p className="text-slate-500 mt-1 mb-4">
-        Kelola cabang tiap perusahaan. Total: {branches.length} cabang.
-      </p>
+      <div className="mb-6 flex items-center gap-3">
+        <div className="flex items-center justify-center w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-sm">
+          <Network className="w-6 h-6" />
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">Cabang</h1>
+          <p className="text-slate-500 text-sm">
+            Kelola cabang tiap perusahaan. Total: {branches.length} cabang.
+          </p>
+        </div>
+      </div>
 
-      {/* Form tambah cabang */}
       <FormCabang companies={companies} />
 
-      {/* Tabel daftar cabang */}
-      <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-slate-600 text-left">
-            <tr>
-              <th className="px-4 py-3 w-16">No</th>
-              <th className="px-4 py-3">Nama Cabang</th>
-              <th className="px-4 py-3">Kota</th>
-              <th className="px-4 py-3">Perusahaan</th>
-            </tr>
-          </thead>
-          <tbody>
-            {branches.map((branch: BranchWithCompany, i: number) => (
-              <BarisCabang
-                key={branch.id}
-                branch={branch}
-                index={i}
-                companies={companies}
-              />
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <Suspense fallback={<p className="text-sm text-slate-400">Memuat data…</p>}>
+        <TabelCabang branches={branches} companies={companies} />
+      </Suspense>
     </div>
   );
 }

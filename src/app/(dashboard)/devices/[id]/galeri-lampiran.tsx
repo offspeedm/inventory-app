@@ -30,18 +30,11 @@ export function GaleriLampiran({
       {lampiran.map((file) => {
         const isImage = file.fileType?.startsWith("image/");
         return (
-          <div
-            key={file.id}
-            className="group relative bg-slate-50 rounded-xl border border-slate-200 overflow-hidden"
-          >
+          <div key={file.id} className="group relative bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
             {isImage ? (
               <a href={file.fileUrl} target="_blank" rel="noopener noreferrer">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={file.fileUrl}
-                  alt={file.fileName}
-                  className="w-full h-28 object-cover"
-                />
+                <img src={file.fileUrl} alt={file.fileName} className="w-full h-28 object-cover" />
               </a>
             ) : (
               <a
@@ -56,10 +49,7 @@ export function GaleriLampiran({
             )}
 
             <div className="p-2">
-              <p
-                className="text-xs text-slate-600 truncate"
-                title={file.fileName}
-              >
+              <p className="text-xs text-slate-600 truncate" title={file.fileName}>
                 {file.fileName}
               </p>
             </div>

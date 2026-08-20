@@ -3,10 +3,6 @@ import { createClient } from "@/lib/supabase/server";
 
 const BUCKET = "ticket-attachments";
 
-/**
- * Mengunggah satu atau beberapa file (foto/lampiran) ke Supabase Storage
- * lalu mencatat setiap file ke tabel ticket_attachments.
- */
 export async function simpanLampiranTiket(ticketId: number, files: File[]) {
   if (!ticketId || !files || files.length === 0) return;
 

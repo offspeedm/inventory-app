@@ -43,7 +43,6 @@ export function FormDevice({
     ? branches.filter((b) => b.companyId === Number(companyId))
     : [];
 
-  // Cari nama jenis dari id yang dipilih, lalu ambil field spesifikasi dinamisnya
   const selectedTypeName = deviceTypes.find((t) => t.id === Number(typeId))?.nama;
   const dynamicFields = getFieldsForType(selectedTypeName);
 
@@ -91,7 +90,6 @@ export function FormDevice({
           />
 
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl text-left animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
-            {/* Header */}
             <div className="sticky top-0 bg-white flex items-center justify-between px-6 py-4 border-b border-slate-100 z-10">
               <div className="flex items-center gap-3">
                 <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-indigo-100 text-indigo-600">
@@ -113,7 +111,6 @@ export function FormDevice({
               </button>
             </div>
 
-            {/* Body */}
             <form
               ref={formRef}
               action={async (formData: FormData) => {
@@ -125,7 +122,6 @@ export function FormDevice({
               }}
               className="px-6 py-5 grid gap-4"
             >
-              {/* Info kode otomatis */}
               <div className="flex items-start gap-2 bg-indigo-50 text-indigo-700 rounded-lg px-3 py-2 text-xs">
                 <Sparkles className="w-4 h-4 shrink-0 mt-0.5" />
                 <span>
@@ -177,7 +173,6 @@ export function FormDevice({
                 </div>
               </div>
 
-              {/* ===== FIELD SPESIFIKASI DINAMIS (menyesuaikan jenis) ===== */}
               {dynamicFields.length > 0 && (
                 <div className="rounded-xl bg-slate-50 border border-slate-200 p-3">
                   <p className="text-xs font-semibold text-slate-500 mb-2">
@@ -274,7 +269,6 @@ export function FormDevice({
                 />
               </div>
 
-              {/* ===== Upload Foto & Lampiran ===== */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">
                   Foto & Lampiran <span className="text-slate-400 font-normal">(opsional, bisa lebih dari satu)</span>
@@ -325,7 +319,6 @@ export function FormDevice({
                 )}
               </div>
 
-              {/* Footer */}
               <div className="sticky bottom-0 bg-white flex justify-end gap-2 mt-1 border-t border-slate-100 -mx-6 px-6 pt-4">
                 <button
                   type="button"

@@ -7,7 +7,6 @@ import { simpanLampiranTiket } from "@/lib/lampiran-tiket";
 
 const BUCKET = "ticket-attachments";
 
-// Unggah lampiran dari halaman detail tiket
 export async function uploadLampiranTiket(formData: FormData) {
   const ticketId = Number(formData.get("ticket_id"));
   const files = formData.getAll("files") as File[];
@@ -19,7 +18,6 @@ export async function uploadLampiranTiket(formData: FormData) {
   revalidatePath(`/troubleshooting/${ticketId}`);
 }
 
-// Hapus satu lampiran tiket
 export async function hapusLampiranTiket(formData: FormData) {
   const id = Number(formData.get("id"));
   const ticketId = Number(formData.get("ticket_id"));

@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import prisma from "@/lib/prisma";
 import { FormUser } from "./form-user";
 import { TabelUser } from "./tabel-user";
@@ -23,7 +24,6 @@ export default async function UsersPage() {
     }),
   ]);
 
-  // ===== Statistik: jumlah user per perusahaan =====
   const perPerusahaanMap = new Map<string, number>();
   users.forEach((u) => {
     const nama = u.company?.nama ?? "Belum ditempatkan";
@@ -34,7 +34,6 @@ export default async function UsersPage() {
     jumlah,
   })).sort((a, b) => b.jumlah - a.jumlah);
 
-  // ===== Statistik: jumlah user per divisi =====
   const perDivisiMap = new Map<string, number>();
   users.forEach((u) => {
     const nama = u.divisi ?? "Tanpa divisi";
@@ -46,7 +45,6 @@ export default async function UsersPage() {
 
   return (
     <div>
-      {/* Header halaman */}
       <div className="mb-6 flex items-center gap-3">
         <div className="flex items-center justify-center w-11 h-11 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-sm">
           <Users className="w-6 h-6" />
@@ -59,14 +57,13 @@ export default async function UsersPage() {
         </div>
       </div>
 
-      {/* Statistik jumlah user per perusahaan & divisi */}
       <StatistikUser perDivisi={perDivisi} perPerusahaan={perPerusahaan} />
 
-      {/* Tombol tambah (popup) */}
       <FormUser companies={companies} branches={branches} />
 
-      {/* Pencarian, filter, & tabel */}
-      <TabelUser users={users} companies={companies} branches={branches} />
+      <Suspense fallback={<p className="text-sm text-slate-400">Memuat data…</p>}>
+        <TabelUser users={users} companies={companies} branches={branches} />
+      </Suspense>
     </div>
   );
 }

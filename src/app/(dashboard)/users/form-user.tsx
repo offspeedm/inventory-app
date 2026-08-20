@@ -33,7 +33,6 @@ export function FormUser({
 
   return (
     <>
-      {/* Tombol pembuka popup */}
       <div className="flex justify-end mb-4">
         <button
           onClick={() => setOpen(true)}
@@ -46,7 +45,6 @@ export function FormUser({
         </button>
       </div>
 
-      {/* ===== Popup / Modal Tambah ===== */}
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
@@ -55,7 +53,6 @@ export function FormUser({
           />
 
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg text-left animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
-            {/* Header */}
             <div className="sticky top-0 bg-white flex items-center justify-between px-6 py-4 border-b border-slate-100 z-10">
               <div className="flex items-center gap-3">
                 <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-indigo-100 text-indigo-600">
@@ -77,7 +74,6 @@ export function FormUser({
               </button>
             </div>
 
-            {/* Body form */}
             <form
               ref={formRef}
               action={async (formData: FormData) => {
@@ -158,7 +154,6 @@ export function FormUser({
                 </div>
               </div>
 
-              {/* Footer */}
               <div className="sticky bottom-0 bg-white flex justify-end gap-2 mt-1 border-t border-slate-100 -mx-6 px-6 pt-4">
                 <button
                   type="button"

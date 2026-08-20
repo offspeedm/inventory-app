@@ -15,7 +15,6 @@ function toNullableDate(value: FormDataEntryValue | null): Date | null {
   return v ? new Date(v) : null;
 }
 
-// Bacakan field umum dari form
 function bacaForm(formData: FormData) {
   const hargaRaw = formData.get("harga_beli") as string;
   return {
@@ -34,7 +33,6 @@ function bacaForm(formData: FormData) {
   };
 }
 
-// Kumpulkan field dinamis (nama input diawali "attr_") menjadi daftar key-value
 function kumpulkanAtribut(
   formData: FormData,
   deviceId: number
@@ -48,31 +46,25 @@ function kumpulkanAtribut(
   return hasil;
 }
 
-// Tambah device baru + kode inventaris otomatis + spesifikasi + riwayat awal + lampiran
 export async function tambahDevice(formData: FormData) {
   const d = bacaForm(formData);
-
-  // Buat kode inventaris otomatis: JENIS-TAHUNBULAN-URUT
   const kodeInventaris = await generateKodeInventaris(d.typeId, d.tglBeli);
 
   const device = await prisma.device.create({
     data: { ...d, kodeInventaris },
   });
 
-  // Simpan field spesifikasi dinamis (RAM/CPU/dll.)
   const atribut = kumpulkanAtribut(formData, device.id);
   if (atribut.length > 0) {
     await prisma.deviceAttribute.createMany({ data: atribut });
   }
 
-  // Catat riwayat pengguna awal
   if (d.userId) {
     await prisma.deviceAssignment.create({
       data: { deviceId: device.id, userId: d.userId, tglMulai: new Date() },
     });
   }
 
-  // Catat riwayat penempatan awal
   if (d.companyId || d.branchId) {
     await prisma.devicePlacement.create({
       data: {
@@ -84,15 +76,13 @@ export async function tambahDevice(formData: FormData) {
     });
   }
 
-  // Simpan foto/lampiran yang ikut diunggah di form tambah
   const files = formData.getAll("files") as File[];
   await simpanLampiranDevice(device.id, files);
 
   revalidatePath("/devices");
+  revalidatePath("/dashboard");
 }
 
-// Ubah device + perbarui spesifikasi + catat perubahan pengguna & penempatan ke riwayat
-// (kode inventaris TIDAK berubah agar tetap jadi identitas tetap aset)
 export async function updateDevice(formData: FormData) {
   const id = Number(formData.get("id"));
   const d = bacaForm(formData);
@@ -100,7 +90,6 @@ export async function updateDevice(formData: FormData) {
   const lama = await prisma.device.findUnique({ where: { id } });
   if (!lama) return;
 
-  // --- Riwayat PENGGUNA: bila userId berubah ---
   if (lama.userId !== d.userId) {
     await prisma.deviceAssignment.updateMany({
       where: { deviceId: id, tglSelesai: null },
@@ -113,7 +102,6 @@ export async function updateDevice(formData: FormData) {
     }
   }
 
-  // --- Riwayat PENEMPATAN: bila company/branch berubah ---
   if (lama.companyId !== d.companyId || lama.branchId !== d.branchId) {
     await prisma.devicePlacement.updateMany({
       where: { deviceId: id, tglSelesai: null },
@@ -133,14 +121,12 @@ export async function updateDevice(formData: FormData) {
 
   await prisma.device.update({ where: { id }, data: d });
 
-  // Perbarui field spesifikasi: hapus yang lama, isi ulang dengan yang baru
   await prisma.deviceAttribute.deleteMany({ where: { deviceId: id } });
   const atribut = kumpulkanAtribut(formData, id);
   if (atribut.length > 0) {
     await prisma.deviceAttribute.createMany({ data: atribut });
   }
 
-  // Simpan foto/lampiran baru bila ada yang diunggah saat edit
   const files = formData.getAll("files") as File[];
   await simpanLampiranDevice(id, files);
 
@@ -148,9 +134,9 @@ export async function updateDevice(formData: FormData) {
   revalidatePath(`/devices/${id}`);
 }
 
-// Hapus device (atribut & lampiran ikut terhapus otomatis karena onDelete: Cascade)
 export async function hapusDevice(formData: FormData) {
   const id = Number(formData.get("id"));
   await prisma.device.delete({ where: { id } });
   revalidatePath("/devices");
+  revalidatePath("/dashboard");
 }

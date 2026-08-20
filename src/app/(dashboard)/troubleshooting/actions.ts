@@ -25,11 +25,10 @@ function bacaForm(formData: FormData) {
     diagnosa: (formData.get("diagnosa") as string) || null,
     catatanTeknisi: (formData.get("catatan_teknisi") as string) || null,
     divisi: (formData.get("divisi") as string) || null,
-    prioritas:
-      (formData.get("urgency") as string) || "Mengganggu pekerjaan",
+    prioritas: (formData.get("urgency") as string) || "Mengganggu pekerjaan",
     status,
     deviceId: toNullableInt(formData.get("device_id")),
-    userId: toNullableInt(formData.get("user_id")), // pelapor
+    userId: toNullableInt(formData.get("user_id")),
     userTerkendalaId: toNullableInt(formData.get("user_terkendala_id")),
     teknisiId: toNullableInt(formData.get("teknisi_id")),
     companyId: toNullableInt(formData.get("company_id")),
@@ -37,7 +36,6 @@ function bacaForm(formData: FormData) {
   };
 }
 
-// Tambah tiket baru + nomor otomatis + lampiran
 export async function tambahTiket(formData: FormData) {
   const d = bacaForm(formData);
   const noTiket = await generateNoTiket();
@@ -62,7 +60,6 @@ export async function tambahTiket(formData: FormData) {
   if (d.deviceId) revalidatePath(`/devices/${d.deviceId}`);
 }
 
-// Ubah tiket (nomor tiket tidak berubah)
 export async function updateTiket(formData: FormData) {
   const id = Number(formData.get("id"));
   const d = bacaForm(formData);
@@ -95,7 +92,6 @@ export async function updateTiket(formData: FormData) {
   }
 }
 
-// Hapus tiket
 export async function hapusTiket(formData: FormData) {
   const id = Number(formData.get("id"));
   const tiket = await prisma.ticket.findUnique({ where: { id } });

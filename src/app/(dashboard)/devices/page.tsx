@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import prisma from "@/lib/prisma";
 import { FormDevice } from "./form-device";
 import { TabelDevice } from "./tabel-device";
@@ -23,7 +24,6 @@ export default async function DevicesPage() {
       }),
     ]);
 
-  // Ubah Decimal (hargaBeli) jadi number, dan ratakan jumlah lampiran
   const devices = devicesRaw.map((d) => ({
     ...d,
     hargaBeli: d.hargaBeli ? Number(d.hargaBeli) : null,
@@ -46,13 +46,15 @@ export default async function DevicesPage() {
 
       <FormDevice deviceTypes={deviceTypes} companies={companies} branches={branches} users={users} />
 
-      <TabelDevice
-        devices={devices}
-        deviceTypes={deviceTypes}
-        companies={companies}
-        branches={branches}
-        users={users}
-      />
+      <Suspense fallback={<p className="text-sm text-slate-400">Memuat data…</p>}>
+        <TabelDevice
+          devices={devices}
+          deviceTypes={deviceTypes}
+          companies={companies}
+          branches={branches}
+          users={users}
+        />
+      </Suspense>
     </div>
   );
 }

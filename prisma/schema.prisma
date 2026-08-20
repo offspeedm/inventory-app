@@ -53,7 +53,7 @@ model User {
   status      String             @default("Aktif")
   assignments DeviceAssignment[]
   devices     Device[]
-    ticketsPelapor    Ticket[] @relation("TicketPelapor")
+  ticketsPelapor    Ticket[] @relation("TicketPelapor")
   ticketsTerkendala Ticket[] @relation("TicketUserTerkendala")
   ticketsTeknisi    Ticket[] @relation("TicketTeknisi")
   branch      Branch?            @relation(fields: [branchId], references: [id])

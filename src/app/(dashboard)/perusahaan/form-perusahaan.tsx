@@ -43,9 +43,7 @@ export function FormPerusahaan() {
                   <h2 className="text-base font-semibold text-slate-800 leading-tight">
                     Tambah Perusahaan
                   </h2>
-                  <p className="text-xs text-slate-400">
-                    Isi informasi perusahaan baru
-                  </p>
+                  <p className="text-xs text-slate-400">Isi informasi perusahaan baru</p>
                 </div>
               </div>
               <button
@@ -95,8 +93,7 @@ export function FormPerusahaan() {
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Alamat{" "}
-                  <span className="text-slate-400 font-normal">(opsional)</span>
+                  Alamat <span className="text-slate-400 font-normal">(opsional)</span>
                 </label>
                 <textarea
                   name="alamat"
@@ -108,14 +105,9 @@ export function FormPerusahaan() {
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  No. Telepon{" "}
-                  <span className="text-slate-400 font-normal">(opsional)</span>
+                  No. Telepon <span className="text-slate-400 font-normal">(opsional)</span>
                 </label>
-                <input
-                  name="no_telp"
-                  placeholder="mis. 021-1234567"
-                  className={inputClass}
-                />
+                <input name="no_telp" placeholder="mis. 021-1234567" className={inputClass} />
               </div>
 
               <div className="flex justify-end gap-2 mt-1 border-t border-slate-100 -mx-6 px-6 pt-4">

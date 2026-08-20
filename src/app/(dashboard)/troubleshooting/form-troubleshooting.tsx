@@ -41,7 +41,6 @@ export function FormTiket({
     ? branches.filter((b) => b.companyId === Number(companyId))
     : [];
 
-  // Perangkat hanya difilter bila user terkendala sudah dipilih
   const filteredDevices = userTerkendalaId
     ? devices.filter((dv) => dv.userId === Number(userTerkendalaId))
     : devices;
@@ -100,7 +99,6 @@ export function FormTiket({
           />
 
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl text-left animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
-            {/* Header */}
             <div className="sticky top-0 bg-white flex items-center justify-between px-6 py-4 border-b border-slate-100 z-10">
               <div className="flex items-center gap-3">
                 <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-indigo-100 text-indigo-600">
@@ -122,7 +120,6 @@ export function FormTiket({
               </button>
             </div>
 
-            {/* Body */}
             <form
               ref={formRef}
               action={async (formData: FormData) => {
@@ -141,13 +138,11 @@ export function FormTiket({
                 </span>
               </div>
 
-              {/* Judul */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">Judul</label>
                 <input name="judul" placeholder="mis. Laptop tidak bisa menyala" required className={inputClass} />
               </div>
 
-              {/* Kategori + Urgency + Status */}
               <div className="grid sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">Kategori</label>
@@ -182,7 +177,6 @@ export function FormTiket({
                 </div>
               </div>
 
-              {/* Waktu Laporan + No Tiket info */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">
                   Waktu Laporan{" "}
@@ -193,7 +187,6 @@ export function FormTiket({
                 <input name="waktu_lapor" type="datetime-local" className={inputClass} />
               </div>
 
-              {/* Pelapor + User Terkendala */}
               <div className="grid sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">Pelapor</label>
@@ -226,7 +219,6 @@ export function FormTiket({
                 </div>
               </div>
 
-              {/* Perangkat (difilter berdasar user terkendala) */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">
                   Perangkat Terkendala{" "}
@@ -249,7 +241,6 @@ export function FormTiket({
                 )}
               </div>
 
-              {/* Divisi + Perusahaan + Cabang */}
               <div className="grid sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">Divisi</label>
@@ -294,7 +285,6 @@ export function FormTiket({
                 </div>
               </div>
 
-              {/* Kendala */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">Kendala</label>
                 <textarea
@@ -305,7 +295,6 @@ export function FormTiket({
                 />
               </div>
 
-              {/* Teknisi + Diagnosa */}
               <div className="grid sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">
@@ -328,7 +317,6 @@ export function FormTiket({
                 </div>
               </div>
 
-              {/* Solusi + Catatan Teknisi */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">
                   Solusi <span className="text-slate-400 font-normal">(opsional)</span>
@@ -347,7 +335,6 @@ export function FormTiket({
                 />
               </div>
 
-              {/* Upload Foto & Lampiran */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">
                   Foto & Lampiran{" "}
@@ -395,7 +382,6 @@ export function FormTiket({
                 )}
               </div>
 
-              {/* Footer */}
               <div className="sticky bottom-0 bg-white flex justify-end gap-2 mt-1 border-t border-slate-100 -mx-6 px-6 pt-4">
                 <button
                   type="button"

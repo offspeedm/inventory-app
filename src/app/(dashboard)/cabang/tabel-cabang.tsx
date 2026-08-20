@@ -3,65 +3,41 @@
 import { useState, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { Search } from "lucide-react";
-import { BarisUser } from "./baris-user";
+import { BarisCabang } from "./baris-cabang";
 
 type Company = { id: number; nama: string };
-type Branch = { id: number; nama: string; companyId: number | null };
-type UserRow = {
+type BranchRow = {
   id: number;
   nama: string;
-  email: string | null;
-  noTelp: string | null;
-  divisi: string | null;
+  kota: string | null;
   companyId: number | null;
-  branchId: number | null;
   company: { nama: string } | null;
-  branch: { nama: string } | null;
+  user: number;
+  device: number;
 };
 
-export function TabelUser({
-  users,
-  companies,
+export function TabelCabang({
   branches,
+  companies,
 }: {
-  users: UserRow[];
+  branches: BranchRow[];
   companies: Company[];
-  branches: Branch[];
 }) {
   const [cari, setCari] = useState("");
-  const [filterCompany, setFilterCompany] = useState<string>("");
-  const [filterDivisi, setFilterDivisi] = useState<string>("");
+  const [filterCompany, setFilterCompany] = useState("");
   const searchParams = useSearchParams();
   const editParam = searchParams.get("edit");
   const autoEditId = editParam ? Number(editParam) : null;
 
-  const divisiList = useMemo(() => {
-    const set = new Set<string>();
-    users.forEach((u) => u.divisi && set.add(u.divisi));
-    return Array.from(set).sort();
-  }, [users]);
-
   const hasil = useMemo(() => {
     const kata = cari.trim().toLowerCase();
-
-    return users.filter((u) => {
-      if (filterCompany && String(u.companyId) !== filterCompany) return false;
-      if (filterDivisi && u.divisi !== filterDivisi) return false;
-
+    return branches.filter((b) => {
+      if (filterCompany && String(b.companyId) !== filterCompany) return false;
       if (!kata) return true;
-      const gabungan = [
-        u.nama,
-        u.email ?? "",
-        u.noTelp ?? "",
-        u.divisi ?? "",
-        u.company?.nama ?? "",
-        u.branch?.nama ?? "",
-      ]
-        .join(" ")
-        .toLowerCase();
+      const gabungan = [b.nama, b.kota ?? "", b.company?.nama ?? ""].join(" ").toLowerCase();
       return gabungan.includes(kata);
     });
-  }, [users, cari, filterCompany, filterDivisi]);
+  }, [branches, cari, filterCompany]);
 
   const inputClass =
     "border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500";
@@ -74,11 +50,10 @@ export function TabelUser({
           <input
             value={cari}
             onChange={(e) => setCari(e.target.value)}
-            placeholder="Cari nama, email, telepon, divisi, cabang…"
+            placeholder="Cari nama cabang, kota, atau perusahaan…"
             className={inputClass + " w-full pl-9"}
           />
         </div>
-
         <select
           value={filterCompany}
           onChange={(e) => setFilterCompany(e.target.value)}
@@ -91,51 +66,38 @@ export function TabelUser({
             </option>
           ))}
         </select>
-
-        <select
-          value={filterDivisi}
-          onChange={(e) => setFilterDivisi(e.target.value)}
-          className={inputClass + " sm:w-44"}
-        >
-          <option value="">Semua divisi</option>
-          {divisiList.map((d) => (
-            <option key={d} value={d}>
-              {d}
-            </option>
-          ))}
-        </select>
       </div>
 
       <p className="text-xs text-slate-400 mb-2">
-        Menampilkan {hasil.length} dari {users.length} user.
+        Menampilkan {hasil.length} dari {branches.length} cabang.
       </p>
 
       <div className="bg-white rounded-xl border border-slate-200 overflow-x-auto">
-        <table className="w-full text-sm min-w-[720px]">
+        <table className="w-full text-sm min-w-[680px]">
           <thead className="bg-slate-50 text-slate-600 text-left">
             <tr>
               <th className="px-4 py-3 w-14">No</th>
-              <th className="px-4 py-3">Nama / Kontak</th>
-              <th className="px-4 py-3">Divisi</th>
-              <th className="px-4 py-3">Penempatan</th>
+              <th className="px-4 py-3">Cabang</th>
+              <th className="px-4 py-3">Perusahaan</th>
+              <th className="px-4 py-3 text-center">User</th>
+              <th className="px-4 py-3 text-center">Device</th>
               <th className="px-4 py-3 text-right">Aksi</th>
             </tr>
           </thead>
           <tbody>
             {hasil.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
-                  Tidak ada user yang cocok.
+                <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
+                  Tidak ada cabang yang cocok.
                 </td>
               </tr>
             )}
-            {hasil.map((user, i) => (
-              <BarisUser
-                key={user.id}
-                user={user}
+            {hasil.map((branch, i) => (
+              <BarisCabang
+                key={branch.id}
+                branch={branch}
                 index={i}
                 companies={companies}
-                branches={branches}
                 autoEditId={autoEditId}
               />
             ))}

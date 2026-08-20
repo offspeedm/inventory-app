@@ -3,7 +3,6 @@ import prisma from "@/lib/prisma";
 /**
  * Membuat nomor tiket otomatis dengan format:
  *   TKT-{TAHUNBULANTANGGAL}-{NO-URUT}
- * Contoh: TKT-20260118-001 (tiket ke-1 pada 18 Januari 2026)
  */
 export async function generateNoTiket(): Promise<string> {
   const sekarang = new Date();

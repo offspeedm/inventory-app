@@ -18,9 +18,7 @@ export function FormLampiran({ deviceId }: { deviceId: number }) {
     const sisa = selected.filter((_, i) => i !== idx);
     const dt = new DataTransfer();
     sisa.forEach((f) => dt.items.add(f));
-    if (inputRef.current) {
-      inputRef.current.files = dt.files;
-    }
+    if (inputRef.current) inputRef.current.files = dt.files;
     setSelected(sisa);
   }
 
@@ -60,10 +58,7 @@ export function FormLampiran({ deviceId }: { deviceId: number }) {
       {selected.length > 0 && (
         <div className="grid gap-2">
           {selected.map((f, i) => (
-            <div
-              key={i}
-              className="flex items-center justify-between gap-2 bg-slate-50 rounded-lg px-3 py-2 text-sm"
-            >
+            <div key={i} className="flex items-center justify-between gap-2 bg-slate-50 rounded-lg px-3 py-2 text-sm">
               <span className="flex items-center gap-2 truncate">
                 {f.type.startsWith("image/") ? (
                   <ImageIcon className="w-4 h-4 text-indigo-500 shrink-0" />
@@ -90,11 +85,7 @@ export function FormLampiran({ deviceId }: { deviceId: number }) {
         disabled={selected.length === 0 || uploading}
         className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg px-4 py-2 transition-colors"
       >
-        {uploading
-          ? "Mengunggah…"
-          : selected.length > 0
-          ? `Unggah ${selected.length} file`
-          : "Pilih file dulu"}
+        {uploading ? "Mengunggah…" : selected.length > 0 ? `Unggah ${selected.length} file` : "Pilih file dulu"}
       </button>
     </form>
   );

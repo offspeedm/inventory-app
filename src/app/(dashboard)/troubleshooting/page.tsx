@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import prisma from "@/lib/prisma";
 import { FormTiket } from "./form-troubleshooting";
 import { TabelTiket } from "./tabel-troubleshooting";
@@ -50,13 +51,15 @@ export default async function TroubleshootingPage() {
 
       <FormTiket companies={companies} branches={branches} devices={devices} users={users} />
 
-      <TabelTiket
-        tickets={ticketsFlat}
-        companies={companies}
-        branches={branches}
-        devices={devices}
-        users={users}
-      />
+      <Suspense fallback={<p className="text-sm text-slate-400">Memuat data…</p>}>
+        <TabelTiket
+          tickets={ticketsFlat}
+          companies={companies}
+          branches={branches}
+          devices={devices}
+          users={users}
+        />
+      </Suspense>
     </div>
   );
 }

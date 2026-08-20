@@ -7,8 +7,6 @@ import { simpanLampiranDevice } from "@/lib/lampiran";
 
 const BUCKET = "device-attachments";
 
-// Unggah satu atau beberapa file (foto/lampiran) untuk sebuah perangkat
-// (dipakai dari halaman detail perangkat)
 export async function uploadLampiran(formData: FormData) {
   const deviceId = Number(formData.get("device_id"));
   const files = formData.getAll("files") as File[];
@@ -20,7 +18,6 @@ export async function uploadLampiran(formData: FormData) {
   revalidatePath(`/devices/${deviceId}`);
 }
 
-// Hapus satu lampiran (dari storage & database)
 export async function hapusLampiran(formData: FormData) {
   const id = Number(formData.get("id"));
   const deviceId = Number(formData.get("device_id"));

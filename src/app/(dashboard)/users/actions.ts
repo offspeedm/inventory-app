@@ -8,7 +8,6 @@ function toNullableInt(value: FormDataEntryValue | null): number | null {
   return value && !Number.isNaN(n) && n > 0 ? n : null;
 }
 
-// Tambah user baru
 export async function tambahUser(formData: FormData) {
   await prisma.user.create({
     data: {
@@ -25,7 +24,6 @@ export async function tambahUser(formData: FormData) {
   revalidatePath("/dashboard");
 }
 
-// Ubah data user
 export async function updateUser(formData: FormData) {
   const id = Number(formData.get("id"));
 
@@ -42,9 +40,9 @@ export async function updateUser(formData: FormData) {
   });
 
   revalidatePath("/users");
+  revalidatePath(`/users/${id}`);
 }
 
-// Hapus user
 export async function hapusUser(formData: FormData) {
   const id = Number(formData.get("id"));
   await prisma.user.delete({ where: { id } });

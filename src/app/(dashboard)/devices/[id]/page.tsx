@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { hitungUsia, usiaBadgeColor } from "@/lib/format-usia";
 import { urgencyColor, statusColor } from "@/config/ticket-fields";
+import { TombolEditDetail } from "@/components/tombol-edit-detail";
 import { FormLampiran } from "./form-lampiran";
 import { GaleriLampiran } from "./galeri-lampiran";
 
@@ -86,43 +87,46 @@ export default async function DeviceDetailPage({
         <ArrowLeft className="w-4 h-4" /> Kembali ke Devices
       </Link>
 
-      {/* Kartu identitas perangkat */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-6">
         <div className="flex items-start gap-4">
           <div className="shrink-0 w-14 h-14 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white flex items-center justify-center shadow-sm">
             <MonitorSmartphone className="w-7 h-7" />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-xl font-bold text-slate-800">
-                {device.nama}
-              </h1>
-              {device.kodeInventaris && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-slate-800 text-white px-2.5 py-0.5 text-xs font-mono font-medium">
-                  <Tag className="w-3 h-3" /> {device.kodeInventaris}
-                </span>
-              )}
-              <span
-                className={
-                  "inline-block rounded-full px-2.5 py-0.5 text-xs font-medium " +
-                  deviceStatusColor(device.status)
-                }
-              >
-                {device.status}
-              </span>
-              <span
-                className={
-                  "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium " +
-                  warnaUsia
-                }
-              >
-                <Clock className="w-3 h-3" /> {usia}
-              </span>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-3">
+                  <h1 className="text-xl font-bold text-slate-800">{device.nama}</h1>
+                  {device.kodeInventaris && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-slate-800 text-white px-2.5 py-0.5 text-xs font-mono font-medium">
+                      <Tag className="w-3 h-3" /> {device.kodeInventaris}
+                    </span>
+                  )}
+                  <span
+                    className={
+                      "inline-block rounded-full px-2.5 py-0.5 text-xs font-medium " +
+                      deviceStatusColor(device.status)
+                    }
+                  >
+                    {device.status}
+                  </span>
+                  <span
+                    className={
+                      "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium " +
+                      warnaUsia
+                    }
+                  >
+                    <Clock className="w-3 h-3" /> {usia}
+                  </span>
+                </div>
+                <p className="text-sm text-slate-500 mt-1">
+                  {[device.merk, device.tipe].filter(Boolean).join(" · ") || "—"}
+                  {device.serialNumber ? ` · SN: ${device.serialNumber}` : ""}
+                </p>
+              </div>
+
+              <TombolEditDetail href={`/devices?edit=${device.id}`} />
             </div>
-            <p className="text-sm text-slate-500 mt-1">
-              {[device.merk, device.tipe].filter(Boolean).join(" · ") || "—"}
-              {device.serialNumber ? ` · SN: ${device.serialNumber}` : ""}
-            </p>
 
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-5 text-sm">
               <Info label="Kode Inventaris" value={device.kodeInventaris ?? "-"} mono />
@@ -155,7 +159,6 @@ export default async function DeviceDetailPage({
         </div>
       </div>
 
-      {/* Foto & Lampiran */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 mb-6">
         <div className="flex items-center gap-2 mb-4">
           <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600">
@@ -175,7 +178,6 @@ export default async function DeviceDetailPage({
         </div>
       </div>
 
-      {/* Tiga riwayat */}
       <div className="grid gap-6 lg:grid-cols-3">
         <RiwayatCard title="Riwayat Pengguna" icon={User} accent="text-amber-600 bg-amber-50">
           {device.assignments.length === 0 ? (
@@ -218,7 +220,6 @@ export default async function DeviceDetailPage({
           )}
         </RiwayatCard>
 
-        {/* Riwayat Troubleshooting - kini bertaut ke halaman detail tiket */}
         <RiwayatCard title="Riwayat Troubleshooting" icon={Wrench} accent="text-rose-600 bg-rose-50">
           {device.tickets.length === 0 ? (
             <Kosong text="Belum ada tiket troubleshoot." />

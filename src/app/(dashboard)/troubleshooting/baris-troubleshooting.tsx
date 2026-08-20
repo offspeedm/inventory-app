@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Pencil, Trash2, X, Wrench, History, Paperclip } from "lucide-react";
 import { updateTiket, hapusTiket } from "./actions";
@@ -50,14 +50,6 @@ type TicketRow = {
   attachmentsCount: number;
 };
 
-function fmtTanggal(d: Date): string {
-  return new Date(d).toLocaleDateString("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
-
 function toDateTimeInput(d: Date | null): string {
   if (!d) return "";
   const dt = new Date(d);
@@ -72,6 +64,7 @@ export function BarisTiket({
   branches,
   devices,
   users,
+  autoEditId,
 }: {
   ticket: TicketRow;
   index: number;
@@ -79,6 +72,7 @@ export function BarisTiket({
   branches: Branch[];
   devices: DeviceOpt[];
   users: UserOpt[];
+  autoEditId?: number | null;
 }) {
   const [editing, setEditing] = useState(false);
   const [userTerkendalaId, setUserTerkendalaId] = useState(
@@ -88,6 +82,12 @@ export function BarisTiket({
     ticket.companyId ? String(ticket.companyId) : ""
   );
   const [divisi, setDivisi] = useState(ticket.divisi ?? "");
+
+  useEffect(() => {
+    if (autoEditId && autoEditId === ticket.id) {
+      setEditing(true);
+    }
+  }, [autoEditId, ticket.id]);
 
   const filteredBranches = companyId
     ? branches.filter((b) => b.companyId === Number(companyId))
@@ -112,7 +112,6 @@ export function BarisTiket({
     <tr className="border-t border-slate-100 hover:bg-slate-50/60 transition-colors">
       <td className="px-4 py-3 text-slate-500">{index + 1}</td>
 
-      {/* Tiket */}
       <td className="px-4 py-3">
         <Link href={`/troubleshooting/${ticket.id}`} className="group inline-flex items-start gap-3">
           <div className="shrink-0 w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
@@ -138,21 +137,18 @@ export function BarisTiket({
         </Link>
       </td>
 
-      {/* Urgency */}
       <td className="px-4 py-3">
         <span className={"inline-block rounded-full px-2 py-0.5 text-xs font-medium " + urgencyColor(ticket.prioritas)}>
           {ticket.prioritas}
         </span>
       </td>
 
-      {/* Status */}
       <td className="px-4 py-3">
         <span className={"inline-block rounded-full px-2 py-0.5 text-xs font-medium " + statusColor(ticket.status)}>
           {ticket.status}
         </span>
       </td>
 
-      {/* Pelapor / Terkendala */}
       <td className="px-4 py-3 text-slate-600">
         {ticket.userTerkendala?.nama ?? "-"}
         {ticket.user && ticket.user.nama !== ticket.userTerkendala?.nama && (
@@ -161,7 +157,6 @@ export function BarisTiket({
         {ticket.divisi && <span className="block text-xs text-slate-400">{ticket.divisi}</span>}
       </td>
 
-      {/* Aksi */}
       <td className="px-4 py-3">
         <div className="flex gap-1 justify-end">
           <Link
@@ -193,7 +188,6 @@ export function BarisTiket({
           </form>
         </div>
 
-        {/* ===== MODAL EDIT ===== */}
         {editing && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div

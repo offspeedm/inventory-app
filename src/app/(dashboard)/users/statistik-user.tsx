@@ -44,7 +44,6 @@ export function StatistikUser({
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 mb-6">
-      {/* Per Perusahaan */}
       <div className="bg-white rounded-xl border border-slate-200 p-5">
         <div className="flex items-center gap-2 mb-4">
           <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600">
@@ -59,7 +58,6 @@ export function StatistikUser({
         )}
       </div>
 
-      {/* Per Divisi */}
       <div className="bg-white rounded-xl border border-slate-200 p-5">
         <div className="flex items-center gap-2 mb-4">
           <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-amber-50 text-amber-600">

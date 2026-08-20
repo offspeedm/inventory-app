@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import { Search } from "lucide-react";
 import { BarisTiket } from "./baris-troubleshooting";
 import { KATEGORI_MASALAH, URGENCY_OPTIONS, STATUS_OPTIONS } from "@/config/ticket-fields";
@@ -60,6 +61,9 @@ export function TabelTiket({
   const [filterStatus, setFilterStatus] = useState("");
   const [filterUrgency, setFilterUrgency] = useState("");
   const [filterKategori, setFilterKategori] = useState("");
+  const searchParams = useSearchParams();
+  const editParam = searchParams.get("edit");
+  const autoEditId = editParam ? Number(editParam) : null;
 
   const hasil = useMemo(() => {
     const kata = cari.trim().toLowerCase();
@@ -159,6 +163,7 @@ export function TabelTiket({
                 branches={branches}
                 devices={devices}
                 users={users}
+                autoEditId={autoEditId}
               />
             ))}
           </tbody>
