@@ -26,6 +26,17 @@ export function FormUser({
   const inputClass =
     "w-full border border-slate-300 rounded-lg px-3 py-2 text-sm transition-shadow focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500";
 
+  const DIVISI = [
+    "Admin - HR",
+    "Operational",
+    "Finance - Accounting",
+    "Billing",
+    "IT-CI-BD",
+    "Messenger",
+    "Management",
+    "Sales",
+  ];
+
   function resetSemua() {
     formRef.current?.reset();
     setCompanyId("");
@@ -62,7 +73,9 @@ export function FormUser({
                   <h2 className="text-base font-semibold text-slate-800 leading-tight">
                     Tambah User
                   </h2>
-                  <p className="text-xs text-slate-400">Isi data pengguna baru</p>
+                  <p className="text-xs text-slate-400">
+                    Isi data pengguna baru
+                  </p>
                 </div>
               </div>
               <button
@@ -89,7 +102,12 @@ export function FormUser({
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">
                   Nama Lengkap
                 </label>
-                <input name="nama" placeholder="mis. Budi Santoso" required className={inputClass} />
+                <input
+                  name="nama"
+                  placeholder="mis. Budi Santoso"
+                  required
+                  className={inputClass}
+                />
               </div>
 
               <div className="grid sm:grid-cols-2 gap-3">
@@ -97,13 +115,22 @@ export function FormUser({
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">
                     Email
                   </label>
-                  <input name="email" type="email" placeholder="nama@perusahaan.com" className={inputClass} />
+                  <input
+                    name="email"
+                    type="email"
+                    placeholder="nama@perusahaan.com"
+                    className={inputClass}
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">
                     No. Telepon
                   </label>
-                  <input name="no_telp" placeholder="mis. 0812xxxxxxx" className={inputClass} />
+                  <input
+                    name="no_telp"
+                    placeholder="mis. 0812xxxxxxx"
+                    className={inputClass}
+                  />
                 </div>
               </div>
 
@@ -111,7 +138,17 @@ export function FormUser({
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">
                   Divisi
                 </label>
-                <input name="divisi" placeholder="mis. IT / Finance / Operasional" className={inputClass} />
+                <select
+                  name="Divisi"
+                  defaultValue="Others"
+                  className={inputClass}
+                >
+                  {DIVISI.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="grid sm:grid-cols-2 gap-3">

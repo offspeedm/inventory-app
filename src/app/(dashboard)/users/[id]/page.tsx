@@ -109,6 +109,7 @@ export default async function UserDetailPage({
         Kembali ke User
       </Link>
 
+      {/* Kartu identitas user */}
       <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
           <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-lg font-bold text-white shadow-sm">
@@ -177,6 +178,7 @@ export default async function UserDetailPage({
       </section>
 
       <div className="grid gap-6 xl:grid-cols-2">
+        {/* Perangkat Terdaftar Saat Ini — dengan scroll vertikal */}
         <Seksi
           title="Perangkat Terdaftar Saat Ini"
           icon={MonitorSmartphone}
@@ -186,13 +188,13 @@ export default async function UserDetailPage({
           {user.devices.length === 0 ? (
             <Kosong text="Belum ada perangkat yang terdaftar pada user ini." />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[520px] text-sm">
-                <thead className="bg-slate-50 text-left text-slate-600">
+            <div className="max-h-80 overflow-y-auto overflow-x-auto rounded-lg border border-slate-100">
+              <table className="w-full min-w-[480px] text-sm">
+                <thead className="sticky top-0 z-10 bg-slate-50 text-left text-slate-600">
                   <tr>
-                    <th className="px-3 py-2">Perangkat</th>
-                    <th className="px-3 py-2">Jenis</th>
-                    <th className="px-3 py-2">Status</th>
+                    <th className="px-3 py-2 bg-slate-50">Perangkat</th>
+                    <th className="px-3 py-2 bg-slate-50">Jenis</th>
+                    <th className="px-3 py-2 bg-slate-50">Status</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -228,6 +230,7 @@ export default async function UserDetailPage({
           )}
         </Seksi>
 
+        {/* Riwayat Penggunaan Perangkat — dengan scroll vertikal */}
         <Seksi
           title="Riwayat Penggunaan Perangkat"
           icon={MonitorSmartphone}
@@ -237,7 +240,7 @@ export default async function UserDetailPage({
           {riwayatPerangkat.length === 0 ? (
             <Kosong text="Belum ada riwayat penggunaan perangkat." />
           ) : (
-            <ul className="max-h-96 divide-y divide-slate-100 overflow-y-auto">
+            <ul className="max-h-80 divide-y divide-slate-100 overflow-y-auto pr-1">
               {riwayatPerangkat.map((item) => (
                 <li key={item.id} className="py-3">
                   <Link
@@ -259,6 +262,7 @@ export default async function UserDetailPage({
         </Seksi>
       </div>
 
+      {/* Riwayat Troubleshooting — dengan scroll vertikal + header sticky */}
       <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="mb-4 flex items-center gap-2">
           <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-rose-600">
@@ -273,16 +277,16 @@ export default async function UserDetailPage({
         {tiket.length === 0 ? (
           <Kosong text="Belum ada tiket troubleshooting yang berkaitan dengan user ini." />
         ) : (
-          <div className="overflow-x-auto">
+          <div className="max-h-96 overflow-y-auto overflow-x-auto rounded-lg border border-slate-100">
             <table className="w-full min-w-[820px] text-sm">
-              <thead className="bg-slate-50 text-left text-slate-600">
+              <thead className="sticky top-0 z-10 bg-slate-50 text-left text-slate-600">
                 <tr>
-                  <th className="px-3 py-2">Tiket</th>
-                  <th className="px-3 py-2">Peran</th>
-                  <th className="px-3 py-2">Perangkat</th>
-                  <th className="px-3 py-2">Urgency</th>
-                  <th className="px-3 py-2">Status</th>
-                  <th className="px-3 py-2">Tanggal</th>
+                  <th className="px-3 py-2 bg-slate-50">Tiket</th>
+                  <th className="px-3 py-2 bg-slate-50">Peran</th>
+                  <th className="px-3 py-2 bg-slate-50">Perangkat</th>
+                  <th className="px-3 py-2 bg-slate-50">Urgency</th>
+                  <th className="px-3 py-2 bg-slate-50">Status</th>
+                  <th className="px-3 py-2 bg-slate-50">Tanggal</th>
                 </tr>
               </thead>
               <tbody>

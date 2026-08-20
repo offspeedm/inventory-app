@@ -30,13 +30,13 @@ const AVATAR_COLORS = [
 
 export function BarisUser({
   user,
-  index,
+  nomor,
   companies,
   branches,
   autoEditId,
 }: {
   user: UserRow;
-  index: number;
+  nomor: number;
   companies: Company[];
   branches: Branch[];
   autoEditId?: number | null;
@@ -65,11 +65,11 @@ export function BarisUser({
     .map((w) => w[0])
     .join("")
     .toUpperCase();
-  const warna = AVATAR_COLORS[index % AVATAR_COLORS.length];
+  const warna = AVATAR_COLORS[nomor % AVATAR_COLORS.length];
 
   return (
     <tr className="border-t border-slate-100 hover:bg-slate-50/60 transition-colors">
-      <td className="px-4 py-3 text-slate-500">{index + 1}</td>
+      <td className="px-4 py-3 text-slate-500">{nomor}</td>
 
       <td className="px-4 py-3">
         <Link href={`/users/${user.id}`} className="group flex items-center gap-3">
@@ -146,6 +146,7 @@ export function BarisUser({
           </form>
         </div>
 
+        {/* ===== POPUP / MODAL EDIT ===== */}
         {editing && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div
