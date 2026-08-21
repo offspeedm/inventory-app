@@ -18,12 +18,12 @@ type BranchRow = {
 
 export function BarisCabang({
   branch,
-  index,
+  nomor,
   companies,
   autoEditId,
 }: {
   branch: BranchRow;
-  index: number;
+  nomor: number;
   companies: Company[];
   autoEditId?: number | null;
 }) {
@@ -40,7 +40,7 @@ export function BarisCabang({
 
   return (
     <tr className="border-t border-slate-100 hover:bg-slate-50/60 transition-colors">
-      <td className="px-4 py-3 text-slate-500">{index + 1}</td>
+      <td className="px-4 py-3 text-slate-500">{nomor}</td>
 
       <td className="px-4 py-3">
         <Link href={`/cabang/${branch.id}`} className="group flex items-center gap-2">
@@ -51,10 +51,11 @@ export function BarisCabang({
             <span className="block font-medium text-slate-800 group-hover:text-indigo-600">
               {branch.nama}
             </span>
-            {branch.kota && <span className="block text-xs text-slate-400">{branch.kota}</span>}
           </span>
         </Link>
       </td>
+
+      <td className="px-4 py-3 text-slate-600">{branch.kota ?? "-"}</td>
 
       <td className="px-4 py-3 text-slate-600">{branch.company?.nama ?? "-"}</td>
 

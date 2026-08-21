@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { useSearchParams } from "next/navigation";
+import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { BarisTiket } from "./baris-troubleshooting";
+import { FilterDropdown } from "@/components/filter-dropdown";
+import { PaginationBar } from "@/components/pagination-bar";
 import { KATEGORI_MASALAH, URGENCY_OPTIONS, STATUS_OPTIONS } from "@/config/ticket-fields";
 
 type Company = { id: number; nama: string };
@@ -44,6 +45,9 @@ type TicketRow = {
   attachmentsCount: number;
 };
 
+type SortField = "judul" | "urgency" | "status";
+type SortDir = "asc" | "desc";
+
 export function TabelTiket({
   tickets,
   companies,
@@ -58,117 +62,216 @@ export function TabelTiket({
   users: UserOpt[];
 }) {
   const [cari, setCari] = useState("");
-  const [filterStatus, setFilterStatus] = useState("");
-  const [filterUrgency, setFilterUrgency] = useState("");
-  const [filterKategori, setFilterKategori] = useState("");
-  const searchParams = useSearchParams();
-  const editParam = searchParams.get("edit");
-  const autoEditId = editParam ? Number(editParam) : null;
+  const [selectedKategori, setSelectedKategori] = useState<string[]>([]);
+  const [selectedUrgency, setSelectedUrgency] = useState<string[]>([]);
+  const [selectedStatus, setSelectedStatus] = useState<string[]>([]);
+  const [sortField, setSortField] = useState<SortField>("judul");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
-  const hasil = useMemo(() => {
-    const kata = cari.trim().toLowerCase();
-    return tickets.filter((t) => {
-      if (filterStatus && t.status !== filterStatus) return false;
-      if (filterUrgency && t.prioritas !== filterUrgency) return false;
-      if (filterKategori && t.kategori !== filterKategori) return false;
-      if (!kata) return true;
-      const gabungan = [
-        t.noTiket ?? "",
+  function toggle(setter: React.Dispatch<React.SetStateAction<string[]>>, value: string) {
+    setter((prev) => (prev.includes(value) ? prev.filter((x) => x !== value) : [...prev, value]));
+    setPage(1);
+  }
+  function resetFilter() {
+    setSelectedKategori([]);
+    setSelectedUrgency([]);
+    setSelectedStatus([]);
+    setPage(1);
+  }
+  function toggleSort(field: SortField) {
+    if (sortField === field) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDir("asc");
+    }
+    setPage(1);
+  }
+
+  const filtered = useMemo(() => {
+    const keyword = cari.trim().toLowerCase();
+
+    let data = tickets.filter((t) => {
+      if (selectedKategori.length > 0 && !selectedKategori.includes(t.kategori ?? "")) return false;
+      if (selectedUrgency.length > 0 && !selectedUrgency.includes(t.prioritas)) return false;
+      if (selectedStatus.length > 0 && !selectedStatus.includes(t.status)) return false;
+      if (!keyword) return true;
+      return [
+        t.noTiket,
         t.judul,
-        t.kendala ?? "",
-        t.kategori ?? "",
-        t.device?.nama ?? "",
-        t.user?.nama ?? "",
-        t.userTerkendala?.nama ?? "",
-        t.teknisi?.nama ?? "",
-        t.divisi ?? "",
+        t.kendala,
+        t.kategori,
+        t.device?.nama,
+        t.user?.nama,
+        t.userTerkendala?.nama,
+        t.teknisi?.nama,
+        t.divisi,
       ]
+        .filter(Boolean)
         .join(" ")
-        .toLowerCase();
-      return gabungan.includes(kata);
+        .toLowerCase()
+        .includes(keyword);
     });
-  }, [tickets, cari, filterStatus, filterUrgency, filterKategori]);
 
+    data = [...data].sort((a, b) => {
+      let cmp = 0;
+      if (sortField === "judul") cmp = a.judul.localeCompare(b.judul);
+      if (sortField === "urgency") cmp = a.prioritas.localeCompare(b.prioritas);
+      if (sortField === "status") cmp = a.status.localeCompare(b.status);
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+
+    return data;
+  }, [tickets, cari, selectedKategori, selectedUrgency, selectedStatus, sortField, sortDir]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const paged = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
+
+  const activeCount = selectedKategori.length + selectedUrgency.length + selectedStatus.length;
   const inputClass =
-    "border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500";
+    "rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500";
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row gap-3 mb-4">
+      <div className="mb-3 flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
             value={cari}
-            onChange={(e) => setCari(e.target.value)}
-            placeholder="Cari no tiket, judul, kendala, pelapor, teknisi…"
+            onChange={(e) => {
+              setCari(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Cari no tiket, judul, kendala, pelapor, teknisi..."
             className={inputClass + " w-full pl-9"}
           />
         </div>
-        <select value={filterKategori} onChange={(e) => setFilterKategori(e.target.value)} className={inputClass + " sm:w-48"}>
-          <option value="">Semua kategori</option>
-          {KATEGORI_MASALAH.map((k) => (
-            <option key={k} value={k}>
-              {k}
-            </option>
-          ))}
-        </select>
-        <select value={filterUrgency} onChange={(e) => setFilterUrgency(e.target.value)} className={inputClass + " sm:w-52"}>
-          <option value="">Semua urgency</option>
-          {URGENCY_OPTIONS.map((u) => (
-            <option key={u} value={u}>
-              {u}
-            </option>
-          ))}
-        </select>
-        <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className={inputClass + " sm:w-40"}>
-          <option value="">Semua status</option>
-          {STATUS_OPTIONS.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
+
+        <FilterDropdown
+          activeCount={activeCount}
+          onReset={resetFilter}
+          sections={[
+            {
+              title: "Kategori",
+              options: KATEGORI_MASALAH.map((k) => ({
+                key: k,
+                label: k,
+                checked: selectedKategori.includes(k),
+                onToggle: () => toggle(setSelectedKategori, k),
+              })),
+            },
+            {
+              title: "Urgency",
+              options: URGENCY_OPTIONS.map((u) => ({
+                key: u,
+                label: u,
+                checked: selectedUrgency.includes(u),
+                onToggle: () => toggle(setSelectedUrgency, u),
+              })),
+            },
+            {
+              title: "Status",
+              options: STATUS_OPTIONS.map((s) => ({
+                key: s,
+                label: s,
+                checked: selectedStatus.includes(s),
+                onToggle: () => toggle(setSelectedStatus, s),
+              })),
+            },
+          ]}
+        />
       </div>
 
-      <p className="text-xs text-slate-400 mb-2">
-        Menampilkan {hasil.length} dari {tickets.length} tiket.
+      <p className="mb-2 text-xs text-slate-400">
+        Menampilkan {paged.length} dari {filtered.length} tiket (total {tickets.length}).
       </p>
 
-      <div className="bg-white rounded-xl border border-slate-200 overflow-x-auto">
-        <table className="w-full text-sm min-w-[820px]">
-          <thead className="bg-slate-50 text-slate-600 text-left">
-            <tr>
-              <th className="px-4 py-3 w-14">No</th>
-              <th className="px-4 py-3">Tiket</th>
-              <th className="px-4 py-3">Urgency</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Pelapor / Terkendala</th>
-              <th className="px-4 py-3 text-right">Aksi</th>
-            </tr>
-          </thead>
-          <tbody>
-            {hasil.length === 0 && (
+      <div className="rounded-xl border border-slate-200 bg-white">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[820px] text-sm">
+            <thead className="bg-slate-50 text-left text-slate-600">
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
-                  Tidak ada tiket yang cocok.
-                </td>
+                <th className="w-14 px-4 py-3">No</th>
+                <th className="px-4 py-3">
+                  <SortButton label="Tiket" field="judul" sortField={sortField} sortDir={sortDir} onClick={toggleSort} />
+                </th>
+                <th className="px-4 py-3">
+                  <SortButton label="Urgency" field="urgency" sortField={sortField} sortDir={sortDir} onClick={toggleSort} />
+                </th>
+                <th className="px-4 py-3">
+                  <SortButton label="Status" field="status" sortField={sortField} sortDir={sortDir} onClick={toggleSort} />
+                </th>
+                <th className="px-4 py-3">Pelapor / Terkendala</th>
+                <th className="px-4 py-3 text-right">Aksi</th>
               </tr>
-            )}
-            {hasil.map((ticket, i) => (
-              <BarisTiket
-                key={ticket.id}
-                ticket={ticket}
-                index={i}
-                companies={companies}
-                branches={branches}
-                devices={devices}
-                users={users}
-                autoEditId={autoEditId}
-              />
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {paged.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-10 text-center text-slate-400">
+                    Tidak ada tiket yang cocok.
+                  </td>
+                </tr>
+              ) : (
+                paged.map((ticket, index) => (
+                  <BarisTiket
+                    key={ticket.id}
+                    ticket={ticket}
+                    index={(safePage - 1) * pageSize + index}
+                    companies={companies}
+                    branches={branches}
+                    devices={devices}
+                    users={users}
+                  />
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <PaginationBar
+          page={safePage}
+          totalPages={totalPages}
+          totalItems={filtered.length}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPage(1);
+          }}
+        />
       </div>
     </div>
+  );
+}
+
+function SortButton({
+  label,
+  field,
+  sortField,
+  sortDir,
+  onClick,
+}: {
+  label: string;
+  field: SortField;
+  sortField: SortField;
+  sortDir: SortDir;
+  onClick: (f: SortField) => void;
+}) {
+  const active = sortField === field;
+  return (
+    <button
+      type="button"
+      onClick={() => onClick(field)}
+      className="inline-flex items-center gap-1 hover:text-slate-800"
+    >
+      {label}{" "}
+      <span className={active ? "text-indigo-600" : "text-slate-300"}>
+        {active ? (sortDir === "asc" ? "↑" : "↓") : "↕"}
+      </span>
+    </button>
   );
 }

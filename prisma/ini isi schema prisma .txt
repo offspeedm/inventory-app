@@ -1,0 +1,198 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Company {
+  id        Int      @id @default(autoincrement())
+  nama      String
+  alamat    String?
+  createdAt DateTime @default(now()) @map("created_at")
+  noTelp    String?  @map("no_telp")
+  inisial   String?  @map("inisial")
+  branches  Branch[]
+  devices   Device[]
+  tickets   Ticket[]
+  users     User[]
+  placements DevicePlacement[]
+
+  @@map("companies")
+}
+
+model Branch {
+  id        Int      @id @default(autoincrement())
+  nama      String
+  kota      String?
+  companyId Int?     @map("company_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  devices   Device[]
+  tickets   Ticket[]
+  users     User[]
+  placements DevicePlacement[]
+
+  @@map("branches")
+}
+
+model User {
+  id          Int                @id @default(autoincrement())
+  nama        String
+  email       String?            @unique
+  jabatan     String?
+  role        String             @default("staff")
+  companyId   Int?               @map("company_id")
+  branchId    Int?               @map("branch_id")
+  createdAt   DateTime           @default(now()) @map("created_at")
+  divisi      String?
+  noTelp      String?            @map("no_telp")
+  status      String             @default("Aktif")
+  assignments DeviceAssignment[]
+  devices     Device[]
+  ticketsPelapor    Ticket[] @relation("TicketPelapor")
+  ticketsTerkendala Ticket[] @relation("TicketUserTerkendala")
+  ticketsTeknisi    Ticket[] @relation("TicketTeknisi")
+  branch      Branch?            @relation(fields: [branchId], references: [id])
+  company     Company?           @relation(fields: [companyId], references: [id])
+
+  @@map("users")
+}
+
+model DeviceType {
+  id        Int      @id @default(autoincrement())
+  nama      String
+  kode String?
+  createdAt DateTime @default(now()) @map("created_at")
+  devices   Device[]
+
+  @@map("device_types")
+}
+
+model Device {
+  id           Int       @id @default(autoincrement())
+  nama         String
+  merk         String?
+  tipe         String?
+  keterangan   String?
+  typeId       Int?      @map("type_id")
+  serialNumber String?   @map("serial_number")
+    kodeInventaris String? @unique @map("kode_inventaris")
+  tglBeli      DateTime? @map("tgl_beli") @db.Date
+  hargaBeli    Decimal?  @map("harga_beli")
+  status       String    @default("Aktif")
+  companyId    Int?      @map("company_id")
+  branchId     Int?      @map("branch_id")
+  userId       Int?      @map("user_id")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  type        DeviceType?        @relation(fields: [typeId], references: [id])
+  company     Company?           @relation(fields: [companyId], references: [id])
+  branch      Branch?            @relation(fields: [branchId], references: [id])
+  user        User?              @relation(fields: [userId], references: [id])
+  attributes  DeviceAttribute[]
+  assignments DeviceAssignment[]
+  placements  DevicePlacement[]
+  tickets     Ticket[]
+  attachments DeviceAttachment[]
+
+  @@map("devices")
+}
+
+model DeviceAttribute {
+  id       Int     @id @default(autoincrement())
+  deviceId Int     @map("device_id")
+  key      String
+  value    String?
+  device   Device  @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@map("device_attributes")
+}
+
+model DeviceAssignment {
+  id         Int       @id @default(autoincrement())
+  deviceId   Int       @map("device_id")
+  userId     Int?      @map("user_id")
+  tglMulai   DateTime? @map("tgl_mulai") @db.Date
+  tglSelesai DateTime? @map("tgl_selesai") @db.Date
+  device     Device    @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  user       User?     @relation(fields: [userId], references: [id])
+
+  @@map("device_assignments")
+}
+
+model DevicePlacement {
+  id         Int       @id @default(autoincrement())
+  deviceId   Int       @map("device_id")
+  companyId  Int?      @map("company_id")
+  branchId   Int?      @map("branch_id")
+  tglMulai   DateTime  @default(now()) @map("tgl_mulai")
+  tglSelesai DateTime? @map("tgl_selesai")
+
+  device  Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  company Company? @relation(fields: [companyId], references: [id])
+  branch  Branch?  @relation(fields: [branchId], references: [id])
+
+  @@map("device_placements")
+}
+
+model DeviceAttachment {
+  id         Int      @id @default(autoincrement())
+  deviceId   Int      @map("device_id")
+  fileName   String   @map("file_name")
+  fileUrl    String   @map("file_url")
+  fileType   String?  @map("file_type")
+  uploadedAt DateTime @default(now()) @map("uploaded_at")
+
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@map("device_attachments")
+}
+
+model Ticket {
+  id               Int       @id @default(autoincrement())
+  noTiket          String?   @unique @map("no_tiket")
+  deviceId         Int?      @map("device_id")
+  userId           Int?      @map("user_id")               // Pelapor
+  userTerkendalaId Int?      @map("user_terkendala_id")     // User yang mengalami kendala
+  teknisiId        Int?      @map("teknisi_id")
+  branchId         Int?      @map("branch_id")
+  companyId        Int?      @map("company_id")
+  divisi           String?
+  judul            String
+  kategori         String?
+  kendala          String?
+  diagnosa         String?
+  solusi           String?
+  catatanTeknisi   String?   @map("catatan_teknisi")
+  prioritas        String    @default("Mengganggu pekerjaan")
+  status           String    @default("Baru")
+  tglLapor         DateTime  @default(now()) @map("tgl_lapor")
+  tglSelesai       DateTime? @map("tgl_selesai")
+
+  device         Device?  @relation(fields: [deviceId], references: [id])
+  user           User?    @relation("TicketPelapor", fields: [userId], references: [id])
+  userTerkendala User?    @relation("TicketUserTerkendala", fields: [userTerkendalaId], references: [id])
+  teknisi        User?    @relation("TicketTeknisi", fields: [teknisiId], references: [id])
+  branch         Branch?  @relation(fields: [branchId], references: [id])
+  company        Company? @relation(fields: [companyId], references: [id])
+  attachments    TicketAttachment[]
+
+  @@map("tickets")
+}
+
+model TicketAttachment {
+  id         Int      @id @default(autoincrement())
+  ticketId   Int      @map("ticket_id")
+  fileName   String   @map("file_name")
+  fileUrl    String   @map("file_url")
+  fileType   String?  @map("file_type")
+  uploadedAt DateTime @default(now()) @map("uploaded_at")
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@map("ticket_attachments")
+}
