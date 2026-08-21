@@ -5,6 +5,7 @@ import {
   GitBranch,
   Laptop,
   Wrench,
+  Upload,
   type LucideIcon,
 } from "lucide-react";
 
@@ -21,4 +22,5 @@ export const navItems: NavItem[] = [
   { title: "Cabang", href: "/cabang", icon: GitBranch },
   { title: "Devices", href: "/devices", icon: Laptop },
   { title: "Troubleshooting", href: "/troubleshooting", icon: Wrench },
+  { title: "Import Data", href: "/import", icon: Upload },
 ];
