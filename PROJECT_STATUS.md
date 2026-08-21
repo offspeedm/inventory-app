@@ -1,218 +1,225 @@
-# 📋 PROJECT STATUS — Inventory App
+# PROJECT STATUS — Inventory & Device Management App
 
-> **Terakhir diperbarui:** 20 Agustus 2026
-> **Pemilik:** Chairul Imam — Grup Speedmark & Afiliasi
-> **Tujuan file ini:** Ringkasan progres agar sesi baru (chat/AI assistant baru) bisa langsung memahami konteks project tanpa perlu dijelaskan ulang dari awal.
+> **Cara pakai file ini:** tempel seluruh isi file ini ke awal percakapan baru
+> dengan Copilot supaya konteks project langsung tersambung tanpa perlu
+> menjelaskan ulang dari nol. Perbarui bagian "Riwayat Perubahan" setiap kali
+> ada fitur besar yang selesai dikerjakan.
 
----
-
-## 🧱 Tech Stack
-
-| Layer           | Teknologi                                                 |
-| --------------- | --------------------------------------------------------- |
-| Framework       | Next.js (App Router, Server Actions)                      |
-| Bahasa          | TypeScript                                                |
-| Styling         | Tailwind CSS                                              |
-| Ikon            | lucide-react                                              |
-| Database        | PostgreSQL (via Supabase)                                 |
-| ORM             | Prisma **v6** (bukan v7 — lihat catatan masalah di bawah) |
-| Auth            | Supabase Auth (`@supabase/ssr`) — bukan NextAuth          |
-| File Storage    | Supabase Storage (2 bucket terpisah)                      |
-| Grafik          | Recharts                                                  |
-| Version Control | Git + GitHub                                              |
+**Terakhir diperbarui:** 21 Agustus 2026
+**Pemilik project:** Chairul Imam
+**Lokasi project:** `C:\Users\Chairul Imam\Development\inventory-app`
+**Repo:** disarankan disimpan di GitHub sebagai workspace permanen
 
 ---
 
-## 🗺️ Roadmap — Status per Tahap
+## 1. Ringkasan Project
 
-| Tahap | Nama                                                   | Status                  |
-| ----- | ------------------------------------------------------ | ----------------------- |
-| 0     | Persiapan (Node.js, VS Code, Git, GitHub)              | ✅ Selesai              |
-| 1     | Fondasi Tampilan (Tailwind, sidebar, layout)           | ✅ Selesai              |
-| 2     | Database (Prisma + Supabase, schema, seed data master) | ✅ Selesai              |
-| 3     | Autentikasi (Supabase Auth, middleware, login, logout) | ✅ Selesai              |
-| 4     | CRUD Inti (Perusahaan, Cabang, User, Devices)          | ✅ Selesai              |
-| 5     | Troubleshooting (tiket, lampiran, riwayat)             | ✅ Selesai              |
-| 6     | Dashboard & Grafik (KPI, Recharts)                     | ✅ Selesai              |
-| 7     | Publikasi (Deploy ke Vercel)                           | ⏳ **Belum dikerjakan** |
+Aplikasi web manajemen inventaris IT untuk 5 perusahaan (PT. Speedmark
+Logistics Indonesia, PT. Sarana Allport Cargo Services, PT. Glorindo Oksana
+Logistics, PT. Swift Kargonize, PT. CNL Logistics Indonesia) beserta
+cabang-cabangnya. Mengelola data Perusahaan, Cabang, User, Devices
+(perangkat IT), dan Troubleshooting (tiket kendala), lengkap dengan riwayat
+penggunaan/penempatan perangkat dan laporan gangguan.
 
-**Progress keseluruhan: 6 dari 7 tahap besar tuntas.** Sisa pekerjaan utama: deploy ke Vercel + database cloud production, lalu uji end-to-end.
+## 2. Stack Teknologi
 
----
+| Lapisan | Teknologi |
+|---|---|
+| Framework | Next.js (App Router) |
+| Bahasa | TypeScript |
+| Styling | Tailwind CSS |
+| Ikon | lucide-react |
+| Database | PostgreSQL via Supabase |
+| ORM | Prisma v6 |
+| Autentikasi | Supabase Auth (email/password) + middleware proteksi rute |
+| Penyimpanan file | Supabase Storage (2 bucket: `device-attachments`,
+  `ticket-attachments`) |
+| Grafik | Recharts |
+| Import/Export Excel | ExcelJS (baca & tulis file .xlsx di browser) |
+| Hosting rencana | Vercel (belum dieksekusi) |
 
-## 🗄️ Skema Database (Prisma) — Ringkasan Model
+## 3. Struktur Folder Utama
 
-> Nama field pakai **camelCase** di Prisma, tersimpan sebagai **snake_case** di Postgres (via `@map`). Nama relasi memakai **PascalCase tunggal** (mis. `Company`, `Branch`) — ini penting saat menulis query `include`/`_count`.
+```
+src/
+├── app/
+│   ├── login/                          # Halaman login (di luar folder dashboard)
+│   └── (dashboard)/                    # Semua halaman setelah login
+│       ├── layout.tsx                  # Sidebar + Header (Server Component)
+│       ├── dashboard/                  # KPI + grafik + aktivitas terbaru
+│       ├── perusahaan/
+│       │   ├── page.tsx                # Tabel sederhana (bukan card)
+│       │   ├── [id]/page.tsx           # Detail: cabang/user/device/tiket terkait
+│       │   ├── actions.ts, form-perusahaan.tsx, baris-perusahaan.tsx,
+│       │   │   tabel-perusahaan.tsx (dengan pagination+filter+sort)
+│       ├── cabang/                     # Sama polanya dengan Perusahaan
+│       ├── users/
+│       │   ├── page.tsx, actions.ts, form-user.tsx, baris-user.tsx,
+│       │   │   tabel-user.tsx (status Aktif/Non-Aktif, pagination, filter, sort)
+│       │   ├── statistik-user.tsx      # Statistik per perusahaan & divisi
+│       │   └── [id]/page.tsx           # Detail user + riwayat troubleshooting
+│       ├── devices/
+│       │   ├── page.tsx, actions.ts, form-device.tsx, baris-device.tsx,
+│       │   │   tabel-device.tsx (kode inventaris otomatis, field dinamis,
+│       │   │   pagination, filter, sort)
+│       │   └── [id]/
+│       │       ├── page.tsx            # Detail: usia, spesifikasi, lampiran,
+│       │       │                         3 riwayat (pengguna/penempatan/tiket)
+│       │       ├── actions.ts, form-lampiran.tsx, galeri-lampiran.tsx
+│       ├── troubleshooting/
+│       │   ├── page.tsx, actions.ts, form-troubleshooting.tsx,
+│       │   │   baris-troubleshooting.tsx, tabel-troubleshooting.tsx
+│       │   └── [id]/
+│       │       ├── page.tsx, actions.ts, form-lampiran.tsx, galeri-lampiran.tsx
+│       └── import/
+│           ├── page.tsx, actions.ts    # Import User & Devices dari Excel
+│           └── import-data-view.tsx    # Generate template + baca file (ExcelJS)
+├── components/
+│   ├── filter-dropdown.tsx             # Filter checkbox, pakai React Portal
+│   ├── pagination-bar.tsx              # Bar paginasi dipakai di 4 halaman
+│   └── charts/                         # chart-perusahaan, chart-jenis, chart-tiket
+├── config/
+│   ├── ticket-fields.ts                # KATEGORI_MASALAH, URGENCY_OPTIONS, dll.
+│   └── device-fields.ts                # Field dinamis spesifikasi per jenis device
+└── lib/
+    ├── prisma.ts, supabase/ (client & server & middleware)
+    ├── kode-inventaris.ts              # Generator kode: JENIS-TAHUNBULAN-URUT
+    ├── lampiran.ts, lampiran-tiket.ts   # Upload ke Supabase Storage
+    └── format-usia.ts                  # Hitung usia pakai perangkat
+```
 
-| Model              | Kolom penting                                                                                                                                                                                                                                      | Relasi                                                                                              |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| `Company`          | nama, alamat, noTelp, inisial                                                                                                                                                                                                                      | → branches, devices, tickets, users, placements                                                     |
-| `Branch`           | nama, kota, companyId                                                                                                                                                                                                                              | → devices, tickets, users, placements                                                               |
-| `User`             | nama, email, jabatan, role, divisi, noTelp, status, companyId, branchId                                                                                                                                                                            | → devices, assignments; tiket via 3 relasi: `ticketsPelapor`, `ticketsTerkendala`, `ticketsTeknisi` |
-| `DeviceType`       | nama, kode (inisial 2 huruf, mis. "LT")                                                                                                                                                                                                            | → devices                                                                                           |
-| `Device`           | nama, merk, tipe, keterangan, serialNumber, **kodeInventaris** (unik, auto-generate), tglBeli, hargaBeli (Decimal), status, typeId, companyId, branchId, userId                                                                                    | → attributes, assignments, placements, tickets, attachments                                         |
-| `DeviceAttribute`  | key, value (field dinamis spesifikasi per jenis)                                                                                                                                                                                                   | → device                                                                                            |
-| `DeviceAssignment` | userId, tglMulai, tglSelesai (riwayat siapa memakai kapan)                                                                                                                                                                                         | → device, user                                                                                      |
-| `DevicePlacement`  | companyId, branchId, tglMulai, tglSelesai (riwayat perpindahan lokasi)                                                                                                                                                                             | → device, company, branch                                                                           |
-| `DeviceAttachment` | fileName, fileUrl, fileType                                                                                                                                                                                                                        | → device (foto/lampiran perangkat)                                                                  |
-| `Ticket`           | **noTiket** (unik, auto-generate), judul, kategori, kendala, diagnosa, solusi, catatanTeknisi, prioritas (dipakai sebagai **urgency**), status, tglLapor, tglSelesai, deviceId, userId (pelapor), userTerkendalaId, teknisiId, companyId, branchId | → attachments                                                                                       |
-| `TicketAttachment` | fileName, fileUrl, fileType                                                                                                                                                                                                                        | → ticket (foto/lampiran tiket)                                                                      |
+## 4. Schema Prisma (Model & Relasi Kunci)
 
-**Field custom penting yang dibuat lewat pengembangan iteratif:**
+> ⚠️ **Catatan penting:** nama model pakai PascalCase (`Company`, `Branch`,
+> `User`, `Device`, dst.), tapi diakses di kode dengan huruf kecil di awal
+> (`prisma.company`, `prisma.branch`, `prisma.user`). Field relasi JUGA
+> huruf kecil (`branch.company`, bukan `branch.Company`). Ini pernah jadi
+> sumber banyak bug — selalu cek `schema.prisma` asli sebelum menulis query
+> baru bila ragu.
 
-- `Device.kodeInventaris` — otomatis dibuat format **`JENIS-TAHUNBULAN-URUT`** (mis. `LT-202601-001`), lihat `src/lib/kode-inventaris.ts`
-- `Ticket.noTiket` — otomatis dibuat format **`TKT-TAHUNBULANTANGGAL-URUT`**, lihat `src/lib/no-tiket.ts`
-- `Ticket.prioritas` dipakai sebagai kolom **Urgency** dengan 3 nilai: `Tidak mengganggu pekerjaan`, `Mengganggu pekerjaan`, `Pekerjaan berhenti`
+Model utama: `Company`, `Branch`, `User`, `DeviceType`, `Device`,
+`DeviceAttribute` (spesifikasi dinamis), `DeviceAssignment` (riwayat
+pengguna), `DevicePlacement` (riwayat penempatan), `DeviceAttachment`
+(lampiran foto/dokumen device), `Ticket` (troubleshooting, dengan 3 relasi
+User terpisah: pelapor/`userId`, user terkendala/`userTerkendalaId`,
+teknisi/`teknisiId`), `TicketAttachment`.
 
----
+Field penting yang sudah ditambahkan seiring waktu:
+- `Company`: `inisial`, `noTelp`
+- `User`: `noTelp`, `divisi`, `status` (default `"Aktif"`)
+- `Device`: `merk`, `tipe`, `keterangan`, `kodeInventaris` (unik, auto-generate)
+- `Ticket`: `noTiket` (unik, auto-generate), `kategori`, `kendala`, `diagnosa`,
+  `solusi`, `catatanTeknisi`, `divisi`, `prioritas` (dipakai sebagai field
+  urgency: "Tidak mengganggu pekerjaan" / "Mengganggu pekerjaan" / "Pekerjaan
+  berhenti"), `status` ("Baru"/"Diproses"/"Selesai")
 
-## 🏢 Data Master (Seed)
+## 5. Fitur yang Sudah Selesai
 
-**5 Perusahaan:**
+- [x] **Tahap 0-1**: Fondasi Next.js + Tailwind + sidebar responsif
+- [x] **Tahap 2**: Database Supabase + Prisma, seluruh model di atas
+- [x] **Tahap 3**: Login (Supabase Auth) + middleware proteksi + logout
+- [x] **Tahap 4 — CRUD Perusahaan**: tambah/edit (popup)/hapus, tabel dengan
+      cari+filter+sort+pagination, halaman detail (cabang/user/device/tiket
+      terkait, dengan scroll internal agar tidak memanjang tak terbatas)
+- [x] **CRUD Cabang**: sama polanya dengan Perusahaan, filter per
+      perusahaan & kota
+- [x] **CRUD User**: status Aktif/Non-Aktif (badge bisa diklik langsung),
+      filter per perusahaan/divisi/status, statistik jumlah user per
+      perusahaan & divisi, halaman detail + riwayat troubleshooting (3
+      peran: pelapor/terkendala/teknisi)
+- [x] **CRUD Devices**: kode inventaris otomatis (format
+      `JENIS-TAHUNBULAN-URUT`), field spesifikasi dinamis sesuai jenis
+      (Laptop→RAM/CPU/Storage, CCTV→Resolusi/Lokasi, dll. — dikonfigurasi di
+      `config/device-fields.ts`), upload foto/lampiran multi-file, usia
+      pakai otomatis, halaman detail dengan 3 riwayat (pengguna, penempatan,
+      troubleshooting) + galeri lampiran
+- [x] **CRUD Troubleshooting**: pelapor vs user terkendala terpisah,
+      dropdown perangkat otomatis terfilter sesuai user terkendala,
+      kategori, urgency (3 level), teknisi, diagnosa, solusi, catatan
+      teknisi, upload lampiran, halaman detail lengkap
+- [x] **Dashboard**: 6 KPI (termasuk Tiket Kritis), grafik batang (device
+      per perusahaan), pie (device per jenis), garis (tren tiket 6 bulan),
+      daftar device & tiket terbaru
+- [x] **Komponen bersama**: `FilterDropdown` (checkbox multi-pilih, pakai
+      React Portal + position fixed agar tidak pernah terpotong di sisi
+      layar manapun) dan `PaginationBar` (X-Y dari Z data, pemilih jumlah
+      baris, navigasi halaman) — dipakai konsisten di Cabang, Devices,
+      Troubleshooting, User
+- [x] **Import Data massal**: import User & Devices dari file Excel
+      (template otomatis dengan header biru via ExcelJS), validasi baris
+      wajib, validasi duplikat nama/email/serial number (cek ke database
+      DAN ke sesama baris dalam satu file), pencatatan otomatis
+      DeviceAssignment & DevicePlacement saat device diimpor dengan user
+      terkait
 
-1. PT. Speedmark Logistics Indonesia (SLI)
-2. PT. Sarana Allport Cargo Services
-3. PT. Glorindo Oksana Logistics
-4. PT. Swift Kargonize
-5. PT. CNL Logistics Indonesia
+## 6. Belum Dikerjakan / Rencana Lanjutan
 
-**21 Cabang** tersebar di: Jakarta, Bandung, Denpasar, Medan, Surabaya, Semarang, Cengkareng, Tanjung Priok, Bekasi.
+- [ ] Paginasi/CRUD popup untuk Cabang dipasang secara eksplisit di
+      `page.tsx` (komponen `TabelCabang` sudah dibuat, perlu dicek sudah
+      terhubung di halaman)
+- [ ] Edit inline (tanpa popup) untuk Perusahaan/User/Devices/Troubleshooting
+      — sudah dibuat sebagai paket terpisah, perlu dikonfirmasi status
+      pemasangannya
+- [ ] Role & permission (Admin vs Staff) — disebut di blueprint awal, belum
+      diimplementasikan
+- [ ] Export data ke Excel/PDF (kebalikan dari fitur import)
+- [ ] Deploy ke Vercel (Tahap 7 blueprint)
+- [ ] Notifikasi tiket baru
+- [ ] Import untuk Perusahaan & Cabang (saat ini hanya User & Devices)
 
-**7 Jenis Perangkat:** Laptop (NTB), Desktop (CPU), Monitor (MNr), Printer (PRN), Router (RTR), CCTV (CTV), Perangkat Lainnya (PLN).
+## 7. Catatan Teknis Penting (Sering Jadi Sumber Bug)
 
-Konfigurasi field spesifikasi dinamis per jenis ada di `src/config/device-fields.ts` (mis. Laptop → RAM/CPU/Storage; CCTV → Resolusi/Lokasi Pasang).
+1. **Next.js Server Actions** hanya menerima *plain object* biasa. Data hasil
+   parsing Excel (ExcelJS/xlsx) kadang punya prototype khusus — selalu
+   sanitasi dengan `JSON.parse(JSON.stringify(data))` sebelum dikirim ke
+   server action.
+2. **`hargaBeli` bertipe `Decimal`** di Prisma — wajib diubah ke `Number()`
+   sebelum dikirim ke Client Component, kalau tidak akan error "Only plain
+   objects can be passed to Client Components".
+3. **Panel dropdown/filter** yang memakai `position: absolute` bisa
+   terpotong oleh `overflow-hidden`/`overflow-x-auto` di ancestor manapun.
+   Solusi yang terbukti bekerja: render lewat `createPortal` ke
+   `document.body` dengan `position: fixed`, koordinat dihitung dari
+   `getBoundingClientRect()` tombol pemicu.
+3b. **PaginationBar** harus diletakkan **di luar** wrapper
+   `overflow-x-auto` milik tabel, supaya tidak ikut ter-scroll horizontal
+   bersama tabel yang lebar.
+4. **Generator template Excel & pembaca file upload harus pakai library
+   yang sama** (ExcelJS untuk keduanya) — mencampur `xlsx` (SheetJS) dan
+   `exceljs` bisa menyebabkan file gagal dibaca ulang karena perbedaan
+   metadata internal `.xlsx`.
+5. **Rich text dari ExcelJS** berbentuk `{ richText: [{ text: "..." }] }`,
+   bukan `{ text: "..." }` langsung — kalau tidak ditangani, nilai sel bisa
+   "hilang" secara diam-diam tanpa error (karena banyak field bersifat
+   opsional).
+6. **Sandbox coding Copilot bereset setiap sesi baru** (dan kadang di
+   tengah sesi yang sama) — file yang dibuat Copilot untuk diunduh **tidak**
+   otomatis tersimpan permanen di sisi Copilot. **GitHub adalah satu-satunya
+   workspace permanen** yang sesungguhnya. Selalu `git add` → `git commit`
+   → `git push` setelah setiap fitur selesai dipasang & diuji.
 
----
+## 8. Riwayat Perubahan (Changelog Singkat)
 
-## 🔐 Autentikasi
+> Tambahkan baris baru di paling atas setiap kali ada progres baru.
 
-- Pakai **Supabase Auth**, bukan NextAuth (menyimpang dari blueprint awal karena project sudah pakai Supabase).
-- `middleware.ts` **wajib ada di dalam folder `src/`** (bukan di root project) karena project memakai struktur `src/`.
-- Route publik: `/login`. Semua route lain memaksa login.
-- Root layout (`src/app/layout.tsx`) bersih tanpa sidebar; sidebar+header hanya ada di `src/app/(dashboard)/layout.tsx`.
-- `src/app/page.tsx` — redirect otomatis: belum login → `/login`, sudah login → `/dashboard`.
-- Header menampilkan email user asli + tombol Keluar (`src/components/logout-button.tsx`), serta judul dinamis mengikuti menu aktif (`src/components/header-title.tsx`, baca dari `src/config/nav.ts`).
-
----
-
-## 🧩 Struktur Fitur per Modul
-
-Semua modul memakai pola yang konsisten:
-
-- **Popup modal** untuk Tambah & Edit (bukan form/halaman terpisah) — dengan backdrop blur + animasi
-- **Server Actions** di `actions.ts` untuk create/update/delete
-- Tombol aksi berupa **ikon** (pensil edit, tempat sampah hapus, jam riwayat)
-- Halaman **detail** (`[id]/page.tsx`) dengan tombol **Edit** yang mengarahkan ke `?edit=ID` di halaman list, lalu otomatis membuka modal edit (`useSearchParams` + `useEffect` di komponen baris)
-
-### 🏢 Perusahaan (`src/app/(dashboard)/perusahaan/`)
-
-- Tabel sederhana (bukan card) dengan kolom: Perusahaan, Alamat/Telepon, jumlah Cabang/User/Device
-- Kotak pencarian
-- Halaman detail: identitas + 4 seksi (Cabang Terdaftar, User Terdaftar, Devices Terdaftar, Riwayat Troubleshooting) — semua bisa diklik ke halaman terkait
-
-### 👥 User (`src/app/(dashboard)/users/`)
-
-- Kartu statistik: User per Perusahaan & User per Divisi (bar horizontal)
-- **Tabel dengan fitur lengkap** (dikerjakan terakhir):
-  - Paginasi **50 data/halaman** dengan kontrol nomor halaman
-  - Sort alfabetis (klik header **Nama**, **Divisi**, **Penempatan** — toggle asc/desc)
-  - **Filter dropdown checkbox** multi-pilih (Perusahaan & Divisi) — panel dirender via **React Portal** ke `document.body` dengan `position: fixed` agar tidak terpotong oleh container overflow manapun (lihat catatan masalah di bawah)
-  - Scroll vertikal pada tabel dengan header sticky
-- Halaman detail: identitas + perangkat yang dipegang + riwayat penggunaan perangkat + riwayat troubleshooting (peran: Pelapor/User Terkendala/Teknisi) — 3 bagian punya scroll container sendiri (`max-h-80`/`max-h-96` + `overflow-y-auto`)
-
-### 🌿 Cabang (`src/app/(dashboard)/cabang/`)
-
-- Tabel + pencarian + filter per Perusahaan
-- Halaman detail: identitas + User Terdaftar + Devices Terdaftar + Riwayat Troubleshooting
-
-### 💻 Devices (`src/app/(dashboard)/devices/`)
-
-- Form Tambah/Edit lengkap: nama, jenis, merk, tipe, no. seri, **field spesifikasi dinamis** (menyesuaikan jenis), status, tgl beli, harga, Perusahaan→Cabang (berkaitan), pengguna, keterangan
-- **Kode inventaris** dibuat otomatis saat submit (tidak bisa diedit manual)
-- **Upload foto/lampiran** (bisa banyak file sekaligus) — Supabase Storage bucket `device-attachments`
-- **Badge usia perangkat** dihitung otomatis dari tanggal beli (hijau <3th, kuning 3-5th, merah ≥5th) — lihat `src/lib/format-usia.ts`
-- Halaman detail: identitas + spesifikasi + galeri lampiran + 3 riwayat (Pengguna, Penempatan, Troubleshooting — tiket bisa diklik ke detail tiket)
-
-### 🎫 Troubleshooting (`src/app/(dashboard)/troubleshooting/`)
-
-- Form lengkap: judul, kategori, **urgency** (3 level), status, waktu lapor, **Pelapor** & **User Terkendala** (2 field terpisah), **dropdown perangkat otomatis tersaring** berdasarkan user terkendala yang dipilih, divisi & perusahaan/cabang auto-terisi dari data user, kendala, teknisi, diagnosa, solusi, catatan teknisi, upload lampiran
-- **No. tiket** dibuat otomatis saat submit
-- Upload lampiran — Supabase Storage bucket `ticket-attachments` (bucket terpisah dari device!)
-- Halaman detail: identitas lengkap + **Riwayat Terkait** (tiket lain untuk perangkat yang sama & user terkendala yang sama) + galeri lampiran
-
-### 📊 Dashboard (`src/app/(dashboard)/dashboard/`)
-
-- 6 kartu KPI: Perusahaan, Cabang, User, Devices, Tiket Aktif, **Tiket Kritis** (urgency = "Pekerjaan berhenti")
-- 3 grafik Recharts: Bar (perangkat per perusahaan), Pie (komposisi per jenis), Line (tren tiket 6 bulan terakhir)
-- Daftar aktivitas terbaru: 5 perangkat & 5 tiket terbaru (bisa diklik)
-
----
-
-## 🧠 Utilitas Bersama (`src/lib/` & `src/config/`)
-
-| File                                       | Fungsi                                              |
-| ------------------------------------------ | --------------------------------------------------- |
-| `lib/prisma.ts`                            | Prisma Client singleton                             |
-| `lib/supabase/server.ts` & `middleware.ts` | Supabase client untuk server component & middleware |
-| `lib/format-usia.ts`                       | Hitung usia perangkat + warna badge                 |
-| `lib/kode-inventaris.ts`                   | Generate kode inventaris otomatis                   |
-| `lib/no-tiket.ts`                          | Generate nomor tiket otomatis                       |
-| `lib/lampiran.ts`                          | Upload file ke bucket `device-attachments`          |
-| `lib/lampiran-tiket.ts`                    | Upload file ke bucket `ticket-attachments`          |
-| `config/device-fields.ts`                  | Field spesifikasi dinamis per jenis perangkat       |
-| `config/ticket-fields.ts`                  | Opsi kategori, urgency, status + fungsi warna badge |
-| `components/tombol-edit-detail.tsx`        | Tombol "Edit Data" seragam di semua halaman detail  |
-
----
-
-## ⚠️ Masalah yang Pernah Terjadi & Solusinya (Referensi Cepat)
-
-Catatan ini penting supaya masalah yang sama tidak berulang di sesi berikutnya.
-
-1. **Prisma ter-install v7 padahal butuh v6** → uninstall lalu install ulang dengan versi eksak `prisma@6.16.2 --save-exact`.
-2. **`prisma.config.ts` bikin error saat migrate** → solusi paling aman: **hapus file itu**, biarkan Prisma baca `.env` secara default.
-3. **Error P1000 (Authentication failed)** → hampir selalu karena username connection string kurang lengkap. Untuk pooler Supabase, wajib format `postgres.[PROJECT-REF]`, bukan `postgres` saja.
-4. **Error P1013 (invalid port)** → biasanya password mengandung karakter spesial (`@ # & ?`) yang merusak parsing URL. Solusi: reset password jadi huruf+angka saja.
-5. **Middleware tidak jalan / login tidak redirect** → `middleware.ts` **harus** ditaruh di dalam folder `src/` (karena project pakai struktur `src/`), bukan di root project.
-6. **File `.env.local` tidak dibaca** → pastikan nama file benar-benar `.env.local` (ada titik di depan), bukan `env.local`.
-7. **Error "Decimal objects are not supported"** saat kirim data Device (kolom `hargaBeli`) dari Server Component ke Client Component → wajib convert dengan `Number(d.hargaBeli)` sebelum dioper sebagai props.
-8. **Upload lampiran gagal diam-diam (tiket tersimpan tapi lampiran kosong)** → Next.js Server Actions defaultnya membatasi body 1MB. Solusi: tambahkan di `next.config.ts`:
-   ```ts
-   experimental: {
-     serverActions: {
-       bodySizeLimit: "15mb";
-     }
-   }
-   ```
-9. **Error "Bucket not found"** saat upload lampiran tiket → bucket `ticket-attachments` di Supabase Storage belum dibuat (jangan lupa buat **2 bucket terpisah**: `device-attachments` dan `ticket-attachments`, keduanya public + policy insert/select/delete).
-10. **Nama bucket typo (`ticket-attachment` vs `ticket-attachments`)** → Supabase memperlakukan nama berbeda sebagai bucket yang berbeda total. Selalu cocokkan persis dengan yang dipakai di kode.
-11. **Panel filter dropdown di halaman User terpotong di layar** → root cause: panel dirender di dalam DOM yang overflow-x-auto/hidden (halaman punya scrollbar horizontal). Solusi final: render panel via **React Portal** ke `document.body` dengan `position: fixed`, posisi dihitung manual dari `getBoundingClientRect()` tombol, plus reposisi otomatis saat scroll/resize.
-12. **Kurung JSX terpotong saat disalin dari chat** (mis. `{href}` atau `{async {` bukan bentuk lengkap) → selalu salin dari **file terverifikasi**, bukan dari teks chat langsung, karena tampilan chat kadang memotong sintaks JSX kompleks.
-
----
-
-## 📌 Konvensi Penting untuk Prisma
-
-- **Nama model** di query = huruf kecil tunggal: `prisma.company`, `prisma.branch`, `prisma.user`, `prisma.device`, `prisma.deviceType`, `prisma.ticket`.
-- **Nama relasi** dalam `include`/`_count` mengikuti PascalCase yang didefinisikan di schema (contoh: relasi ke banyak Device dari Company bernama `devices`, bukan `Device`).
-- **Field** pakai camelCase (`companyId`, `hargaBeli`, `tglLapor`), bukan snake_case, meskipun kolom database aslinya snake_case (`@map`).
-- Kolom **Decimal** (`hargaBeli`) wajib di-convert `Number()` sebelum dikirim ke Client Component.
-- Kolom **BigInt** (bila ada) wajib di-convert juga sebelum dikirim ke client.
-
----
-
-## 🚀 Rencana Selanjutnya (Belum Dikerjakan)
-
-- [ ] **Tahap 7 — Deploy ke Vercel**: hubungkan repo GitHub ke Vercel, set environment variables (`DATABASE_URL`, `DIRECT_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`), uji versi online.
-- [ ] Terapkan paginasi + sort + filter dropdown yang sama (pola Portal) ke halaman lain bila datanya sudah banyak (Devices, Troubleshooting).
-- [ ] Pertimbangkan pengetatan **Row Level Security (RLS)** di Supabase untuk production (saat ini masih kebijakan longgar untuk tahap pengembangan).
-- [ ] Fitur lanjutan dari blueprint: import/export Excel, QR/barcode label, notifikasi WhatsApp/email, manajemen garansi, audit log, laporan depresiasi aset.
-
----
-
-## 💾 Kebiasaan Kerja yang Disepakati
-
-- Setiap progres besar di-commit & push ke GitHub dengan pesan commit yang jelas.
-- File `.env` (Prisma) dan `.env.local` (Supabase) **tidak pernah** ikut di-push — selalu cek `git status` sebelum `git add .`.
-- Kode selalu ditulis lengkap ke file lalu diverifikasi (cek kurung seimbang, tag JSX berpasangan) sebelum diberikan ke user, untuk menghindari sintaks terpotong.
-- Precise, step-by-step, tanpa melewati langkah — sesuai preferensi Chairul.
+- **21 Agu 2026** — Validasi duplikat nama/email/serial saat import;
+  perbaikan DeviceAssignment & DevicePlacement ikut tercatat saat import
+  device; perbaikan pembacaan rich text Excel.
+- **21 Agu 2026** — Fitur Import Data (User & Devices) dari Excel,
+  template dengan header biru (ExcelJS).
+- **20 Agu 2026** — Paginasi + sort alfabet + filter dropdown checkbox
+  untuk Cabang, Devices, Troubleshooting, User (dengan perbaikan posisi
+  filter via React Portal).
+- **20 Agu 2026** — Halaman detail Perusahaan disederhanakan jadi tabel
+  (bukan card), scroll internal untuk seksi dengan data banyak.
+- **19-20 Agu 2026** — Status Aktif/Non-Aktif User; statistik user per
+  divisi/perusahaan; riwayat troubleshooting di halaman detail User.
+- **19 Agu 2026** — Kode inventaris otomatis Device; upload foto/lampiran
+  multi-file (Device & Ticket); field spesifikasi dinamis per jenis
+  perangkat; 3 riwayat di halaman detail Device.
+- **18 Agu 2026** — CRUD Troubleshooting lengkap (pelapor/terkendala/
+  teknisi, kategori, urgency, kendala, diagnosa, solusi).
+- **17-18 Agu 2026** — CRUD Perusahaan, Cabang, User, Devices dasar
+  (popup tambah/edit modern); Dashboard dengan grafik Recharts.
+- **13-17 Agu 2026** — Setup Next.js + Tailwind + sidebar; database
+  Prisma + Supabase; autentikasi login.
