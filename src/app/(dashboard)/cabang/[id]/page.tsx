@@ -1,16 +1,9 @@
 import prisma from "@/lib/prisma";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  ArrowLeft,
-  Network,
-  Users,
-  MonitorSmartphone,
-  Wrench,
-  Building2,
-} from "lucide-react";
+import { ArrowLeft, Users, MonitorSmartphone, Wrench } from "lucide-react";
 import { urgencyColor, statusColor } from "@/config/ticket-fields";
-import { TombolEditDetail } from "@/components/tombol-edit-detail";
+import { DetailFormCabang } from "./detail-form";
 
 function fmtTanggal(d: Date): string {
   return new Date(d).toLocaleDateString("id-ID", {
@@ -28,21 +21,23 @@ export default async function CabangDetailPage({
   const { id } = await params;
   const branchId = Number(id);
 
-  const branch = await prisma.branch.findUnique({
-    where: { id: branchId },
-    include: {
-      company: { select: { id: true, nama: true, inisial: true } },
-      users: { orderBy: { nama: "asc" } },
-      devices: {
-        include: { type: { select: { nama: true } } },
-        orderBy: { id: "desc" },
+  const [branch, companies] = await Promise.all([
+    prisma.branch.findUnique({
+      where: { id: branchId },
+      include: {
+        users: { orderBy: { nama: "asc" } },
+        devices: {
+          include: { type: { select: { nama: true } } },
+          orderBy: { id: "desc" },
+        },
+        tickets: {
+          include: { device: { select: { nama: true } } },
+          orderBy: { tglLapor: "desc" },
+        },
       },
-      tickets: {
-        include: { device: { select: { nama: true } } },
-        orderBy: { tglLapor: "desc" },
-      },
-    },
-  });
+    }),
+    prisma.company.findMany({ select: { id: true, nama: true }, orderBy: { nama: "asc" } }),
+  ]);
 
   if (!branch) notFound();
 
@@ -50,61 +45,37 @@ export default async function CabangDetailPage({
     <div>
       <Link
         href="/cabang"
-        className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-indigo-600 mb-4"
+        className="mb-4 inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-indigo-600"
       >
-        <ArrowLeft className="w-4 h-4" /> Kembali ke Cabang
+        <ArrowLeft className="h-4 w-4" /> Kembali ke Cabang
       </Link>
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-6">
-        <div className="flex items-start gap-4">
-          <div className="shrink-0 w-14 h-14 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-sm">
-            <Network className="w-7 h-7" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <h1 className="text-xl font-bold text-slate-800">{branch.nama}</h1>
-                <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-500 mt-1">
-                  {branch.kota && <span>{branch.kota}</span>}
-                  {branch.company && (
-                    <Link
-                      href={`/perusahaan/${branch.company.id}`}
-                      className="inline-flex items-center gap-1 hover:text-indigo-600"
-                    >
-                      <Building2 className="w-3.5 h-3.5" /> {branch.company.nama}
-                    </Link>
-                  )}
-                </div>
-              </div>
-
-              <TombolEditDetail href={`/cabang?edit=${branch.id}`} />
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-5">
-              <RingkasanKecil icon={Users} label="User" value={branch.users.length} color="text-amber-600 bg-amber-50" />
-              <RingkasanKecil icon={MonitorSmartphone} label="Devices" value={branch.devices.length} color="text-indigo-600 bg-indigo-50" />
-              <RingkasanKecil
-                icon={Wrench}
-                label="Tiket Aktif"
-                value={branch.tickets.filter((t) => t.status !== "Selesai").length}
-                color="text-rose-600 bg-rose-50"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
+      <DetailFormCabang
+        branch={{ id: branch.id, nama: branch.nama, kota: branch.kota, companyId: branch.companyId }}
+        companies={companies}
+        jumlahUser={branch.users.length}
+        jumlahDevice={branch.devices.length}
+        jumlahTiketAktif={branch.tickets.filter((t) => t.status !== "Selesai").length}
+      />
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Seksi title="User Terdaftar" icon={Users} accent="text-amber-600 bg-amber-50" count={branch.users.length}>
+        <Seksi
+          title="User Terdaftar"
+          icon={Users}
+          accent="bg-amber-50 text-amber-600"
+          count={branch.users.length}
+        >
           {branch.users.length === 0 ? (
             <Kosong text="Belum ada user terdaftar di cabang ini." />
           ) : (
             <ul className="divide-y divide-slate-100">
               {branch.users.map((u) => (
                 <li key={u.id} className="py-2.5">
-                  <Link href={`/users/${u.id}`} className="flex items-center justify-between text-sm group">
-                    <span className="font-medium text-slate-700 group-hover:text-indigo-600">{u.nama}</span>
-                    <span className="text-slate-400 text-xs">{u.divisi ?? "-"}</span>
+                  <Link href={`/users/${u.id}`} className="group flex items-center justify-between text-sm">
+                    <span className="font-medium text-slate-700 group-hover:text-indigo-600">
+                      {u.nama}
+                    </span>
+                    <span className="text-xs text-slate-400">{u.divisi ?? "-"}</span>
                   </Link>
                 </li>
               ))}
@@ -112,23 +83,32 @@ export default async function CabangDetailPage({
           )}
         </Seksi>
 
-        <Seksi title="Devices Terdaftar" icon={MonitorSmartphone} accent="text-indigo-600 bg-indigo-50" count={branch.devices.length}>
+        <Seksi
+          title="Devices Terdaftar"
+          icon={MonitorSmartphone}
+          accent="bg-indigo-50 text-indigo-600"
+          count={branch.devices.length}
+        >
           {branch.devices.length === 0 ? (
             <Kosong text="Belum ada perangkat terdaftar di cabang ini." />
           ) : (
-            <ul className="divide-y divide-slate-100 max-h-80 overflow-y-auto">
+            <ul className="max-h-80 divide-y divide-slate-100 overflow-y-auto">
               {branch.devices.map((d) => (
                 <li key={d.id} className="py-2.5">
-                  <Link href={`/devices/${d.id}`} className="flex items-center justify-between text-sm group">
+                  <Link href={`/devices/${d.id}`} className="group flex items-center justify-between text-sm">
                     <span className="min-w-0">
-                      <span className="block font-medium text-slate-700 group-hover:text-indigo-600 truncate">
+                      <span className="block truncate font-medium text-slate-700 group-hover:text-indigo-600">
                         {d.nama}
                       </span>
                       {d.kodeInventaris && (
-                        <span className="block text-xs font-mono text-slate-400">{d.kodeInventaris}</span>
+                        <span className="block font-mono text-xs text-slate-400">
+                          {d.kodeInventaris}
+                        </span>
                       )}
                     </span>
-                    <span className="text-slate-400 text-xs shrink-0 ml-2">{d.type?.nama ?? "-"}</span>
+                    <span className="ml-2 shrink-0 text-xs text-slate-400">
+                      {d.type?.nama ?? "-"}
+                    </span>
                   </Link>
                 </li>
               ))}
@@ -137,25 +117,42 @@ export default async function CabangDetailPage({
         </Seksi>
 
         <div className="lg:col-span-2">
-          <Seksi title="Riwayat Troubleshooting" icon={Wrench} accent="text-rose-600 bg-rose-50" count={branch.tickets.length}>
+          <Seksi
+            title="Riwayat Troubleshooting"
+            icon={Wrench}
+            accent="bg-rose-50 text-rose-600"
+            count={branch.tickets.length}
+          >
             {branch.tickets.length === 0 ? (
               <Kosong text="Belum ada tiket troubleshooting di cabang ini." />
             ) : (
-              <ul className="divide-y divide-slate-100 max-h-80 overflow-y-auto">
+              <ul className="max-h-80 divide-y divide-slate-100 overflow-y-auto">
                 {branch.tickets.map((t) => (
                   <li key={t.id} className="py-2.5">
-                    <Link href={`/troubleshooting/${t.id}`} className="block group">
+                    <Link href={`/troubleshooting/${t.id}`} className="group block">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="font-medium text-slate-700 group-hover:text-indigo-600 truncate text-sm">
+                        <span className="truncate text-sm font-medium text-slate-700 group-hover:text-indigo-600">
                           {t.judul}
                         </span>
-                        <span className="text-xs text-slate-400 shrink-0">{fmtTanggal(t.tglLapor)}</span>
+                        <span className="shrink-0 text-xs text-slate-400">
+                          {fmtTanggal(t.tglLapor)}
+                        </span>
                       </div>
-                      <div className="flex gap-1.5 mt-1">
-                        <span className={"inline-block rounded-full px-2 py-0.5 text-[10px] font-medium " + statusColor(t.status)}>
+                      <div className="mt-1 flex gap-1.5">
+                        <span
+                          className={
+                            "inline-block rounded-full px-2 py-0.5 text-[10px] font-medium " +
+                            statusColor(t.status)
+                          }
+                        >
                           {t.status}
                         </span>
-                        <span className={"inline-block rounded-full px-2 py-0.5 text-[10px] font-medium " + urgencyColor(t.prioritas)}>
+                        <span
+                          className={
+                            "inline-block rounded-full px-2 py-0.5 text-[10px] font-medium " +
+                            urgencyColor(t.prioritas)
+                          }
+                        >
                           {t.prioritas}
                         </span>
                       </div>
@@ -167,28 +164,6 @@ export default async function CabangDetailPage({
           </Seksi>
         </div>
       </div>
-    </div>
-  );
-}
-
-function RingkasanKecil({
-  icon: Icon,
-  label,
-  value,
-  color,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  value: number;
-  color: string;
-}) {
-  return (
-    <div className="rounded-lg bg-slate-50 p-3 text-center">
-      <span className={`inline-flex items-center justify-center w-7 h-7 rounded-lg mb-1 ${color}`}>
-        <Icon className="w-3.5 h-3.5" />
-      </span>
-      <p className="text-lg font-bold text-slate-800 leading-none">{value}</p>
-      <p className="text-[11px] text-slate-500 mt-1">{label}</p>
     </div>
   );
 }
@@ -207,13 +182,13 @@ function Seksi({
   children: React.ReactNode;
 }) {
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-      <div className="flex items-center gap-2 mb-3">
-        <span className={"inline-flex items-center justify-center w-8 h-8 rounded-lg " + accent}>
-          <Icon className="w-4 h-4" />
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="mb-3 flex items-center gap-2">
+        <span className={"inline-flex h-8 w-8 items-center justify-center rounded-lg " + accent}>
+          <Icon className="h-4 w-4" />
         </span>
         <h2 className="font-semibold text-slate-800">
-          {title} <span className="text-slate-400 font-normal text-sm">({count})</span>
+          {title} <span className="text-sm font-normal text-slate-400">({count})</span>
         </h2>
       </div>
       {children}
@@ -222,5 +197,5 @@ function Seksi({
 }
 
 function Kosong({ text }: { text: string }) {
-  return <p className="text-sm text-slate-400 text-center py-6">{text}</p>;
+  return <p className="py-6 text-center text-sm text-slate-400">{text}</p>;
 }

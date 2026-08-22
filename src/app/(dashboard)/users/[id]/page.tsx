@@ -1,19 +1,9 @@
 import prisma from "@/lib/prisma";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  ArrowLeft,
-  Building2,
-  Layers,
-  Mail,
-  MonitorSmartphone,
-  Network,
-  Phone,
-  UserRound,
-  Wrench,
-} from "lucide-react";
+import { ArrowLeft, MonitorSmartphone, Wrench } from "lucide-react";
 import { statusColor, urgencyColor } from "@/config/ticket-fields";
-import { TombolEditDetail } from "@/components/tombol-edit-detail";
+import { DetailFormUser } from "./detail-form";
 
 function formatTanggal(value: Date | null): string {
   if (!value) return "Sekarang";
@@ -25,11 +15,7 @@ function formatTanggal(value: Date | null): string {
 }
 
 function peranDalamTiket(
-  tiket: {
-    userId: number | null;
-    userTerkendalaId: number | null;
-    teknisiId: number | null;
-  },
+  tiket: { userId: number | null; userTerkendalaId: number | null; teknisiId: number | null },
   userId: number
 ): string[] {
   const peran: string[] = [];
@@ -47,12 +33,10 @@ export default async function UserDetailPage({
   const { id } = await params;
   const userId = Number(id);
 
-  const [user, riwayatPerangkat, tiket] = await Promise.all([
+  const [user, riwayatPerangkat, tiket, companies, branches] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
       include: {
-        company: { select: { id: true, nama: true, inisial: true } },
-        branch: { select: { id: true, nama: true, kota: true } },
         devices: {
           select: {
             id: true,
@@ -69,33 +53,22 @@ export default async function UserDetailPage({
     }),
     prisma.deviceAssignment.findMany({
       where: { userId },
-      include: {
-        device: {
-          select: { id: true, nama: true, kodeInventaris: true },
-        },
-      },
+      include: { device: { select: { id: true, nama: true, kodeInventaris: true } } },
       orderBy: { tglMulai: "desc" },
     }),
     prisma.ticket.findMany({
-      where: {
-        OR: [{ userId }, { userTerkendalaId: userId }, { teknisiId: userId }],
-      },
-      include: {
-        device: { select: { id: true, nama: true } },
-      },
+      where: { OR: [{ userId }, { userTerkendalaId: userId }, { teknisiId: userId }] },
+      include: { device: { select: { id: true, nama: true } } },
       orderBy: { tglLapor: "desc" },
+    }),
+    prisma.company.findMany({ select: { id: true, nama: true }, orderBy: { nama: "asc" } }),
+    prisma.branch.findMany({
+      select: { id: true, nama: true, companyId: true },
+      orderBy: { nama: "asc" },
     }),
   ]);
 
   if (!user) notFound();
-
-  const inisial = user.nama
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((kata) => kata[0])
-    .join("")
-    .toUpperCase();
 
   const tiketAktif = tiket.filter((t) => t.status !== "Selesai").length;
 
@@ -109,76 +82,24 @@ export default async function UserDetailPage({
         Kembali ke User
       </Link>
 
-      {/* Kartu identitas user */}
-      <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-lg font-bold text-white shadow-sm">
-            {inisial || <UserRound className="h-7 w-7" />}
-          </div>
-
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <h1 className="text-xl font-bold text-slate-800">{user.nama}</h1>
-                <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-500">
-                  {user.email && (
-                    <span className="inline-flex items-center gap-1">
-                      <Mail className="h-3.5 w-3.5" />
-                      {user.email}
-                    </span>
-                  )}
-                  {user.noTelp && (
-                    <span className="inline-flex items-center gap-1">
-                      <Phone className="h-3.5 w-3.5" />
-                      {user.noTelp}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <TombolEditDetail href={`/users?edit=${user.id}`} />
-            </div>
-
-            <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-5">
-              <Ringkasan
-                icon={Layers}
-                label="Divisi"
-                value={user.divisi ?? "-"}
-                color="bg-amber-50 text-amber-600"
-              />
-              <Ringkasan
-                icon={Building2}
-                label="Perusahaan"
-                value={user.company?.inisial ?? user.company?.nama ?? "-"}
-                color="bg-blue-50 text-blue-600"
-                href={user.company ? `/perusahaan/${user.company.id}` : undefined}
-              />
-              <Ringkasan
-                icon={Network}
-                label="Cabang"
-                value={user.branch?.nama ?? "-"}
-                color="bg-emerald-50 text-emerald-600"
-                href={user.branch ? `/cabang/${user.branch.id}` : undefined}
-              />
-              <Ringkasan
-                icon={MonitorSmartphone}
-                label="Perangkat Aktif"
-                value={String(user.devices.length)}
-                color="bg-indigo-50 text-indigo-600"
-              />
-              <Ringkasan
-                icon={Wrench}
-                label="Tiket Aktif"
-                value={String(tiketAktif)}
-                color="bg-rose-50 text-rose-600"
-              />
-            </div>
-          </div>
-        </div>
-      </section>
+      <DetailFormUser
+        user={{
+          id: user.id,
+          nama: user.nama,
+          email: user.email,
+          noTelp: user.noTelp,
+          divisi: user.divisi,
+          status: user.status,
+          companyId: user.companyId,
+          branchId: user.branchId,
+        }}
+        companies={companies}
+        branches={branches}
+        jumlahPerangkat={user.devices.length}
+        jumlahTiketAktif={tiketAktif}
+      />
 
       <div className="grid gap-6 xl:grid-cols-2">
-        {/* Perangkat Terdaftar Saat Ini — dengan scroll vertikal */}
         <Seksi
           title="Perangkat Terdaftar Saat Ini"
           icon={MonitorSmartphone}
@@ -188,13 +109,13 @@ export default async function UserDetailPage({
           {user.devices.length === 0 ? (
             <Kosong text="Belum ada perangkat yang terdaftar pada user ini." />
           ) : (
-            <div className="max-h-80 overflow-y-auto overflow-x-auto rounded-lg border border-slate-100">
-              <table className="w-full min-w-[480px] text-sm">
-                <thead className="sticky top-0 z-10 bg-slate-50 text-left text-slate-600">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[520px] text-sm">
+                <thead className="bg-slate-50 text-left text-slate-600">
                   <tr>
-                    <th className="px-3 py-2 bg-slate-50">Perangkat</th>
-                    <th className="px-3 py-2 bg-slate-50">Jenis</th>
-                    <th className="px-3 py-2 bg-slate-50">Status</th>
+                    <th className="px-3 py-2">Perangkat</th>
+                    <th className="px-3 py-2">Jenis</th>
+                    <th className="px-3 py-2">Status</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -214,9 +135,7 @@ export default async function UserDetailPage({
                           {[device.merk, device.tipe].filter(Boolean).join(" · ") || "-"}
                         </p>
                       </td>
-                      <td className="px-3 py-2.5 text-slate-600">
-                        {device.type?.nama ?? "-"}
-                      </td>
+                      <td className="px-3 py-2.5 text-slate-600">{device.type?.nama ?? "-"}</td>
                       <td className="px-3 py-2.5">
                         <span className="inline-block rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
                           {device.status}
@@ -230,7 +149,6 @@ export default async function UserDetailPage({
           )}
         </Seksi>
 
-        {/* Riwayat Penggunaan Perangkat — dengan scroll vertikal */}
         <Seksi
           title="Riwayat Penggunaan Perangkat"
           icon={MonitorSmartphone}
@@ -240,7 +158,7 @@ export default async function UserDetailPage({
           {riwayatPerangkat.length === 0 ? (
             <Kosong text="Belum ada riwayat penggunaan perangkat." />
           ) : (
-            <ul className="max-h-80 divide-y divide-slate-100 overflow-y-auto pr-1">
+            <ul className="max-h-96 divide-y divide-slate-100 overflow-y-auto">
               {riwayatPerangkat.map((item) => (
                 <li key={item.id} className="py-3">
                   <Link
@@ -262,7 +180,6 @@ export default async function UserDetailPage({
         </Seksi>
       </div>
 
-      {/* Riwayat Troubleshooting — dengan scroll vertikal + header sticky */}
       <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="mb-4 flex items-center gap-2">
           <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-rose-600">
@@ -277,16 +194,16 @@ export default async function UserDetailPage({
         {tiket.length === 0 ? (
           <Kosong text="Belum ada tiket troubleshooting yang berkaitan dengan user ini." />
         ) : (
-          <div className="max-h-96 overflow-y-auto overflow-x-auto rounded-lg border border-slate-100">
+          <div className="overflow-x-auto">
             <table className="w-full min-w-[820px] text-sm">
-              <thead className="sticky top-0 z-10 bg-slate-50 text-left text-slate-600">
+              <thead className="bg-slate-50 text-left text-slate-600">
                 <tr>
-                  <th className="px-3 py-2 bg-slate-50">Tiket</th>
-                  <th className="px-3 py-2 bg-slate-50">Peran</th>
-                  <th className="px-3 py-2 bg-slate-50">Perangkat</th>
-                  <th className="px-3 py-2 bg-slate-50">Urgency</th>
-                  <th className="px-3 py-2 bg-slate-50">Status</th>
-                  <th className="px-3 py-2 bg-slate-50">Tanggal</th>
+                  <th className="px-3 py-2">Tiket</th>
+                  <th className="px-3 py-2">Peran</th>
+                  <th className="px-3 py-2">Perangkat</th>
+                  <th className="px-3 py-2">Urgency</th>
+                  <th className="px-3 py-2">Status</th>
+                  <th className="px-3 py-2">Tanggal</th>
                 </tr>
               </thead>
               <tbody>
@@ -359,34 +276,6 @@ export default async function UserDetailPage({
       </section>
     </div>
   );
-}
-
-function Ringkasan({
-  icon: Icon,
-  label,
-  value,
-  color,
-  href,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  value: string;
-  color: string;
-  href?: string;
-}) {
-  const isi = (
-    <div className="rounded-lg bg-slate-50 p-3">
-      <span
-        className={`mb-1 inline-flex h-7 w-7 items-center justify-center rounded-lg ${color}`}
-      >
-        <Icon className="h-3.5 w-3.5" />
-      </span>
-      <p className="truncate text-sm font-semibold text-slate-800">{value}</p>
-      <p className="text-[11px] text-slate-500">{label}</p>
-    </div>
-  );
-
-  return href ? <Link href={href}>{isi}</Link> : isi;
 }
 
 function Seksi({
