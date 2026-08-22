@@ -1,11 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { Network, Check } from "lucide-react";
 import { updateCabang } from "../actions";
 
 type Company = { id: number; nama: string };
-type BranchData = { id: number; nama: string; kota: string | null; companyId: number | null };
+type BranchData = {
+  id: number;
+  nama: string;
+  kota: string | null;
+  companyId: number | null;
+};
 
 const fieldWrap =
   "group relative -mx-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-slate-50 focus-within:bg-indigo-50/60";
@@ -27,10 +32,18 @@ export function DetailFormCabang({
   jumlahDevice: number;
   jumlahTiketAktif: number;
 }) {
+  const [companyId, setCompanyId] = useState(branch.companyId ? String(branch.companyId) : "");
   const [saving, setSaving] = useState(false);
   const [savedTick, setSavedTick] = useState(0);
 
-  async function handleSubmit(formData: FormData) {
+  // PENTING: pakai onSubmit + preventDefault (bukan prop `action` pada
+  // <form>). Kalau dipasang sebagai form action, React otomatis me-reset
+  // <select> Perusahaan yang dikendalikan lewat useState setelah data
+  // tersimpan — sehingga tampilan sempat kosong walau database sudah benar
+  // (baru terlihat benar lagi setelah refresh manual).
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
     setSaving(true);
     await updateCabang(formData);
     setSaving(false);
@@ -39,7 +52,7 @@ export function DetailFormCabang({
 
   return (
     <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <form action={handleSubmit}>
+      <form onSubmit={handleSubmit}>
         <input type="hidden" name="id" value={branch.id} />
 
         <div className="flex items-start gap-4">
@@ -87,10 +100,14 @@ export function DetailFormCabang({
                 <label className={fieldLabel}>Perusahaan</label>
                 <select
                   name="company_id"
-                  defaultValue={branch.companyId ?? ""}
+                  value={companyId}
+                  onChange={(e) => setCompanyId(e.target.value)}
                   required
                   className={fieldSelect}
                 >
+                  <option value="" disabled>
+                    Pilih perusahaan…
+                  </option>
                   {companies.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.nama}

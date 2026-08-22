@@ -1,7 +1,14 @@
 import prisma from "@/lib/prisma";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Users, MonitorSmartphone, Wrench } from "lucide-react";
+import {
+  ArrowLeft,
+  Network,
+  Users,
+  MonitorSmartphone,
+  Wrench,
+  Building2,
+} from "lucide-react";
 import { urgencyColor, statusColor } from "@/config/ticket-fields";
 import { DetailFormCabang } from "./detail-form";
 
@@ -25,6 +32,7 @@ export default async function CabangDetailPage({
     prisma.branch.findUnique({
       where: { id: branchId },
       include: {
+        company: { select: { id: true, nama: true, inisial: true } },
         users: { orderBy: { nama: "asc" } },
         devices: {
           include: { type: { select: { nama: true } } },
@@ -50,8 +58,14 @@ export default async function CabangDetailPage({
         <ArrowLeft className="h-4 w-4" /> Kembali ke Cabang
       </Link>
 
+      {/* Kartu identitas cabang — langsung bisa diedit, tanpa tombol Edit terpisah */}
       <DetailFormCabang
-        branch={{ id: branch.id, nama: branch.nama, kota: branch.kota, companyId: branch.companyId }}
+        branch={{
+          id: branch.id,
+          nama: branch.nama,
+          kota: branch.kota,
+          companyId: branch.companyId,
+        }}
         companies={companies}
         jumlahUser={branch.users.length}
         jumlahDevice={branch.devices.length}
@@ -59,6 +73,7 @@ export default async function CabangDetailPage({
       />
 
       <div className="grid gap-6 lg:grid-cols-2">
+        {/* User Terdaftar — tetap seperti semula, dengan scroll internal */}
         <Seksi
           title="User Terdaftar"
           icon={Users}
@@ -68,10 +83,13 @@ export default async function CabangDetailPage({
           {branch.users.length === 0 ? (
             <Kosong text="Belum ada user terdaftar di cabang ini." />
           ) : (
-            <ul className="divide-y divide-slate-100">
+            <ul className="max-h-80 divide-y divide-slate-100 overflow-y-auto">
               {branch.users.map((u) => (
                 <li key={u.id} className="py-2.5">
-                  <Link href={`/users/${u.id}`} className="group flex items-center justify-between text-sm">
+                  <Link
+                    href={`/users/${u.id}`}
+                    className="group flex items-center justify-between text-sm"
+                  >
                     <span className="font-medium text-slate-700 group-hover:text-indigo-600">
                       {u.nama}
                     </span>
@@ -83,6 +101,7 @@ export default async function CabangDetailPage({
           )}
         </Seksi>
 
+        {/* Devices Terdaftar — tetap seperti semula */}
         <Seksi
           title="Devices Terdaftar"
           icon={MonitorSmartphone}
@@ -95,7 +114,10 @@ export default async function CabangDetailPage({
             <ul className="max-h-80 divide-y divide-slate-100 overflow-y-auto">
               {branch.devices.map((d) => (
                 <li key={d.id} className="py-2.5">
-                  <Link href={`/devices/${d.id}`} className="group flex items-center justify-between text-sm">
+                  <Link
+                    href={`/devices/${d.id}`}
+                    className="group flex items-center justify-between text-sm"
+                  >
                     <span className="min-w-0">
                       <span className="block truncate font-medium text-slate-700 group-hover:text-indigo-600">
                         {d.nama}
@@ -116,6 +138,7 @@ export default async function CabangDetailPage({
           )}
         </Seksi>
 
+        {/* Riwayat Troubleshooting — tetap seperti semula */}
         <div className="lg:col-span-2">
           <Seksi
             title="Riwayat Troubleshooting"
