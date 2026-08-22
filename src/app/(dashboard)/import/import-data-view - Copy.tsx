@@ -11,11 +11,6 @@ import {
   XCircle,
 } from "lucide-react";
 import { importUsers, importDevices, type HasilImport } from "./actions";
-// deviceFields dipakai untuk membangun dropdown Spesifikasi yang otomatis
-// menyesuaikan Jenis — diimpor langsung dari config yang sama dipakai form
-// Tambah Device manual, supaya daftar di template SELALU sinkron dengan
-// aplikasi (tidak perlu menulis ulang daftar spesifikasi secara terpisah).
-import { deviceFields } from "@/config/device-fields";
 
 type Tab = "user" | "device";
 
@@ -27,18 +22,6 @@ const BORDER_ABU = "FFD1D5DB"; // slate-300
 // Jumlah pasang kolom Spesifikasi (Nama)/(Nilai) di template — harus sama
 // dengan JUMLAH_SLOT_SPESIFIKASI di actions.ts.
 const JUMLAH_SLOT_SPESIFIKASI = 4;
-
-// Status device — didaftar ulang di sini (bukan diimpor dari actions.ts)
-// karena file "use server" hanya boleh mengekspor async function, tidak
-// boleh mengekspor konstanta biasa. Harus tetap sinkron dengan
-// STATUS_DEVICE_VALID di actions.ts.
-const STATUS_LIST = ["Aktif", "Rusak", "Perbaikan", "Tidak dipakai"];
-
-// Jumlah baris yang diberi dropdown otomatis di template (baris 2 s.d.
-// 1 + ROWS_VALIDASI). Pengguna tetap bisa menambah baris lebih banyak
-// secara manual, hanya saja baris tambahan itu tidak otomatis punya
-// dropdown kecuali menyalin (copy-paste) dari salah satu baris di atasnya.
-const ROWS_VALIDASI = 200;
 
 type KolomTemplate = { header: string; width: number };
 
@@ -58,7 +41,10 @@ const USER_CONTOH = [
 
 // ===== Sheet "Data" — Device (kondisi SAAT INI + spesifikasi) =====
 // Kolom spesifikasi dibuat dinamis (JUMLAH_SLOT_SPESIFIKASI pasang) supaya
-// satu template yang sama bisa dipakai untuk jenis perangkat apa pun.
+// satu template yang sama bisa dipakai untuk jenis perangkat apa pun,
+// baik yang butuh 3 spesifikasi (Laptop: RAM/CPU/Storage) maupun 2
+// (CCTV: Resolusi/Lokasi Pasang) — slot yang tidak dipakai cukup
+// dikosongkan.
 const DEVICE_KOLOM_DASAR: KolomTemplate[] = [
   { header: "Nama Perangkat", width: 24 },
   { header: "Jenis", width: 14 },
@@ -218,114 +204,6 @@ function tambahSheet(
   return sheet;
 }
 
-// Mengubah nomor kolom (1, 2, 3, ...) menjadi huruf kolom Excel (A, B, C,
-// ..., Z, AA, AB, ...). Dipakai untuk menyusun rumus dropdown & named range.
-function kolomHuruf(index: number): string {
-  let hasil = "";
-  let n = index;
-  while (n > 0) {
-    const sisa = (n - 1) % 26;
-    hasil = String.fromCharCode(65 + sisa) + hasil;
-    n = Math.floor((n - 1) / 26);
-  }
-  return hasil;
-}
-
-/**
- * Membuat sheet tersembunyi berisi daftar spesifikasi per Jenis perangkat
- * (diambil dari deviceFields — sama persis dengan yang dipakai form Tambah
- * Device manual), lalu mendaftarkan tiap kolom sebagai "named range" di
- * Excel. Named range inilah yang nanti dirujuk oleh dropdown Spesifikasi
- * lewat rumus INDIRECT, sehingga pilihannya otomatis berubah mengikuti
- * Jenis yang dipilih pada baris yang sama.
- *
- * Nama named range tidak boleh mengandung spasi (aturan Excel), sehingga
- * "Perangkat Lainnya" didaftarkan sebagai "Perangkat_Lainnya". Rumus
- * dropdown nanti melakukan penggantian spasi->underscore yang sama saat
- * membaca nilai Jenis, supaya keduanya selalu cocok.
- */
-function tambahSheetDaftarSpesifikasi(workbook: ExcelJS.Workbook): string[] {
-  const sheet = workbook.addWorksheet("Daftar Spesifikasi", { state: "hidden" });
-  const daftarJenis = Object.keys(deviceFields);
-
-  daftarJenis.forEach((jenis, idx) => {
-    const kolom = idx + 1;
-    const daftarSpek = deviceFields[jenis];
-
-    sheet.getCell(1, kolom).value = jenis; // baris 1: label (boleh ada spasi, hanya penanda)
-    daftarSpek.forEach((spek, i) => {
-      sheet.getCell(2 + i, kolom).value = spek;
-    });
-
-    const kolomHurufIni = kolomHuruf(kolom);
-    const namaRange = jenis.replace(/ /g, "_");
-    const barisTerakhir = 1 + Math.max(daftarSpek.length, 1);
-
-    workbook.definedNames.add(
-      `'Daftar Spesifikasi'!$${kolomHurufIni}$2:$${kolomHurufIni}$${barisTerakhir}`,
-      namaRange
-    );
-  });
-
-  return daftarJenis;
-}
-
-/**
- * Memasang dropdown pada sheet "Data":
- *  - Kolom Jenis   -> daftar tetap (Laptop, Desktop, Monitor, dst.)
- *  - Kolom Status  -> daftar tetap (Aktif, Rusak, Perbaikan, Tidak dipakai)
- *  - Kolom Spesifikasi 1-4 (Nama) -> daftar yang MENGIKUTI Jenis di baris
- *    yang sama, lewat rumus INDIRECT(SUBSTITUTE($B{baris}," ","_")).
- *
- * errorStyle "warning" dipakai (bukan "error") supaya pengguna tetap bisa
- * mengetik nilai di luar daftar bila memang diperlukan (mis. jenis/status
- * baru yang belum sempat tercermin di template) — validasi yang sebenarnya
- * tetap dilakukan di server saat proses import berjalan.
- */
-function tambahDropdownDevice(sheetData: ExcelJS.Worksheet, daftarJenis: string[]) {
-  const idxJenis = DEVICE_KOLOM_DASAR.findIndex((k) => k.header === "Jenis") + 1;
-  const idxStatus = DEVICE_KOLOM_DASAR.findIndex((k) => k.header === "Status") + 1;
-  const kolomJenis = kolomHuruf(idxJenis);
-  const kolomStatus = kolomHuruf(idxStatus);
-
-  const formulaJenis = `"${daftarJenis.join(",")}"`;
-  const formulaStatus = `"${STATUS_LIST.join(",")}"`;
-
-  for (let baris = 2; baris <= 1 + ROWS_VALIDASI; baris++) {
-    sheetData.getCell(`${kolomJenis}${baris}`).dataValidation = {
-      type: "list",
-      allowBlank: true,
-      formulae: [formulaJenis],
-      showErrorMessage: true,
-      errorStyle: "warning",
-      errorTitle: "Jenis tidak dikenali",
-      error: "Jenis ini tidak ada di daftar. Anda tetap bisa melanjutkan bila memang sengaja.",
-    };
-
-    sheetData.getCell(`${kolomStatus}${baris}`).dataValidation = {
-      type: "list",
-      allowBlank: true,
-      formulae: [formulaStatus],
-      showErrorMessage: true,
-      errorStyle: "warning",
-      errorTitle: "Status tidak dikenali",
-      error: "Status ini tidak ada di daftar. Kosongkan bila ingin memakai status Aktif (default).",
-    };
-
-    // Dropdown Spesifikasi (Nama) — menyesuaikan otomatis ke Jenis di baris ini
-    for (let slot = 1; slot <= JUMLAH_SLOT_SPESIFIKASI; slot++) {
-      const idxNama = DEVICE_KOLOM_DASAR.length + (slot - 1) * 2 + 1;
-      const kolomNama = kolomHuruf(idxNama);
-      sheetData.getCell(`${kolomNama}${baris}`).dataValidation = {
-        type: "list",
-        allowBlank: true,
-        formulae: [`INDIRECT(SUBSTITUTE($${kolomJenis}${baris}," ","_"))`],
-        showErrorMessage: false,
-      };
-    }
-  }
-}
-
 async function unduhWorkbook(workbook: ExcelJS.Workbook, fileName: string) {
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], {
@@ -349,13 +227,9 @@ async function unduhTemplateUser() {
 
 async function unduhTemplateDevice() {
   const workbook = new ExcelJS.Workbook();
-  const sheetData = tambahSheet(workbook, "Data", DEVICE_KOLOM, DEVICE_CONTOH);
+  tambahSheet(workbook, "Data", DEVICE_KOLOM, DEVICE_CONTOH);
   tambahSheet(workbook, "Riwayat Pengguna", RIWAYAT_PENGGUNA_KOLOM, RIWAYAT_PENGGUNA_CONTOH);
   tambahSheet(workbook, "Riwayat Penempatan", RIWAYAT_PENEMPATAN_KOLOM, RIWAYAT_PENEMPATAN_CONTOH);
-
-  const daftarJenis = tambahSheetDaftarSpesifikasi(workbook);
-  tambahDropdownDevice(sheetData, daftarJenis);
-
   await unduhWorkbook(workbook, "template-import-devices.xlsx");
 }
 
@@ -574,23 +448,13 @@ export function ImportDataView() {
             (berwarna abu-abu) sebelum diunggah.
           </p>
         ) : (
-          <div className="mb-3 space-y-2 text-sm text-slate-500">
-            <p>
-              Template berisi 3 sheet: <span className="font-medium text-slate-700">Data</span> (kondisi
-              perangkat saat ini + spesifikasi), <span className="font-medium text-slate-700">Riwayat
-              Pengguna</span> (histori pengguna sebelumnya), dan{" "}
-              <span className="font-medium text-slate-700">Riwayat Penempatan</span> (histori lokasi
-              sebelumnya). Sheet Riwayat boleh dikosongkan bila perangkat memang belum pernah berpindah.
-            </p>
-            <p>
-              Kolom <span className="font-medium text-slate-700">Jenis</span> dan{" "}
-              <span className="font-medium text-slate-700">Status</span> sudah berbentuk dropdown.
-              Kolom <span className="font-medium text-slate-700">Spesifikasi (Nama)</span> juga dropdown
-              yang <span className="italic">otomatis menyesuaikan</span> daftar pilihannya mengikuti
-              Jenis yang dipilih pada baris yang sama — pilih Jenis terlebih dahulu, baru pilih
-              Spesifikasi. Dropdown tersedia untuk 200 baris pertama.
-            </p>
-          </div>
+          <p className="mb-3 text-sm text-slate-500">
+            Template berisi 3 sheet: <span className="font-medium text-slate-700">Data</span> (kondisi
+            perangkat saat ini + spesifikasi), <span className="font-medium text-slate-700">Riwayat
+            Pengguna</span> (histori pengguna sebelumnya), dan{" "}
+            <span className="font-medium text-slate-700">Riwayat Penempatan</span> (histori lokasi
+            sebelumnya). Sheet Riwayat boleh dikosongkan bila perangkat memang belum pernah berpindah.
+          </p>
         )}
         <button
           type="button"
@@ -629,9 +493,8 @@ export function ImportDataView() {
                   <span className="font-medium text-slate-700">Nama Perangkat</span> — wajib diisi
                 </li>
                 <li>
-                  <span className="font-medium text-slate-700">Jenis, Status</span> — opsional, sudah
-                  berbentuk dropdown di kolom Excel-nya (Status default &quot;Aktif&quot; bila
-                  dikosongkan)
+                  <span className="font-medium text-slate-700">Jenis, Status</span> — opsional, harus
+                  sama persis dengan data terdaftar (Status default &quot;Aktif&quot;)
                 </li>
                 <li>
                   <span className="font-medium text-slate-700">Merk, Tipe/Model, No. Seri, Keterangan</span>{" "}
@@ -660,12 +523,9 @@ export function ImportDataView() {
                   <span className="font-medium text-slate-700">
                     Spesifikasi 1-4 (Nama) &amp; (Nilai)
                   </span>{" "}
-                  — opsional, 4 pasang kolom untuk spesifikasi teknis. Kolom{" "}
-                  <span className="font-medium text-slate-700">(Nama)</span> berupa dropdown yang{" "}
-                  <span className="italic">otomatis menyesuaikan</span> pilihan Jenis pada baris yang
-                  sama; kolom <span className="font-medium text-slate-700">(Nilai)</span> tetap bebas
-                  diisi teks, contoh Nama=&quot;RAM&quot; Nilai=&quot;8GB&quot;. Kosongkan pasangan yang
-                  tidak dipakai
+                  — opsional, 4 pasang kolom bebas untuk spesifikasi teknis, contoh Nama=&quot;RAM&quot;
+                  Nilai=&quot;8GB&quot;. Isi sebanyak spesifikasi yang relevan untuk jenis perangkat
+                  tersebut, kosongkan pasangan yang tidak dipakai
                 </li>
               </ul>
             </div>
