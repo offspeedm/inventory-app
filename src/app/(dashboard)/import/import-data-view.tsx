@@ -19,8 +19,13 @@ const ABU_CONTOH_FILL = "FFF8FAFC"; // slate-50, latar baris contoh
 const ABU_CONTOH_FONT = "FF94A3B8"; // slate-400, teks baris contoh
 const BORDER_ABU = "FFD1D5DB"; // slate-300
 
+// Jumlah pasang kolom Spesifikasi (Nama)/(Nilai) di template — harus sama
+// dengan JUMLAH_SLOT_SPESIFIKASI di actions.ts.
+const JUMLAH_SLOT_SPESIFIKASI = 4;
+
 type KolomTemplate = { header: string; width: number };
 
+// ===== Sheet "Data" — User =====
 const USER_KOLOM: KolomTemplate[] = [
   { header: "Nama Lengkap", width: 24 },
   { header: "Email", width: 28 },
@@ -34,7 +39,13 @@ const USER_CONTOH = [
   ["Siti Aminah", "", "081298765432", "Finance", "", ""],
 ];
 
-const DEVICE_KOLOM: KolomTemplate[] = [
+// ===== Sheet "Data" — Device (kondisi SAAT INI + spesifikasi) =====
+// Kolom spesifikasi dibuat dinamis (JUMLAH_SLOT_SPESIFIKASI pasang) supaya
+// satu template yang sama bisa dipakai untuk jenis perangkat apa pun,
+// baik yang butuh 3 spesifikasi (Laptop: RAM/CPU/Storage) maupun 2
+// (CCTV: Resolusi/Lokasi Pasang) — slot yang tidak dipakai cukup
+// dikosongkan.
+const DEVICE_KOLOM_DASAR: KolomTemplate[] = [
   { header: "Nama Perangkat", width: 24 },
   { header: "Jenis", width: 14 },
   { header: "Merk", width: 14 },
@@ -45,9 +56,23 @@ const DEVICE_KOLOM: KolomTemplate[] = [
   { header: "Harga Beli", width: 14 },
   { header: "Perusahaan", width: 36 },
   { header: "Cabang", width: 16 },
+  { header: "Tgl Mulai Penempatan", width: 18 },
   { header: "Pengguna", width: 20 },
+  { header: "Tgl Mulai Pengguna", width: 18 },
   { header: "Keterangan", width: 26 },
 ];
+
+function buatKolomSpesifikasi(): KolomTemplate[] {
+  const kolom: KolomTemplate[] = [];
+  for (let slot = 1; slot <= JUMLAH_SLOT_SPESIFIKASI; slot++) {
+    kolom.push({ header: `Spesifikasi ${slot} (Nama)`, width: 18 });
+    kolom.push({ header: `Spesifikasi ${slot} (Nilai)`, width: 16 });
+  }
+  return kolom;
+}
+
+const DEVICE_KOLOM: KolomTemplate[] = [...DEVICE_KOLOM_DASAR, ...buatKolomSpesifikasi()];
+
 const DEVICE_CONTOH = [
   [
     "Laptop Kasir 01",
@@ -56,25 +81,95 @@ const DEVICE_CONTOH = [
     "ThinkPad E14",
     "SN12345",
     "Aktif",
-    "2026-01-15",
+    "2024-01-15",
     "12000000",
     "PT. Speedmark Logistics Indonesia",
     "Jakarta",
+    "2024-01-15",
     "Budi Santoso",
+    "2026-03-01",
+    "",
+    "RAM",
+    "8GB",
+    "CPU",
+    "Core i5",
+    "Storage",
+    "512GB SSD",
+    "",
     "",
   ],
-  ["Printer Gudang", "Printer", "Epson", "L3110", "", "Aktif", "", "", "", "", "", "Printer cadangan"],
+  [
+    "CCTV Lobi Utama",
+    "CCTV",
+    "Hikvision",
+    "DS-2CE16",
+    "",
+    "Aktif",
+    "2025-06-01",
+    "1800000",
+    "PT. CNL Logistics Indonesia",
+    "",
+    "2025-06-01",
+    "",
+    "",
+    "Terpasang di lobi utama",
+    "Resolusi",
+    "4MP",
+    "Lokasi Pasang",
+    "Lobi",
+    "",
+    "",
+    "",
+    "",
+  ],
+];
+
+// ===== Sheet "Riwayat Pengguna" — histori pengguna SEBELUM pengguna saat ini =====
+const RIWAYAT_PENGGUNA_KOLOM: KolomTemplate[] = [
+  { header: "No. Seri", width: 14 },
+  { header: "Nama Perangkat", width: 24 },
+  { header: "Nama User", width: 22 },
+  { header: "Tanggal Mulai", width: 16 },
+  { header: "Tanggal Selesai", width: 16 },
+];
+const RIWAYAT_PENGGUNA_CONTOH = [
+  ["SN12345", "Laptop Kasir 01", "Andi Wijaya", "2024-01-15", "2026-03-01"],
+  ["", "Laptop Kasir 01", "Rina Marlina", "2023-06-01", "2024-01-15"],
+];
+
+// ===== Sheet "Riwayat Penempatan" — histori lokasi SEBELUM lokasi saat ini =====
+const RIWAYAT_PENEMPATAN_KOLOM: KolomTemplate[] = [
+  { header: "No. Seri", width: 14 },
+  { header: "Nama Perangkat", width: 24 },
+  { header: "Perusahaan", width: 36 },
+  { header: "Cabang", width: 16 },
+  { header: "Tanggal Mulai", width: 16 },
+  { header: "Tanggal Selesai", width: 16 },
+];
+const RIWAYAT_PENEMPATAN_CONTOH = [
+  [
+    "SN12345",
+    "Laptop Kasir 01",
+    "PT. Speedmark Logistics Indonesia",
+    "Bandung",
+    "2024-01-15",
+    "2024-01-15",
+  ],
 ];
 
 /**
- * Membuat & mengunduh template Excel dengan header berwarna biru, tebal,
- * bergaris tepi, dan baris contoh yang ditandai abu-abu agar mudah dibedakan
- * dari data asli.
+ * Menambahkan satu sheet berformat rapi (header biru, baris contoh abu-abu)
+ * ke dalam workbook yang sedang dibangun. Dipakai berulang untuk membangun
+ * template User (1 sheet) maupun Devices (3 sheet: Data, Riwayat Pengguna,
+ * Riwayat Penempatan).
  */
-async function unduhTemplate(kolom: KolomTemplate[], contoh: string[][], fileName: string) {
-  const workbook = new ExcelJS.Workbook();
-  const sheet = workbook.addWorksheet("Data");
-
+function tambahSheet(
+  workbook: ExcelJS.Workbook,
+  namaSheet: string,
+  kolom: KolomTemplate[],
+  contoh: string[][]
+) {
+  const sheet = workbook.addWorksheet(namaSheet);
   sheet.columns = kolom.map((k) => ({ header: k.header, width: k.width }));
 
   const headerRow = sheet.getRow(1);
@@ -106,7 +201,10 @@ async function unduhTemplate(kolom: KolomTemplate[], contoh: string[][], fileNam
   });
 
   sheet.views = [{ state: "frozen", ySplit: 1 }];
+  return sheet;
+}
 
+async function unduhWorkbook(workbook: ExcelJS.Workbook, fileName: string) {
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -121,58 +219,85 @@ async function unduhTemplate(kolom: KolomTemplate[], contoh: string[][], fileNam
   URL.revokeObjectURL(url);
 }
 
+async function unduhTemplateUser() {
+  const workbook = new ExcelJS.Workbook();
+  tambahSheet(workbook, "Data", USER_KOLOM, USER_CONTOH);
+  await unduhWorkbook(workbook, "template-import-user.xlsx");
+}
+
+async function unduhTemplateDevice() {
+  const workbook = new ExcelJS.Workbook();
+  tambahSheet(workbook, "Data", DEVICE_KOLOM, DEVICE_CONTOH);
+  tambahSheet(workbook, "Riwayat Pengguna", RIWAYAT_PENGGUNA_KOLOM, RIWAYAT_PENGGUNA_CONTOH);
+  tambahSheet(workbook, "Riwayat Penempatan", RIWAYAT_PENEMPATAN_KOLOM, RIWAYAT_PENEMPATAN_CONTOH);
+  await unduhWorkbook(workbook, "template-import-devices.xlsx");
+}
+
 /**
- * Membaca file .xlsx yang diunggah pengguna dan mengubahnya jadi array
- * objek biasa: [{ "Nama Lengkap": "Budi", "Email": "...", ... }, ...]
- *
- * PENTING: dulu bagian ini memakai library `xlsx` (SheetJS) sementara
- * template dibuat dengan `exceljs` — kombinasi ini bisa gagal membaca file
- * karena perbedaan cara kedua library menulis/membaca metadata internal
- * file .xlsx (shared strings, calcChain, dll.). Sekarang KEDUANYA memakai
- * `exceljs`, sehingga file yang dihasilkan dari "Unduh Template" dijamin
- * bisa dibaca kembali tanpa masalah kompatibilitas format.
+ * Mengubah nilai sel mentah dari ExcelJS menjadi string/angka polos.
+ * Menangani string biasa, Date, rich text ({ richText: [...] }), hyperlink
+ * ({ text, hyperlink }), dan formula ({ formula, result }).
  */
-async function bacaFileExcel(file: File): Promise<Record<string, unknown>[]> {
+function nilaiSelKeString(nilai: unknown): string {
+  if (nilai === null || nilai === undefined) return "";
+
+  if (nilai instanceof Date) {
+    return nilai.toISOString().slice(0, 10);
+  }
+
+  if (typeof nilai === "object") {
+    const obj = nilai as Record<string, unknown>;
+
+    if (Array.isArray(obj.richText)) {
+      return obj.richText
+        .map((segment) => (segment as { text?: unknown })?.text ?? "")
+        .join("")
+        .trim();
+    }
+    if ("result" in obj) return nilaiSelKeString(obj.result);
+    if ("text" in obj) return nilaiSelKeString(obj.text);
+
+    return "";
+  }
+
+  return String(nilai).trim();
+}
+
+async function bacaWorkbook(file: File): Promise<ExcelJS.Workbook> {
   const buffer = await file.arrayBuffer();
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(buffer);
+  return workbook;
+}
 
-  const sheet = workbook.getWorksheet("Data") ?? workbook.worksheets[0];
+/** Mengubah satu worksheet menjadi array objek biasa berdasar header baris 1. */
+function bacaSheetRows(sheet: ExcelJS.Worksheet | undefined): Record<string, unknown>[] {
   if (!sheet) return [];
 
-  // Baris pertama = header kolom
   const headerRow = sheet.getRow(1);
   const headers: string[] = [];
   headerRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
-    headers[colNumber] = String(cell.value ?? "").trim();
+    headers[colNumber] = nilaiSelKeString(cell.value);
   });
 
+  const jumlahKolom = headers.length - 1;
   const rows: Record<string, unknown>[] = [];
+
   sheet.eachRow((row, rowNumber) => {
     if (rowNumber === 1) return; // lewati baris header
 
     const obj: Record<string, unknown> = {};
     let adaIsi = false;
 
-    row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
-      const header = headers[colNumber];
-      if (!header) return;
+    for (let col = 1; col <= jumlahKolom; col++) {
+      const header = headers[col];
+      if (!header) continue;
 
-      let nilai = cell.value;
-      // ExcelJS bisa mengembalikan objek Date, formula, atau rich text —
-      // ubah semua jadi string/angka polos agar aman dikirim ke server.
-      if (nilai instanceof Date) {
-        nilai = nilai.toISOString().slice(0, 10);
-      } else if (nilai && typeof nilai === "object" && "result" in (nilai as object)) {
-        nilai = (nilai as { result: unknown }).result;
-      } else if (nilai && typeof nilai === "object" && "text" in (nilai as object)) {
-        nilai = (nilai as { text: unknown }).text;
-      }
-
-      const teks = nilai === null || nilai === undefined ? "" : nilai;
+      const cell = row.getCell(col);
+      const teks = nilaiSelKeString(cell.value);
       obj[header] = teks;
-      if (String(teks).trim() !== "") adaIsi = true;
-    });
+      if (teks !== "") adaIsi = true;
+    }
 
     if (adaIsi) rows.push(obj);
   });
@@ -210,14 +335,10 @@ export function ImportDataView() {
     setError(null);
     setHasil(null);
 
-    // ===== Tahap 1: baca & pecah file =====
-    // Dipisah dari tahap 2 agar pesan error tidak lagi menyesatkan —
-    // sebelumnya SATU try/catch membungkus baca-file DAN kirim-ke-server
-    // sekaligus, sehingga error dari server ikut diberi label "Gagal
-    // membaca file" padahal file-nya sendiri baik-baik saja.
-    let rows: Record<string, unknown>[];
+    // ===== Tahap 1: baca file & pisahkan sheet-sheet yang relevan =====
+    let workbook: ExcelJS.Workbook;
     try {
-      rows = await bacaFileExcel(file);
+      workbook = await bacaWorkbook(file);
     } catch (err) {
       console.error("Gagal membaca file Excel:", err);
       setError(
@@ -228,19 +349,40 @@ export function ImportDataView() {
       return;
     }
 
-    if (rows.length === 0) {
-      setError("File tidak berisi data. Pastikan data diisi pada baris di bawah header.");
-      setProcessing(false);
-      return;
-    }
-
     // ===== Tahap 2: kirim ke server untuk disimpan =====
     try {
-      const result = isUser
-        ? await importUsers(rows as never)
-        : await importDevices(rows as never);
+      if (isUser) {
+        const sheetData = workbook.getWorksheet("Data") ?? workbook.worksheets[0];
+        const rows = bacaSheetRows(sheetData);
 
-      setHasil(result);
+        if (rows.length === 0) {
+          setError("File tidak berisi data. Pastikan data diisi pada sheet Data.");
+          setProcessing(false);
+          return;
+        }
+
+        const result = await importUsers(rows as never);
+        setHasil(result);
+      } else {
+        const sheetData = workbook.getWorksheet("Data") ?? workbook.worksheets[0];
+        const rowsDevice = bacaSheetRows(sheetData);
+        const rowsRiwayatPengguna = bacaSheetRows(workbook.getWorksheet("Riwayat Pengguna"));
+        const rowsRiwayatPenempatan = bacaSheetRows(workbook.getWorksheet("Riwayat Penempatan"));
+
+        if (rowsDevice.length === 0) {
+          setError("File tidak berisi data. Pastikan data diisi pada sheet Data.");
+          setProcessing(false);
+          return;
+        }
+
+        const result = await importDevices({
+          devices: rowsDevice as never,
+          riwayatPengguna: rowsRiwayatPengguna as never,
+          riwayatPenempatan: rowsRiwayatPenempatan as never,
+        });
+        setHasil(result);
+      }
+
       setFile(null);
       if (inputRef.current) inputRef.current.value = "";
     } catch (err) {
@@ -299,18 +441,24 @@ export function ImportDataView() {
           </span>
           Unduh Template
         </h2>
-        <p className="mb-3 text-sm text-slate-500">
-          Unduh template Excel, isi data {isUser ? "user" : "perangkat"} pada sheet{" "}
-          <span className="font-medium text-slate-700">Data</span>, lalu hapus/timpa baris contoh
-          (berwarna abu-abu) sebelum diunggah.
-        </p>
+        {isUser ? (
+          <p className="mb-3 text-sm text-slate-500">
+            Unduh template Excel, isi data user pada sheet{" "}
+            <span className="font-medium text-slate-700">Data</span>, lalu hapus/timpa baris contoh
+            (berwarna abu-abu) sebelum diunggah.
+          </p>
+        ) : (
+          <p className="mb-3 text-sm text-slate-500">
+            Template berisi 3 sheet: <span className="font-medium text-slate-700">Data</span> (kondisi
+            perangkat saat ini + spesifikasi), <span className="font-medium text-slate-700">Riwayat
+            Pengguna</span> (histori pengguna sebelumnya), dan{" "}
+            <span className="font-medium text-slate-700">Riwayat Penempatan</span> (histori lokasi
+            sebelumnya). Sheet Riwayat boleh dikosongkan bila perangkat memang belum pernah berpindah.
+          </p>
+        )}
         <button
           type="button"
-          onClick={() =>
-            isUser
-              ? unduhTemplate(USER_KOLOM, USER_CONTOH, "template-import-user.xlsx")
-              : unduhTemplate(DEVICE_KOLOM, DEVICE_CONTOH, "template-import-devices.xlsx")
-          }
+          onClick={() => (isUser ? unduhTemplateUser() : unduhTemplateDevice())}
           className="inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100"
         >
           <FileSpreadsheet className="h-4 w-4" /> Unduh Template {isUser ? "User" : "Devices"}
@@ -320,56 +468,113 @@ export function ImportDataView() {
       {/* Format Kolom */}
       <div className="mb-6 border-b border-slate-100 pb-6">
         <p className="mb-2 text-sm font-semibold text-slate-800">Format Kolom</p>
-        <ul className="space-y-1.5 text-sm text-slate-500">
-          {isUser ? (
-            <>
-              <li>
-                <span className="font-medium text-slate-700">Nama Lengkap</span> — wajib diisi
-              </li>
-              <li>
-                <span className="font-medium text-slate-700">Email</span> — opsional, harus unik
-              </li>
-              <li>
-                <span className="font-medium text-slate-700">No. Telepon, Divisi</span> — opsional, bebas
-              </li>
-              <li>
-                <span className="font-medium text-slate-700">Perusahaan, Cabang</span> — opsional, harus
-                sama persis dengan data terdaftar
-              </li>
-            </>
-          ) : (
-            <>
-              <li>
-                <span className="font-medium text-slate-700">Nama Perangkat</span> — wajib diisi
-              </li>
-              <li>
-                <span className="font-medium text-slate-700">Jenis</span> — opsional, harus sama persis
-                dengan jenis perangkat terdaftar
-              </li>
-              <li>
-                <span className="font-medium text-slate-700">
-                  Merk, Tipe/Model, No. Seri, Keterangan
-                </span>{" "}
-                — opsional, bebas
-              </li>
-              <li>
-                <span className="font-medium text-slate-700">Status</span> — opsional
-                (Aktif/Rusak/Perbaikan/Tidak dipakai), default Aktif
-              </li>
-              <li>
-                <span className="font-medium text-slate-700">Tanggal Beli</span> — opsional, format
-                YYYY-MM-DD
-              </li>
-              <li>
-                <span className="font-medium text-slate-700">Harga Beli</span> — opsional, angka saja
-              </li>
-              <li>
-                <span className="font-medium text-slate-700">Perusahaan, Cabang, Pengguna</span> —
-                opsional, harus sama persis dengan data terdaftar
-              </li>
-            </>
-          )}
-        </ul>
+        {isUser ? (
+          <ul className="space-y-1.5 text-sm text-slate-500">
+            <li>
+              <span className="font-medium text-slate-700">Nama Lengkap</span> — wajib diisi
+            </li>
+            <li>
+              <span className="font-medium text-slate-700">Email</span> — opsional, harus unik
+            </li>
+            <li>
+              <span className="font-medium text-slate-700">No. Telepon, Divisi</span> — opsional, bebas
+            </li>
+            <li>
+              <span className="font-medium text-slate-700">Perusahaan, Cabang</span> — opsional, harus
+              sama persis dengan data terdaftar
+            </li>
+          </ul>
+        ) : (
+          <div className="space-y-4 text-sm text-slate-500">
+            <div>
+              <p className="mb-1 font-semibold text-slate-700">Sheet &quot;Data&quot;</p>
+              <ul className="space-y-1.5">
+                <li>
+                  <span className="font-medium text-slate-700">Nama Perangkat</span> — wajib diisi
+                </li>
+                <li>
+                  <span className="font-medium text-slate-700">Jenis, Status</span> — opsional, harus
+                  sama persis dengan data terdaftar (Status default &quot;Aktif&quot;)
+                </li>
+                <li>
+                  <span className="font-medium text-slate-700">Merk, Tipe/Model, No. Seri, Keterangan</span>{" "}
+                  — opsional, bebas
+                </li>
+                <li>
+                  <span className="font-medium text-slate-700">Tanggal Beli</span> — opsional, format
+                  YYYY-MM-DD
+                </li>
+                <li>
+                  <span className="font-medium text-slate-700">Harga Beli</span> — opsional, angka saja
+                </li>
+                <li>
+                  <span className="font-medium text-slate-700">Perusahaan, Cabang, Pengguna</span> —
+                  opsional, ini adalah kondisi <span className="italic">saat ini</span>, harus sama
+                  persis dengan data terdaftar
+                </li>
+                <li>
+                  <span className="font-medium text-slate-700">
+                    Tgl Mulai Penempatan, Tgl Mulai Pengguna
+                  </span>{" "}
+                  — opsional, format YYYY-MM-DD; jika kosong ikut Tanggal Beli, jika itu pun kosong
+                  memakai tanggal hari ini
+                </li>
+                <li>
+                  <span className="font-medium text-slate-700">
+                    Spesifikasi 1-4 (Nama) &amp; (Nilai)
+                  </span>{" "}
+                  — opsional, 4 pasang kolom bebas untuk spesifikasi teknis, contoh Nama=&quot;RAM&quot;
+                  Nilai=&quot;8GB&quot;. Isi sebanyak spesifikasi yang relevan untuk jenis perangkat
+                  tersebut, kosongkan pasangan yang tidak dipakai
+                </li>
+              </ul>
+            </div>
+            <div>
+              <p className="mb-1 font-semibold text-slate-700">
+                Sheet &quot;Riwayat Pengguna&quot; (opsional)
+              </p>
+              <ul className="space-y-1.5">
+                <li>
+                  <span className="font-medium text-slate-700">No. Seri</span> atau{" "}
+                  <span className="font-medium text-slate-700">Nama Perangkat</span> — salah satu wajib
+                  diisi, untuk mencocokkan ke perangkat pada sheet Data
+                </li>
+                <li>
+                  <span className="font-medium text-slate-700">Nama User</span> — wajib diisi, harus
+                  user yang sudah terdaftar
+                </li>
+                <li>
+                  <span className="font-medium text-slate-700">Tanggal Mulai</span> — wajib diisi,
+                  format YYYY-MM-DD
+                </li>
+                <li>
+                  <span className="font-medium text-slate-700">Tanggal Selesai</span> — opsional, format
+                  YYYY-MM-DD
+                </li>
+              </ul>
+            </div>
+            <div>
+              <p className="mb-1 font-semibold text-slate-700">
+                Sheet &quot;Riwayat Penempatan&quot; (opsional)
+              </p>
+              <ul className="space-y-1.5">
+                <li>
+                  <span className="font-medium text-slate-700">No. Seri</span> atau{" "}
+                  <span className="font-medium text-slate-700">Nama Perangkat</span> — salah satu wajib
+                  diisi
+                </li>
+                <li>
+                  <span className="font-medium text-slate-700">Perusahaan</span> — wajib diisi;{" "}
+                  <span className="font-medium text-slate-700">Cabang</span> opsional
+                </li>
+                <li>
+                  <span className="font-medium text-slate-700">Tanggal Mulai</span> — wajib diisi;{" "}
+                  <span className="font-medium text-slate-700">Tanggal Selesai</span> — opsional
+                </li>
+              </ul>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Langkah 2 — Unggah File */}

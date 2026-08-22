@@ -18,7 +18,7 @@ type Company = { id: number; nama: string };
 type Branch = { id: number; nama: string; companyId: number | null };
 type UserOpt = { id: number; nama: string };
 
-const STATUS = ["Aktif", "Rusak", "Perbaikan", "Tidak dipakai"];
+const STATUS = ["Aktif"];
 
 export function FormDevice({
   deviceTypes,
@@ -43,7 +43,9 @@ export function FormDevice({
     ? branches.filter((b) => b.companyId === Number(companyId))
     : [];
 
-  const selectedTypeName = deviceTypes.find((t) => t.id === Number(typeId))?.nama;
+  const selectedTypeName = deviceTypes.find(
+    (t) => t.id === Number(typeId),
+  )?.nama;
   const dynamicFields = getFieldsForType(selectedTypeName);
 
   const inputClass =
@@ -99,7 +101,9 @@ export function FormDevice({
                   <h2 className="text-base font-semibold text-slate-800 leading-tight">
                     Tambah Perangkat
                   </h2>
-                  <p className="text-xs text-slate-400">Isi data perangkat baru</p>
+                  <p className="text-xs text-slate-400">
+                    Isi data perangkat baru
+                  </p>
                 </div>
               </div>
               <button
@@ -136,7 +140,12 @@ export function FormDevice({
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">
                     Nama Perangkat
                   </label>
-                  <input name="nama" placeholder="mis. Laptop Kasir 01" required className={inputClass} />
+                  <input
+                    name="nama"
+                    placeholder="mis. NB001"
+                    required
+                    className={inputClass}
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">
@@ -160,16 +169,34 @@ export function FormDevice({
 
               <div className="grid sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Merk</label>
-                  <input name="merk" placeholder="mis. Lenovo" className={inputClass} />
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Merk
+                  </label>
+                  <input
+                    name="merk"
+                    placeholder="mis. Lenovo"
+                    className={inputClass}
+                  />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Tipe/Model</label>
-                  <input name="tipe" placeholder="mis. ThinkPad X1" className={inputClass} />
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Tipe/Model
+                  </label>
+                  <input
+                    name="tipe"
+                    placeholder="mis. ThinkPad X1"
+                    className={inputClass}
+                  />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">No. Seri</label>
-                  <input name="serial_number" placeholder="Serial number" className={inputClass} />
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    No. Seri
+                  </label>
+                  <input
+                    name="serial_number"
+                    placeholder="Serial number"
+                    className={inputClass}
+                  />
                 </div>
               </div>
 
@@ -197,8 +224,14 @@ export function FormDevice({
 
               <div className="grid sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Status</label>
-                  <select name="status" defaultValue="Aktif" className={inputClass}>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Status
+                  </label>
+                  <select
+                    name="status"
+                    defaultValue="Aktif"
+                    className={inputClass}
+                  >
                     {STATUS.map((s) => (
                       <option key={s} value={s}>
                         {s}
@@ -207,18 +240,30 @@ export function FormDevice({
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Tgl Beli</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Tgl Beli
+                  </label>
                   <input name="tgl_beli" type="date" className={inputClass} />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Harga (Rp)</label>
-                  <input name="harga_beli" type="number" min="0" placeholder="0" className={inputClass} />
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Harga (Rp)
+                  </label>
+                  <input
+                    name="harga_beli"
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    className={inputClass}
+                  />
                 </div>
               </div>
 
               <div className="grid sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Perusahaan</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Perusahaan
+                  </label>
                   <select
                     name="company_id"
                     value={companyId}
@@ -234,9 +279,17 @@ export function FormDevice({
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Cabang</label>
-                  <select name="branch_id" disabled={!companyId} className={inputClass + " disabled:bg-slate-100"}>
-                    <option value="">{companyId ? "Pilih…" : "Pilih PT dulu"}</option>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Cabang
+                  </label>
+                  <select
+                    name="branch_id"
+                    disabled={!companyId}
+                    className={inputClass + " disabled:bg-slate-100"}
+                  >
+                    <option value="">
+                      {companyId ? "Pilih…" : "Pilih PT dulu"}
+                    </option>
                     {filteredBranches.map((b) => (
                       <option key={b.id} value={b.id}>
                         {b.nama}
@@ -245,7 +298,9 @@ export function FormDevice({
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Pengguna</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Pengguna
+                  </label>
                   <select name="user_id" defaultValue="" className={inputClass}>
                     <option value="">Belum ada</option>
                     {users.map((u) => (
@@ -259,7 +314,8 @@ export function FormDevice({
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Keterangan <span className="text-slate-400 font-normal">(opsional)</span>
+                  Keterangan{" "}
+                  <span className="text-slate-400 font-normal">(opsional)</span>
                 </label>
                 <textarea
                   name="keterangan"
@@ -271,7 +327,10 @@ export function FormDevice({
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Foto & Lampiran <span className="text-slate-400 font-normal">(opsional, bisa lebih dari satu)</span>
+                  Foto & Lampiran{" "}
+                  <span className="text-slate-400 font-normal">
+                    (opsional, bisa lebih dari satu)
+                  </span>
                 </label>
 
                 <label className="flex flex-col items-center justify-center gap-1.5 border-2 border-dashed border-slate-300 rounded-xl py-5 cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/40 transition-colors">

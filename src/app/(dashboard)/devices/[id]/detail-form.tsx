@@ -27,7 +27,13 @@ type DeviceData = {
   attributes: Attr[];
 };
 
-const STATUS_OPTIONS = ["Aktif", "Rusak", "Perbaikan", "Tidak dipakai"];
+const STATUS_OPTIONS = [
+  "Aktif",
+  "Rusak",
+  "Perbaikan",
+  "Tidak dipakai",
+  "Hilang",
+];
 
 function toDateInputValue(value: Date | string | null): string {
   if (!value) return "";
