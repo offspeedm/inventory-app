@@ -387,8 +387,12 @@ export async function importDevices(payload: {
     const tglMulaiPengguna = toTanggal(row["Tgl Mulai Pengguna"]) ?? tglBeli ?? new Date();
     const tglMulaiPenempatan = toTanggal(row["Tgl Mulai Penempatan"]) ?? tglBeli ?? new Date();
 
+    // PENTING: generateKodeInventaris sekarang butuh companyId juga (format
+    // kode inventaris terbaru menyertakan kode perusahaan). Kalau
+    // companyId kosong pada baris ini, kode inventaris akan kosong (null)
+    // — device tetap tersimpan, hanya kolom kodeInventaris-nya kosong.
     try {
-      const kodeInventaris = await generateKodeInventaris(typeId, tglBeli);
+      const kodeInventaris = await generateKodeInventaris(typeId, companyId, tglBeli);
       const device = await prisma.device.create({
         data: {
           nama,

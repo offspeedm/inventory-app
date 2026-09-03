@@ -15,8 +15,12 @@ function formatTanggal(value: Date | null): string {
 }
 
 function peranDalamTiket(
-  tiket: { userId: number | null; userTerkendalaId: number | null; teknisiId: number | null },
-  userId: number
+  tiket: {
+    userId: number | null;
+    userTerkendalaId: number | null;
+    teknisiId: number | null;
+  },
+  userId: number,
 ): string[] {
   const peran: string[] = [];
   if (tiket.userId === userId) peran.push("Pelapor");
@@ -33,40 +37,48 @@ export default async function UserDetailPage({
   const { id } = await params;
   const userId = Number(id);
 
-  const [user, riwayatPerangkat, tiket, companies, branches] = await Promise.all([
-    prisma.user.findUnique({
-      where: { id: userId },
-      include: {
-        devices: {
-          select: {
-            id: true,
-            nama: true,
-            kodeInventaris: true,
-            merk: true,
-            tipe: true,
-            status: true,
-            type: { select: { nama: true } },
+  const [user, riwayatPerangkat, tiket, companies, branches] =
+    await Promise.all([
+      prisma.user.findUnique({
+        where: { id: userId },
+        include: {
+          devices: {
+            select: {
+              id: true,
+              nama: true,
+              kodeInventaris: true,
+              merk: true,
+              tipe: true,
+              status: true,
+              type: { select: { nama: true } },
+            },
+            orderBy: { nama: "asc" },
           },
-          orderBy: { nama: "asc" },
         },
-      },
-    }),
-    prisma.deviceAssignment.findMany({
-      where: { userId },
-      include: { device: { select: { id: true, nama: true, kodeInventaris: true } } },
-      orderBy: { tglMulai: "desc" },
-    }),
-    prisma.ticket.findMany({
-      where: { OR: [{ userId }, { userTerkendalaId: userId }, { teknisiId: userId }] },
-      include: { device: { select: { id: true, nama: true } } },
-      orderBy: { tglLapor: "desc" },
-    }),
-    prisma.company.findMany({ select: { id: true, nama: true }, orderBy: { nama: "asc" } }),
-    prisma.branch.findMany({
-      select: { id: true, nama: true, companyId: true },
-      orderBy: { nama: "asc" },
-    }),
-  ]);
+      }),
+      prisma.deviceAssignment.findMany({
+        where: { userId },
+        include: {
+          device: { select: { id: true, nama: true, kodeInventaris: true } },
+        },
+        orderBy: { tglMulai: "desc" },
+      }),
+      prisma.ticket.findMany({
+        where: {
+          OR: [{ userId }, { userTerkendalaId: userId }, { teknisiId: userId }],
+        },
+        include: { device: { select: { id: true, nama: true } } },
+        orderBy: { tglLapor: "desc" },
+      }),
+      prisma.company.findMany({
+        select: { id: true, nama: true },
+        orderBy: { nama: "asc" },
+      }),
+      prisma.branch.findMany({
+        select: { id: true, nama: true, companyId: true },
+        orderBy: { nama: "asc" },
+      }),
+    ]);
 
   if (!user) notFound();
 
@@ -132,10 +144,14 @@ export default async function UserDetailPage({
                           {device.kodeInventaris ?? "Tanpa kode inventaris"}
                         </p>
                         <p className="text-xs text-slate-400">
-                          {[device.merk, device.tipe].filter(Boolean).join(" · ") || "-"}
+                          {[device.merk, device.tipe]
+                            .filter(Boolean)
+                            .join(" · ") || "-"}
                         </p>
                       </td>
-                      <td className="px-3 py-2.5 text-slate-600">{device.type?.nama ?? "-"}</td>
+                      <td className="px-3 py-2.5 text-slate-600">
+                        {device.type?.nama ?? "-"}
+                      </td>
                       <td className="px-3 py-2.5">
                         <span className="inline-block rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
                           {device.status}
@@ -171,7 +187,8 @@ export default async function UserDetailPage({
                     {item.device.kodeInventaris ?? "Tanpa kode inventaris"}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">
-                    {formatTanggal(item.tglMulai)} sampai {formatTanggal(item.tglSelesai)}
+                    {formatTanggal(item.tglMulai)} sampai{" "}
+                    {formatTanggal(item.tglSelesai)}
                   </p>
                 </li>
               ))}
@@ -187,7 +204,9 @@ export default async function UserDetailPage({
           </span>
           <h2 className="font-semibold text-slate-800">
             Riwayat Troubleshooting
-            <span className="ml-1 font-normal text-slate-400">({tiket.length})</span>
+            <span className="ml-1 font-normal text-slate-400">
+              ({tiket.length})
+            </span>
           </h2>
         </div>
 
@@ -208,7 +227,10 @@ export default async function UserDetailPage({
               </thead>
               <tbody>
                 {tiket.map((item) => (
-                  <tr key={item.id} className="border-t border-slate-100 hover:bg-slate-50/60">
+                  <tr
+                    key={item.id}
+                    className="border-t border-slate-100 hover:bg-slate-50/60"
+                  >
                     <td className="px-3 py-2.5">
                       <Link
                         href={`/troubleshooting/${item.id}`}
@@ -294,7 +316,9 @@ function Seksi({
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="mb-4 flex items-center gap-2">
-        <span className={`inline-flex h-8 w-8 items-center justify-center rounded-lg ${accent}`}>
+        <span
+          className={`inline-flex h-8 w-8 items-center justify-center rounded-lg ${accent}`}
+        >
           <Icon className="h-4 w-4" />
         </span>
         <h2 className="font-semibold text-slate-800">

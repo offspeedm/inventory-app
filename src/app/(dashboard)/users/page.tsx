@@ -39,9 +39,10 @@ export default async function UsersPage() {
     const nama = u.divisi ?? "Tanpa divisi";
     perDivisiMap.set(nama, (perDivisiMap.get(nama) ?? 0) + 1);
   });
-  const perDivisi = Array.from(perDivisiMap, ([nama, jumlah]) => ({ nama, jumlah })).sort(
-    (a, b) => b.jumlah - a.jumlah
-  );
+  const perDivisi = Array.from(perDivisiMap, ([nama, jumlah]) => ({
+    nama,
+    jumlah,
+  })).sort((a, b) => b.jumlah - a.jumlah);
 
   return (
     <div>
@@ -57,13 +58,15 @@ export default async function UsersPage() {
         </div>
       </div>
 
-      <StatistikUser perDivisi={perDivisi} perPerusahaan={perPerusahaan} />
-
       <FormUser companies={companies} branches={branches} />
 
-      <Suspense fallback={<p className="text-sm text-slate-400">Memuat data…</p>}>
+      <Suspense
+        fallback={<p className="text-sm text-slate-400">Memuat data…</p>}
+      >
         <TabelUser users={users} companies={companies} branches={branches} />
       </Suspense>
+      <br />
+      <StatistikUser perDivisi={perDivisi} perPerusahaan={perPerusahaan} />
     </div>
   );
 }

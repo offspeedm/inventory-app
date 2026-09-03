@@ -48,7 +48,7 @@ function kumpulkanAtribut(
 
 export async function tambahDevice(formData: FormData) {
   const d = bacaForm(formData);
-  const kodeInventaris = await generateKodeInventaris(d.typeId, d.tglBeli);
+  const kodeInventaris = await generateKodeInventaris(d.typeId, d.companyId, d.tglBeli);
 
   const device = await prisma.device.create({
     data: { ...d, kodeInventaris },
