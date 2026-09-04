@@ -100,9 +100,8 @@ export function DevicesDetailSection({
   const [sortField, setSortField] = useState<SortField>("perusahaan");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   // Default "berubah" — langsung menampilkan HANYA perangkat yang benar-
-  // benar mengalami perubahan pada periode ini, sesuai permintaan supaya
-  // tidak perlu melihat seluruh data yang tidak relevan. Bisa dialihkan ke
-  // "semua" lewat toggle di bawah.
+  // benar mengalami perubahan pada periode ini. Bisa dialihkan ke "semua"
+  // lewat toggle di bawah.
   const [tampilan, setTampilan] = useState<TampilanData>("berubah");
 
   useEffect(() => {
@@ -283,7 +282,14 @@ export function DevicesDetailSection({
   }
 
   return (
-    <div className="space-y-6">
+    // PENTING (perbaikan tumpang tindih): setiap kotak tabel di bawah
+    // sekarang diberi `relative isolate` — ini memaksa browser membuat
+    // "lapisan tampilan" (stacking context) yang benar-benar terpisah
+    // untuk masing-masing kotak, sehingga konten satu tabel TIDAK BISA
+    // lagi "menembus"/tertumpuk secara visual ke kotak lain di bawahnya,
+    // berapa pun panjang isi tabel tersebut. `space-y-8` (bukan 6) juga
+    // menambah jarak antar kotak sebagai lapisan pengaman kedua.
+    <div className="space-y-8">
       {/* Tombol export */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm font-semibold text-slate-800">Detail Data &amp; Riwayat Perubahan</p>
@@ -308,7 +314,7 @@ export function DevicesDetailSection({
       </div>
 
       {/* Tabel Detail Devices — bisa di-sort, dengan toggle tampilan */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5">
+      <div className="relative isolate rounded-2xl border border-slate-200 bg-white p-5">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
@@ -355,12 +361,10 @@ export function DevicesDetailSection({
               : "Tidak ada perangkat untuk ditampilkan."}
           </p>
         ) : (
-          // PENTING: header tabel TIDAK memakai "sticky" — dua tabel yang
-          // berdekatan (Detail Devices & Riwayat Perubahan) sebelumnya
-          // sama-sama memakai sticky header di dalam kontainer scroll
-          // masing-masing, dan ini memicu bug visual tumpang tindih pada
-          // sebagian browser. Header biasa (tanpa sticky) lebih aman.
-          <div className="max-h-96 overflow-auto rounded-lg border border-slate-100">
+          // max-h dikurangi dari 96 (384px) menjadi 80 (320px) supaya
+          // scroll internal aktif lebih cepat dan tabel terasa lebih
+          // ringkas, sesuai keluhan "scroll kebawah terlalu panjang".
+          <div className="max-h-80 overflow-y-auto overflow-x-auto rounded-lg border border-slate-100">
             <table className="w-full min-w-[960px] text-sm">
               <thead className="bg-slate-50 text-left text-slate-600">
                 <tr>
@@ -465,7 +469,7 @@ export function DevicesDetailSection({
       </div>
 
       {/* Tabel Riwayat Perubahan dalam periode terpilih */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5">
+      <div className="relative isolate rounded-2xl border border-slate-200 bg-white p-5">
         <div className="mb-3 flex items-center gap-2">
           <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
             <History className="h-4 w-4" />
@@ -483,7 +487,7 @@ export function DevicesDetailSection({
             Tidak ada perubahan User/Perusahaan/Cabang pada periode ini.
           </p>
         ) : (
-          <div className="max-h-96 overflow-auto rounded-lg border border-slate-100">
+          <div className="max-h-80 overflow-y-auto overflow-x-auto rounded-lg border border-slate-100">
             <table className="w-full min-w-[760px] text-sm">
               <thead className="bg-slate-50 text-left text-slate-600">
                 <tr>
