@@ -34,7 +34,7 @@ type DeviceRow = {
   attributes: Attr[];
 };
 
-const STATUS_LIST = ["Aktif", "Rusak", "Perbaikan", "Tidak dipakai"];
+const STATUS_LIST = ["Aktif", "Rusak", "Perbaikan", "Tidak dipakai", "Hilang"];
 type SortField = "nama" | "jenis" | "status";
 type SortDir = "asc" | "desc";
 

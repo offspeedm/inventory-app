@@ -43,16 +43,20 @@ type DeviceRow = {
   attributes: Attr[];
 };
 
-const STATUS = ["Aktif", "Rusak", "Perbaikan", "Tidak dipakai"];
+const STATUS = ["Aktif", "Rusak", "Perbaikan", "Tidak dipakai", "Hilang"];
 
-function statusColor(s: string) {
-  switch (s) {
+function statusColor(status: string) {
+  switch (status) {
     case "Aktif":
       return "bg-green-100 text-green-700";
     case "Rusak":
-      return "bg-red-100 text-red-700";
+      return "bg-orange-100 text-orange-700";
     case "Perbaikan":
       return "bg-amber-100 text-amber-700";
+    case "Hilang":
+      return "bg-red-100 text-red-700 ring-1 ring-inset ring-red-200";
+    case "Tidak dipakai":
+      return "bg-slate-100 text-slate-600";
     default:
       return "bg-slate-100 text-slate-600";
   }
