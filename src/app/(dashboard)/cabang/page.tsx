@@ -45,7 +45,9 @@ export default async function CabangPage() {
 
       <FormCabang companies={companies} />
 
-      <Suspense fallback={<p className="text-sm text-slate-400">Memuat data…</p>}>
+      <Suspense
+        fallback={<p className="text-sm text-slate-400">Memuat data…</p>}
+      >
         <TabelCabang branches={branches} companies={companies} />
       </Suspense>
     </div>

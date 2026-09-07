@@ -2,10 +2,14 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Pencil, Trash2, X, Network, History } from "lucide-react";
-import { updateCabang, hapusCabang } from "./actions";
+import { History, Network, Pencil, Trash2, X } from "lucide-react";
+import { hapusCabang, updateCabang } from "./actions";
 
-type Company = { id: number; nama: string };
+type Company = {
+  id: number;
+  nama: string;
+};
+
 type BranchRow = {
   id: number;
   nama: string;
@@ -36,89 +40,108 @@ export function BarisCabang({
   }, [autoEditId, branch.id]);
 
   const inputClass =
-    "w-full border border-slate-300 rounded-lg px-3 py-2 text-sm transition-shadow focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500";
+    "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm transition-shadow focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500";
 
   return (
-    <tr className="border-t border-slate-100 hover:bg-slate-50/60 transition-colors">
+    <tr className="border-t border-slate-100 transition-colors hover:bg-slate-50/60">
       <td className="px-4 py-3 text-slate-500">{nomor}</td>
 
       <td className="px-4 py-3">
-        <Link href={`/cabang/${branch.id}`} className="group flex items-center gap-2">
-          <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 shrink-0">
-            <Network className="w-4 h-4" />
+        <Link
+          href={`/cabang/${branch.id}`}
+          className="group flex min-w-0 items-center gap-2"
+        >
+          <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+            <Network className="h-4 w-4" />
           </span>
-          <span>
-            <span className="block font-medium text-slate-800 group-hover:text-indigo-600">
-              {branch.nama}
-            </span>
+          <span className="min-w-0 truncate font-medium text-slate-800 group-hover:text-indigo-600">
+            {branch.nama}
           </span>
         </Link>
       </td>
 
-      <td className="px-4 py-3 text-slate-600">{branch.kota ?? "-"}</td>
+      <td className="truncate px-4 py-3 text-slate-600">
+        {branch.kota ?? "-"}
+      </td>
 
-      <td className="px-4 py-3 text-slate-600">{branch.company?.nama ?? "-"}</td>
+      <td className="truncate px-4 py-3 text-slate-600">
+        {branch.company?.nama ?? "-"}
+      </td>
 
-      <td className="px-4 py-3 text-center text-slate-600">{branch.user}</td>
-      <td className="px-4 py-3 text-center text-slate-600">{branch.device}</td>
+      <td className="px-4 py-3 text-center tabular-nums text-slate-600">
+        {branch.user}
+      </td>
+
+      <td className="px-4 py-3 text-center tabular-nums text-slate-600">
+        {branch.device}
+      </td>
 
       <td className="px-4 py-3">
-        <div className="flex gap-1 justify-end">
+        <div className="flex items-center justify-center gap-1">
           <Link
             href={`/cabang/${branch.id}`}
             title="Lihat detail & riwayat"
             aria-label="Detail"
-            className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100"
           >
-            <History className="w-4 h-4" />
+            <History className="h-4 w-4" />
           </Link>
+
           <button
+            type="button"
             onClick={() => setEditing(true)}
             title="Edit"
             aria-label="Edit"
-            className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-indigo-600 hover:bg-indigo-50 transition-colors"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-indigo-600 transition-colors hover:bg-indigo-50"
           >
-            <Pencil className="w-4 h-4" />
+            <Pencil className="h-4 w-4" />
           </button>
+
           <form action={hapusCabang}>
             <input type="hidden" name="id" value={branch.id} />
             <button
               type="submit"
               title="Hapus"
               aria-label="Hapus"
-              className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-red-600 transition-colors hover:bg-red-50"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 className="h-4 w-4" />
             </button>
           </form>
         </div>
 
         {editing && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div
+            <button
+              type="button"
+              aria-label="Tutup modal"
               onClick={() => setEditing(false)}
-              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200"
+              className="absolute inset-0 cursor-default bg-slate-900/40 backdrop-blur-sm"
             />
 
-            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg text-left animate-in fade-in zoom-in-95 duration-200">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+            <div className="relative w-full max-w-lg rounded-2xl bg-white text-left shadow-2xl">
+              <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
                 <div className="flex items-center gap-3">
-                  <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-indigo-100 text-indigo-600">
-                    <Network className="w-5 h-5" />
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600">
+                    <Network className="h-5 w-5" />
                   </div>
                   <div>
-                    <h2 className="text-base font-semibold text-slate-800 leading-tight">
+                    <h2 className="text-base font-semibold leading-tight text-slate-800">
                       Edit Cabang
                     </h2>
-                    <p className="text-xs text-slate-400">Perbarui informasi cabang</p>
+                    <p className="text-xs text-slate-400">
+                      Perbarui informasi cabang
+                    </p>
                   </div>
                 </div>
+
                 <button
+                  type="button"
                   onClick={() => setEditing(false)}
                   aria-label="Tutup"
-                  className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="h-5 w-5" />
                 </button>
               </div>
 
@@ -127,26 +150,38 @@ export function BarisCabang({
                   await updateCabang(formData);
                   setEditing(false);
                 }}
-                className="px-6 py-5 grid gap-4"
+                className="grid gap-4 px-6 py-5"
               >
                 <input type="hidden" name="id" value={branch.id} />
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  <label className="mb-1.5 block text-sm font-medium text-slate-700">
                     Nama Cabang
                   </label>
-                  <input name="nama" defaultValue={branch.nama} required className={inputClass} />
+                  <input
+                    name="nama"
+                    defaultValue={branch.nama}
+                    required
+                    className={inputClass}
+                  />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                    Kota <span className="text-slate-400 font-normal">(opsional)</span>
+                  <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                    Kota{" "}
+                    <span className="font-normal text-slate-400">
+                      (opsional)
+                    </span>
                   </label>
-                  <input name="kota" defaultValue={branch.kota ?? ""} className={inputClass} />
+                  <input
+                    name="kota"
+                    defaultValue={branch.kota ?? ""}
+                    className={inputClass}
+                  />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  <label className="mb-1.5 block text-sm font-medium text-slate-700">
                     Perusahaan
                   </label>
                   <select
@@ -155,25 +190,28 @@ export function BarisCabang({
                     required
                     className={inputClass}
                   >
-                    {companies.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.nama}
+                    <option value="" disabled>
+                      Pilih perusahaan
+                    </option>
+                    {companies.map((company) => (
+                      <option key={company.id} value={company.id}>
+                        {company.nama}
                       </option>
                     ))}
                   </select>
                 </div>
 
-                <div className="flex justify-end gap-2 mt-1 border-t border-slate-100 -mx-6 px-6 pt-4">
+                <div className="-mx-6 mt-1 flex justify-end gap-2 border-t border-slate-100 px-6 pt-4">
                   <button
                     type="button"
                     onClick={() => setEditing(false)}
-                    className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg px-4 py-2 transition-colors"
+                    className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200"
                   >
                     Batal
                   </button>
                   <button
                     type="submit"
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg px-5 py-2 shadow-sm transition-colors"
+                    className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-indigo-700"
                   >
                     Simpan Perubahan
                   </button>

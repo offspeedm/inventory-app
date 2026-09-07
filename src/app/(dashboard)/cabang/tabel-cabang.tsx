@@ -6,13 +6,19 @@ import { BarisCabang } from "./baris-cabang";
 import { FilterDropdown } from "@/components/filter-dropdown";
 import { PaginationBar } from "@/components/pagination-bar";
 
-type Company = { id: number; nama: string };
+type Company = {
+  id: number;
+  nama: string;
+};
+
 type BranchRow = {
   id: number;
   nama: string;
   kota: string | null;
   companyId: number | null;
   company: { nama: string } | null;
+  user: number;
+  device: number;
 };
 
 type SortField = "nama" | "kota" | "perusahaan";
@@ -36,27 +42,42 @@ export function TabelCabang({
   const kotaList = useMemo(
     () =>
       Array.from(
-        new Set(branches.map((b) => b.kota).filter((v): v is string => Boolean(v)))
-      ).sort(),
-    [branches]
+        new Set(
+          branches
+            .map((branch) => branch.kota)
+            .filter((value): value is string => Boolean(value)),
+        ),
+      ).sort((a, b) => a.localeCompare(b, "id")),
+    [branches],
   );
 
   function toggleCompany(id: number) {
-    setSelectedCompanies((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    setSelectedCompanies((previous) =>
+      previous.includes(id)
+        ? previous.filter((companyId) => companyId !== id)
+        : [...previous, id],
+    );
     setPage(1);
   }
+
   function toggleKota(name: string) {
-    setSelectedKota((prev) => (prev.includes(name) ? prev.filter((x) => x !== name) : [...prev, name]));
+    setSelectedKota((previous) =>
+      previous.includes(name)
+        ? previous.filter((kota) => kota !== name)
+        : [...previous, name],
+    );
     setPage(1);
   }
+
   function resetFilter() {
     setSelectedCompanies([]);
     setSelectedKota([]);
     setPage(1);
   }
+
   function toggleSort(field: SortField) {
     if (sortField === field) {
-      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+      setSortDir((direction) => (direction === "asc" ? "desc" : "asc"));
     } else {
       setSortField(field);
       setSortDir("asc");
@@ -67,31 +88,68 @@ export function TabelCabang({
   const filtered = useMemo(() => {
     const keyword = cari.trim().toLowerCase();
 
-    let data = branches.filter((b) => {
-      if (selectedCompanies.length > 0 && !selectedCompanies.includes(b.companyId ?? -1)) return false;
-      if (selectedKota.length > 0 && !selectedKota.includes(b.kota ?? "")) return false;
+    const data = branches.filter((branch) => {
+      if (
+        selectedCompanies.length > 0 &&
+        !selectedCompanies.includes(branch.companyId ?? -1)
+      ) {
+        return false;
+      }
+
+      if (
+        selectedKota.length > 0 &&
+        !selectedKota.includes(branch.kota ?? "")
+      ) {
+        return false;
+      }
+
       if (!keyword) return true;
-      return [b.nama, b.kota, b.company?.nama]
+
+      return [branch.nama, branch.kota, branch.company?.nama]
         .filter(Boolean)
         .join(" ")
         .toLowerCase()
         .includes(keyword);
     });
 
-    data = [...data].sort((a, c) => {
-      let cmp = 0;
-      if (sortField === "nama") cmp = a.nama.localeCompare(c.nama);
-      if (sortField === "kota") cmp = (a.kota ?? "").localeCompare(c.kota ?? "");
-      if (sortField === "perusahaan") cmp = (a.company?.nama ?? "").localeCompare(c.company?.nama ?? "");
-      return sortDir === "asc" ? cmp : -cmp;
-    });
+    return [...data].sort((first, second) => {
+      let comparison = 0;
 
-    return data;
-  }, [branches, cari, selectedCompanies, selectedKota, sortField, sortDir]);
+      if (sortField === "nama") {
+        comparison = first.nama.localeCompare(second.nama, "id");
+      }
+
+      if (sortField === "kota") {
+        comparison = (first.kota ?? "").localeCompare(
+          second.kota ?? "",
+          "id",
+        );
+      }
+
+      if (sortField === "perusahaan") {
+        comparison = (first.company?.nama ?? "").localeCompare(
+          second.company?.nama ?? "",
+          "id",
+        );
+      }
+
+      return sortDir === "asc" ? comparison : -comparison;
+    });
+  }, [
+    branches,
+    cari,
+    selectedCompanies,
+    selectedKota,
+    sortField,
+    sortDir,
+  ]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safePage = Math.min(page, totalPages);
-  const paged = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
+  const paged = filtered.slice(
+    (safePage - 1) * pageSize,
+    safePage * pageSize,
+  );
 
   const activeCount = selectedCompanies.length + selectedKota.length;
   const inputClass =
@@ -104,12 +162,12 @@ export function TabelCabang({
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
             value={cari}
-            onChange={(e) => {
-              setCari(e.target.value);
+            onChange={(event) => {
+              setCari(event.target.value);
               setPage(1);
             }}
             placeholder="Cari nama cabang, kota, perusahaan..."
-            className={inputClass + " w-full pl-9"}
+            className={`${inputClass} w-full pl-9`}
           />
         </div>
 
@@ -119,20 +177,20 @@ export function TabelCabang({
           sections={[
             {
               title: "Perusahaan",
-              options: companies.map((c) => ({
-                key: String(c.id),
-                label: c.nama,
-                checked: selectedCompanies.includes(c.id),
-                onToggle: () => toggleCompany(c.id),
+              options: companies.map((company) => ({
+                key: String(company.id),
+                label: company.nama,
+                checked: selectedCompanies.includes(company.id),
+                onToggle: () => toggleCompany(company.id),
               })),
             },
             {
               title: "Kota",
-              options: kotaList.map((k) => ({
-                key: k,
-                label: k,
-                checked: selectedKota.includes(k),
-                onToggle: () => toggleKota(k),
+              options: kotaList.map((kota) => ({
+                key: kota,
+                label: kota,
+                checked: selectedKota.includes(kota),
+                onToggle: () => toggleKota(kota),
               })),
             },
           ]}
@@ -140,36 +198,66 @@ export function TabelCabang({
       </div>
 
       <p className="mb-2 text-xs text-slate-400">
-        Menampilkan {paged.length} dari {filtered.length} cabang (total {branches.length}).
+        Menampilkan {paged.length} dari {filtered.length} cabang (total{" "}
+        {branches.length}).
       </p>
 
-      {/*
-        Wrapper luar TIDAK overflow-x-auto — hanya wrapper dalam (tabel) yang
-        di-scroll horizontal, supaya PaginationBar di bawah tetap penuh lebar
-        container dan tidak ikut ter-scroll/terpotong.
-      */}
       <div className="rounded-xl border border-slate-200 bg-white">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-sm">
+          <table className="w-full min-w-[1000px] table-fixed text-sm">
+            <colgroup>
+              <col className="w-14" />
+              <col className="w-[18%]" />
+              <col className="w-[14%]" />
+              <col className="w-[34%]" />
+              <col className="w-24" />
+              <col className="w-24" />
+              <col className="w-32" />
+            </colgroup>
+
             <thead className="bg-slate-50 text-left text-slate-600">
               <tr>
-                <th className="w-14 px-4 py-3">No</th>
+                <th className="px-4 py-3">No</th>
                 <th className="px-4 py-3">
-                  <SortButton label="Nama Cabang" field="nama" sortField={sortField} sortDir={sortDir} onClick={toggleSort} />
+                  <SortButton
+                    label="Nama Cabang"
+                    field="nama"
+                    sortField={sortField}
+                    sortDir={sortDir}
+                    onClick={toggleSort}
+                  />
                 </th>
                 <th className="px-4 py-3">
-                  <SortButton label="Kota" field="kota" sortField={sortField} sortDir={sortDir} onClick={toggleSort} />
+                  <SortButton
+                    label="Kota"
+                    field="kota"
+                    sortField={sortField}
+                    sortDir={sortDir}
+                    onClick={toggleSort}
+                  />
                 </th>
                 <th className="px-4 py-3">
-                  <SortButton label="Perusahaan" field="perusahaan" sortField={sortField} sortDir={sortDir} onClick={toggleSort} />
+                  <SortButton
+                    label="Perusahaan"
+                    field="perusahaan"
+                    sortField={sortField}
+                    sortDir={sortDir}
+                    onClick={toggleSort}
+                  />
                 </th>
-                <th className="px-4 py-3 text-right">Aksi</th>
+                <th className="px-4 py-3 text-center">User</th>
+                <th className="px-4 py-3 text-center">Devices</th>
+                <th className="px-4 py-3 text-center">Aksi</th>
               </tr>
             </thead>
+
             <tbody>
               {paged.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-slate-400">
+                  <td
+                    colSpan={7}
+                    className="px-4 py-10 text-center text-slate-400"
+                  >
                     Tidak ada cabang yang cocok.
                   </td>
                 </tr>
@@ -178,7 +266,7 @@ export function TabelCabang({
                   <BarisCabang
                     key={branch.id}
                     branch={branch}
-                    index={(safePage - 1) * pageSize + index}
+                    nomor={(safePage - 1) * pageSize + index + 1}
                     companies={companies}
                   />
                 ))
@@ -214,9 +302,10 @@ function SortButton({
   field: SortField;
   sortField: SortField;
   sortDir: SortDir;
-  onClick: (f: SortField) => void;
+  onClick: (field: SortField) => void;
 }) {
   const active = sortField === field;
+
   return (
     <button
       type="button"
