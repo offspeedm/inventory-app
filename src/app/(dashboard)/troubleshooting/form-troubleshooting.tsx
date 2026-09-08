@@ -13,6 +13,7 @@ type UserOpt = {
   divisi: string | null;
   companyId: number | null;
   branchId: number | null;
+  status: string;
 };
 type DeviceOpt = { id: number; nama: string; userId: number | null };
 
@@ -34,6 +35,8 @@ export function FormTiket({
 
   const [userTerkendalaId, setUserTerkendalaId] = useState("");
   const [companyId, setCompanyId] = useState("");
+  const [branchId, setBranchId] = useState("");
+  const [deviceId, setDeviceId] = useState("");
   const [divisi, setDivisi] = useState("");
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
@@ -45,16 +48,43 @@ export function FormTiket({
     ? devices.filter((dv) => dv.userId === Number(userTerkendalaId))
     : devices;
 
+  // Pelapor dan User Terkendala hanya menampilkan user aktif.
+  const activeUsers = users.filter(
+    (user) => user.status.trim().toLowerCase() === "aktif",
+  );
+
+  // Teknisi harus user aktif sekaligus berasal dari divisi IT-CI-BD.
+  // Normalisasi mencegah perbedaan kapitalisasi dan spasi menghilangkan
+  // user yang sebenarnya valid dari daftar teknisi.
+  const teknisiUsers = activeUsers.filter(
+    (user) => (user.divisi ?? "").trim().toUpperCase() === "IT-CI-BD",
+  );
+
   const inputClass =
     "w-full border border-slate-300 rounded-lg px-3 py-2 text-sm transition-shadow focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500";
 
   function handleUserTerkendalaChange(value: string) {
     setUserTerkendalaId(value);
-    const u = users.find((x) => String(x.id) === value);
-    if (u) {
-      setDivisi(u.divisi ?? "");
-      setCompanyId(u.companyId ? String(u.companyId) : "");
+    setDeviceId("");
+
+    const userTerpilih = activeUsers.find(
+      (user) => String(user.id) === value,
+    );
+
+    if (!userTerpilih) {
+      setDivisi("");
+      setCompanyId("");
+      setBranchId("");
+      return;
     }
+
+    setDivisi(userTerpilih.divisi ?? "");
+    setCompanyId(
+      userTerpilih.companyId ? String(userTerpilih.companyId) : "",
+    );
+    setBranchId(
+      userTerpilih.branchId ? String(userTerpilih.branchId) : "",
+    );
   }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -73,6 +103,8 @@ export function FormTiket({
     formRef.current?.reset();
     setUserTerkendalaId("");
     setCompanyId("");
+    setBranchId("");
+    setDeviceId("");
     setDivisi("");
     setSelectedFiles([]);
   }
@@ -192,7 +224,7 @@ export function FormTiket({
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">Pelapor</label>
                   <select name="user_id" defaultValue="" className={inputClass}>
                     <option value="">Pilih pelapor…</option>
-                    {users.map((u) => (
+                    {activeUsers.map((u) => (
                       <option key={u.id} value={u.id}>
                         {u.nama}
                       </option>
@@ -210,7 +242,7 @@ export function FormTiket({
                     className={inputClass}
                   >
                     <option value="">Pilih user…</option>
-                    {users.map((u) => (
+                    {activeUsers.map((u) => (
                       <option key={u.id} value={u.id}>
                         {u.nama}
                       </option>
@@ -224,7 +256,12 @@ export function FormTiket({
                   Perangkat Terkendala{" "}
                   <span className="text-slate-400 font-normal">(opsional)</span>
                 </label>
-                <select name="device_id" defaultValue="" className={inputClass}>
+                <select
+                  name="device_id"
+                  value={deviceId}
+                  onChange={(e) => setDeviceId(e.target.value)}
+                  className={inputClass}
+                >
                   <option value="">
                     {userTerkendalaId ? "Pilih perangkat user ini…" : "Pilih perangkat…"}
                   </option>
@@ -257,7 +294,10 @@ export function FormTiket({
                   <select
                     name="company_id"
                     value={companyId}
-                    onChange={(e) => setCompanyId(e.target.value)}
+                    onChange={(e) => {
+                      setCompanyId(e.target.value);
+                      setBranchId("");
+                    }}
                     className={inputClass}
                   >
                     <option value="">Pilih…</option>
@@ -272,6 +312,8 @@ export function FormTiket({
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">Cabang</label>
                   <select
                     name="branch_id"
+                    value={branchId}
+                    onChange={(e) => setBranchId(e.target.value)}
                     disabled={!companyId}
                     className={inputClass + " disabled:bg-slate-100"}
                   >
@@ -302,12 +344,17 @@ export function FormTiket({
                   </label>
                   <select name="teknisi_id" defaultValue="" className={inputClass}>
                     <option value="">Belum ditugaskan</option>
-                    {users.map((u) => (
+                    {teknisiUsers.map((u) => (
                       <option key={u.id} value={u.id}>
                         {u.nama}
                       </option>
                     ))}
                   </select>
+                  {teknisiUsers.length === 0 && (
+                    <p className="mt-1 text-xs text-amber-600">
+                      Belum ada user dengan divisi IT-CI-BD.
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">

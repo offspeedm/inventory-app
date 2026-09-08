@@ -6,11 +6,27 @@ import { Wrench } from "lucide-react";
 
 export default async function TroubleshootingPage() {
   const [companies, branches, devices, users, tickets] = await Promise.all([
-    prisma.company.findMany({ select: { id: true, nama: true }, orderBy: { nama: "asc" } }),
-    prisma.branch.findMany({ select: { id: true, nama: true, companyId: true }, orderBy: { nama: "asc" } }),
-    prisma.device.findMany({ select: { id: true, nama: true, userId: true }, orderBy: { nama: "asc" } }),
+    prisma.company.findMany({
+      select: { id: true, nama: true },
+      orderBy: { nama: "asc" },
+    }),
+    prisma.branch.findMany({
+      select: { id: true, nama: true, companyId: true },
+      orderBy: { nama: "asc" },
+    }),
+    prisma.device.findMany({
+      select: { id: true, nama: true, userId: true },
+      orderBy: { nama: "asc" },
+    }),
     prisma.user.findMany({
-      select: { id: true, nama: true, divisi: true, companyId: true, branchId: true },
+      select: {
+        id: true,
+        nama: true,
+        divisi: true,
+        companyId: true,
+        branchId: true,
+        status: true,
+      },
       orderBy: { nama: "asc" },
     }),
     prisma.ticket.findMany({
@@ -44,14 +60,23 @@ export default async function TroubleshootingPage() {
           <h1 className="text-2xl font-bold text-slate-800">Troubleshooting</h1>
           <p className="text-slate-500 text-sm">
             Total: {ticketsFlat.length} tiket ·{" "}
-            <span className="text-amber-600 font-medium">{tiketAktif} aktif</span>
+            <span className="text-amber-600 font-medium">
+              {tiketAktif} aktif
+            </span>
           </p>
         </div>
       </div>
 
-      <FormTiket companies={companies} branches={branches} devices={devices} users={users} />
+      <FormTiket
+        companies={companies}
+        branches={branches}
+        devices={devices}
+        users={users}
+      />
 
-      <Suspense fallback={<p className="text-sm text-slate-400">Memuat data…</p>}>
+      <Suspense
+        fallback={<p className="text-sm text-slate-400">Memuat data…</p>}
+      >
         <TabelTiket
           tickets={ticketsFlat}
           companies={companies}
