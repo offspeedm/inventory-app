@@ -10,6 +10,7 @@ import {
   History,
   Paperclip,
   Clock,
+  Tag,
 } from "lucide-react";
 import { updateDevice, hapusDevice } from "./actions";
 import { hitungUsia, usiaBadgeColor } from "@/lib/format-usia";
@@ -22,8 +23,8 @@ type UserOpt = { id: number; nama: string };
 type Attr = { key: string; value: string | null };
 type DeviceRow = {
   id: number;
-  nama: string;
   kodeInventaris: string | null;
+  nama: string;
   merk: string | null;
   tipe: string | null;
   keterangan: string | null;
@@ -75,6 +76,7 @@ export function BarisDevice({
   branches,
   users,
   autoEditId,
+  detailQuery = "",
 }: {
   device: DeviceRow;
   index: number;
@@ -83,13 +85,14 @@ export function BarisDevice({
   branches: Branch[];
   users: UserOpt[];
   autoEditId?: number | null;
+  detailQuery?: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [companyId, setCompanyId] = useState<string>(
-    device.companyId ? String(device.companyId) : ""
+    device.companyId ? String(device.companyId) : "",
   );
   const [typeId, setTypeId] = useState<string>(
-    device.typeId ? String(device.typeId) : ""
+    device.typeId ? String(device.typeId) : "",
   );
 
   useEffect(() => {
@@ -102,7 +105,9 @@ export function BarisDevice({
     ? branches.filter((b) => b.companyId === Number(companyId))
     : [];
 
-  const selectedTypeName = deviceTypes.find((t) => t.id === Number(typeId))?.nama;
+  const selectedTypeName = deviceTypes.find(
+    (t) => t.id === Number(typeId),
+  )?.nama;
   const dynamicFields = getFieldsForType(selectedTypeName);
 
   function attrValue(key: string): string {
@@ -115,13 +120,14 @@ export function BarisDevice({
 
   const usia = hitungUsia(device.tglBeli);
   const warnaUsia = usiaBadgeColor(device.tglBeli);
+  const detailHref = `/devices/${device.id}${detailQuery}`;
 
   return (
     <tr className="border-t border-slate-100 hover:bg-slate-50/60 transition-colors">
       <td className="px-4 py-3 text-slate-500">{index + 1}</td>
 
       <td className="px-4 py-3">
-        <Link href={`/devices/${device.id}`} className="group inline-flex items-start gap-3">
+        <Link href={detailHref} className="group inline-flex items-start gap-3">
           <div className="shrink-0 w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
             <MonitorSmartphone className="w-5 h-5" />
           </div>
@@ -135,8 +141,8 @@ export function BarisDevice({
               )}
             </p>
             {device.kodeInventaris && (
-              <p className="text-[11px] font-mono text-indigo-500">
-                {device.kodeInventaris}
+              <p className="text-[11px] font-mono text-indigo-500 flex items-center gap-1 mt-0.5 mb-0.5">
+                <Tag className="w-3 h-3" /> {device.kodeInventaris}
               </p>
             )}
             <p className="text-xs text-slate-400 truncate">
@@ -144,8 +150,10 @@ export function BarisDevice({
               {device.serialNumber ? ` · SN: ${device.serialNumber}` : ""}
             </p>
             {device.attributes.length > 0 && (
-              <p className="text-[11px] text-slate-400 truncate">
-                {device.attributes.map((a) => `${a.key}: ${a.value ?? "-"}`).join(" · ")}
+              <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                {device.attributes
+                  .map((a) => `${a.key}: ${a.value ?? "-"}`)
+                  .join(" · ")}
               </p>
             )}
           </div>
@@ -166,21 +174,34 @@ export function BarisDevice({
       </td>
 
       <td className="px-4 py-3">
-        <span className={"inline-block rounded-full px-2 py-0.5 text-xs font-medium " + statusColor(device.status)}>
+        <span
+          className={
+            "inline-block rounded-full px-2 py-0.5 text-xs font-medium " +
+            statusColor(device.status)
+          }
+        >
           {device.status}
         </span>
       </td>
 
       <td className="px-4 py-3 text-slate-600">
         {device.company?.nama ?? "-"}
-        {device.branch && <span className="block text-xs text-slate-400">{device.branch.nama}</span>}
-        {device.user && <span className="block text-xs text-slate-400">👤 {device.user.nama}</span>}
+        {device.branch && (
+          <span className="block text-xs text-slate-400">
+            {device.branch.nama}
+          </span>
+        )}
+        {device.user && (
+          <span className="block text-xs text-slate-400">
+            👤 {device.user.nama}
+          </span>
+        )}
       </td>
 
       <td className="px-4 py-3">
         <div className="flex gap-1 justify-end">
           <Link
-            href={`/devices/${device.id}`}
+            href={detailHref}
             title="Lihat riwayat & lampiran"
             aria-label="Riwayat"
             className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
@@ -222,11 +243,10 @@ export function BarisDevice({
                     <Pencil className="w-5 h-5" />
                   </div>
                   <div>
-                    <h2 className="text-base font-semibold text-slate-800 leading-tight">Edit Perangkat</h2>
+                    <h2 className="text-base font-semibold text-slate-800 leading-tight">
+                      Edit Perangkat
+                    </h2>
                     <p className="text-xs text-slate-400">
-                      {device.kodeInventaris ? (
-                        <>Kode: <span className="font-mono">{device.kodeInventaris}</span> · </>
-                      ) : null}
                       Perubahan pengguna/penempatan otomatis tercatat di riwayat
                     </p>
                   </div>
@@ -251,11 +271,20 @@ export function BarisDevice({
 
                 <div className="grid sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Nama Perangkat</label>
-                    <input name="nama" defaultValue={device.nama} required className={inputClass} />
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      Nama Perangkat
+                    </label>
+                    <input
+                      name="nama"
+                      defaultValue={device.nama}
+                      required
+                      className={inputClass}
+                    />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Jenis</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      Jenis
+                    </label>
                     <select
                       name="type_id"
                       value={typeId}
@@ -274,16 +303,34 @@ export function BarisDevice({
 
                 <div className="grid sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Merk</label>
-                    <input name="merk" defaultValue={device.merk ?? ""} className={inputClass} />
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      Merk
+                    </label>
+                    <input
+                      name="merk"
+                      defaultValue={device.merk ?? ""}
+                      className={inputClass}
+                    />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Tipe/Model</label>
-                    <input name="tipe" defaultValue={device.tipe ?? ""} className={inputClass} />
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      Tipe/Model
+                    </label>
+                    <input
+                      name="tipe"
+                      defaultValue={device.tipe ?? ""}
+                      className={inputClass}
+                    />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">No. Seri</label>
-                    <input name="serial_number" defaultValue={device.serialNumber ?? ""} className={inputClass} />
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      No. Seri
+                    </label>
+                    <input
+                      name="serial_number"
+                      defaultValue={device.serialNumber ?? ""}
+                      className={inputClass}
+                    />
                   </div>
                 </div>
 
@@ -312,8 +359,14 @@ export function BarisDevice({
 
                 <div className="grid sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Status</label>
-                    <select name="status" defaultValue={device.status} className={inputClass}>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      Status
+                    </label>
+                    <select
+                      name="status"
+                      defaultValue={device.status}
+                      className={inputClass}
+                    >
                       {STATUS.map((s) => (
                         <option key={s} value={s}>
                           {s}
@@ -322,16 +375,27 @@ export function BarisDevice({
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Tgl Beli</label>
-                    <input name="tgl_beli" type="date" defaultValue={toDateInput(device.tglBeli)} className={inputClass} />
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      Tgl Beli
+                    </label>
+                    <input
+                      name="tgl_beli"
+                      type="date"
+                      defaultValue={toDateInput(device.tglBeli)}
+                      className={inputClass}
+                    />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Harga (Rp)</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      Harga (Rp)
+                    </label>
                     <input
                       name="harga_beli"
                       type="number"
                       min="0"
-                      defaultValue={device.hargaBeli ? String(device.hargaBeli) : ""}
+                      defaultValue={
+                        device.hargaBeli ? String(device.hargaBeli) : ""
+                      }
                       className={inputClass}
                     />
                   </div>
@@ -339,7 +403,9 @@ export function BarisDevice({
 
                 <div className="grid sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Perusahaan</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      Perusahaan
+                    </label>
                     <select
                       name="company_id"
                       value={companyId}
@@ -355,14 +421,18 @@ export function BarisDevice({
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Cabang</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      Cabang
+                    </label>
                     <select
                       name="branch_id"
                       defaultValue={device.branchId ?? ""}
                       disabled={!companyId}
                       className={inputClass + " disabled:bg-slate-100"}
                     >
-                      <option value="">{companyId ? "Pilih…" : "Pilih PT dulu"}</option>
+                      <option value="">
+                        {companyId ? "Pilih…" : "Pilih PT dulu"}
+                      </option>
                       {filteredBranches.map((b) => (
                         <option key={b.id} value={b.id}>
                           {b.nama}
@@ -371,8 +441,14 @@ export function BarisDevice({
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Pengguna</label>
-                    <select name="user_id" defaultValue={device.userId ?? ""} className={inputClass}>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      Pengguna
+                    </label>
+                    <select
+                      name="user_id"
+                      defaultValue={device.userId ?? ""}
+                      className={inputClass}
+                    >
                       <option value="">Belum ada</option>
                       {users.map((u) => (
                         <option key={u.id} value={u.id}>
@@ -385,7 +461,10 @@ export function BarisDevice({
 
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                    Keterangan <span className="text-slate-400 font-normal">(opsional)</span>
+                    Keterangan{" "}
+                    <span className="text-slate-400 font-normal">
+                      (opsional)
+                    </span>
                   </label>
                   <textarea
                     name="keterangan"

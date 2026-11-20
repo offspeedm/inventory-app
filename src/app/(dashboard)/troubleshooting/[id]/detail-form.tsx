@@ -13,7 +13,11 @@ import {
 
 type Option = { id: number; nama: string };
 type Branch = Option & { companyId: number | null };
-type UserOpt = Option & { divisi: string | null; companyId: number | null };
+type UserOpt = Option & {
+  divisi: string | null;
+  companyId: number | null;
+  status: string;
+};
 type DeviceOpt = Option & { userId: number | null };
 
 type TicketData = {
@@ -93,6 +97,16 @@ export function DetailFormTiket({
     ? devices.filter((d) => d.userId === Number(userTerkendalaId))
     : devices;
 
+  // Filter user aktif untuk Pelapor dan User Terkendala
+  const activeUsers = users.filter(
+    (u) => (u.status ?? "").trim().toLowerCase() === "aktif",
+  );
+
+  // Filter khusus Teknisi: Aktif dan Divisi IT-CI-BD
+  const teknisiUsers = activeUsers.filter(
+    (u) => (u.divisi ?? "").trim().toUpperCase() === "IT-CI-BD",
+  );
+
   function handleUserTerkendalaChange(value: string) {
     setUserTerkendalaId(value);
     const u = users.find((x) => String(x.id) === value);
@@ -103,11 +117,6 @@ export function DetailFormTiket({
     }
   }
 
-  // PENTING: pakai onSubmit + preventDefault (bukan prop `action` pada
-  // <form>). Kalau dipasang sebagai form action, React otomatis me-reset
-  // seluruh <select> (Pelapor, User Terkendala, Perangkat, Perusahaan,
-  // Cabang, Teknisi) setelah data tersimpan — sehingga tampilan sempat
-  // kosong walau data sudah benar di database.
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -246,7 +255,7 @@ export function DetailFormTiket({
               className={fieldSelect}
             >
               <option value="">-</option>
-              {users.map((u) => (
+              {activeUsers.map((u) => (
                 <option key={u.id} value={u.id}>
                   {u.nama}
                 </option>
@@ -262,7 +271,7 @@ export function DetailFormTiket({
               className={fieldSelect}
             >
               <option value="">-</option>
-              {users.map((u) => (
+              {activeUsers.map((u) => (
                 <option key={u.id} value={u.id}>
                   {u.nama}
                 </option>
@@ -361,7 +370,7 @@ export function DetailFormTiket({
               className={fieldSelect}
             >
               <option value="">Belum ditugaskan</option>
-              {users.map((u) => (
+              {teknisiUsers.map((u) => (
                 <option key={u.id} value={u.id}>
                   {u.nama}
                 </option>

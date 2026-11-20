@@ -8,7 +8,6 @@ import {
   Upload,
   FileText,
   Image as ImageIcon,
-  Sparkles,
 } from "lucide-react";
 import { tambahDevice } from "./actions";
 import { getFieldsForType } from "@/config/device-fields";
@@ -126,15 +125,6 @@ export function FormDevice({
               }}
               className="px-6 py-5 grid gap-4"
             >
-              <div className="flex items-start gap-2 bg-indigo-50 text-indigo-700 rounded-lg px-3 py-2 text-xs">
-                <Sparkles className="w-4 h-4 shrink-0 mt-0.5" />
-                <span>
-                  Kode inventaris akan dibuat otomatis, format:{" "}
-                  <strong>JENIS-TAHUNBULAN-URUT</strong> (mis.{" "}
-                  <span className="font-mono">LT-202601-001</span>)
-                </span>
-              </div>
-
               <div className="grid sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">

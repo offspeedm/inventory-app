@@ -1,44 +1,49 @@
+import fs from "fs/promises";
+import path from "path";
 import prisma from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
-
-const BUCKET = "device-attachments";
 
 export async function simpanLampiranDevice(deviceId: number, files: File[]) {
   if (!deviceId || !files || files.length === 0) return;
 
-  const supabase = await createClient();
+  // Tentukan path folder lokal tujuan: public/uploads/devices/device-{id}
+  const uploadDir = path.join(
+    process.cwd(),
+    "public",
+    "uploads",
+    "devices",
+    `device-${deviceId}`
+  );
+
+  // Buat folder jika belum ada (recursive)
+  await fs.mkdir(uploadDir, { recursive: true });
 
   for (const file of files) {
     if (!file || file.size === 0) continue;
 
     const ext = file.name.includes(".") ? file.name.split(".").pop() : "bin";
     const namaUnik = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-    const path = `device-${deviceId}/${namaUnik}`;
+    const filePath = path.join(uploadDir, namaUnik);
 
     const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
 
-    const { error: uploadError } = await supabase.storage
-      .from(BUCKET)
-      .upload(path, arrayBuffer, {
-        contentType: file.type || "application/octet-stream",
+    try {
+      // Simpan file ke sistem lokal
+      await fs.writeFile(filePath, buffer);
+
+      // Path untuk diakses dari web browser (dimulai dari /uploads/...)
+      const publicUrl = `/uploads/devices/device-${deviceId}/${namaUnik}`;
+
+      await prisma.deviceAttachment.create({
+        data: {
+          deviceId,
+          fileName: file.name,
+          fileUrl: publicUrl,
+          fileType: file.type || null,
+        },
       });
-
-    if (uploadError) {
-      console.error("Gagal upload lampiran:", uploadError.message);
-      continue;
+    } catch (error) {
+      console.error("Gagal menyimpan lampiran:", error);
     }
-
-    const { data: publicUrlData } = supabase.storage
-      .from(BUCKET)
-      .getPublicUrl(path);
-
-    await prisma.deviceAttachment.create({
-      data: {
-        deviceId,
-        fileName: file.name,
-        fileUrl: publicUrlData.publicUrl,
-        fileType: file.type || null,
-      },
-    });
   }
 }

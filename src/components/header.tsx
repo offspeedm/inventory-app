@@ -1,13 +1,20 @@
 import { UserCircle2 } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { getSession } from "@/lib/session";
+import prisma from "@/lib/prisma";
 import { LogoutButton } from "@/components/logout-button";
 import { HeaderTitle } from "@/components/header-title";
 
 export async function Header() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Ambil sesi JWT
+  const session = await getSession();
+  let user = null;
+
+  // Jika ada sesi, cari data user di database lokal
+  if (session && session.userId) {
+    user = await prisma.user.findUnique({
+      where: { id: Number(session.userId) },
+    });
+  }
 
   return (
     <header className="flex items-center justify-between h-16 px-4 md:px-6 bg-white border-b border-slate-200 sticky top-0 z-30">
@@ -22,7 +29,9 @@ export async function Header() {
             <p className="text-sm font-medium text-slate-800">
               {user?.email ?? "Pengguna"}
             </p>
-            <p className="text-xs text-slate-500">Administrator</p>
+            <p className="text-xs text-slate-500">
+              {user?.role ?? "Administrator"}
+            </p>
           </div>
         </div>
 

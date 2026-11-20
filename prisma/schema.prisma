@@ -43,6 +43,7 @@ model User {
   id          Int                @id @default(autoincrement())
   nama        String
   email       String?            @unique
+  password    String?            // <-- DITAMBAHKAN UNTUK AUTH LOKAL
   jabatan     String?
   role        String             @default("staff")
   companyId   Int?               @map("company_id")
@@ -65,7 +66,7 @@ model User {
 model DeviceType {
   id        Int      @id @default(autoincrement())
   nama      String
-  kode String?
+  kode      String?
   createdAt DateTime @default(now()) @map("created_at")
   devices   Device[]
 
@@ -73,21 +74,21 @@ model DeviceType {
 }
 
 model Device {
-  id           Int       @id @default(autoincrement())
-  nama         String
-  merk         String?
-  tipe         String?
-  keterangan   String?
-  typeId       Int?      @map("type_id")
-  serialNumber String?   @map("serial_number")
-    kodeInventaris String? @unique @map("kode_inventaris")
-  tglBeli      DateTime? @map("tgl_beli") @db.Date
-  hargaBeli    Decimal?  @map("harga_beli")
-  status       String    @default("Aktif")
-  companyId    Int?      @map("company_id")
-  branchId     Int?      @map("branch_id")
-  userId       Int?      @map("user_id")
-  createdAt    DateTime  @default(now()) @map("created_at")
+  id             Int       @id @default(autoincrement())
+  nama           String
+  merk           String?
+  tipe           String?
+  keterangan     String?
+  typeId         Int?      @map("type_id")
+  serialNumber   String?   @map("serial_number")
+  kodeInventaris String?   @unique @map("kode_inventaris")
+  tglBeli        DateTime? @map("tgl_beli") @db.Date
+  hargaBeli      Decimal?  @map("harga_beli")
+  status         String    @default("Aktif")
+  companyId      Int?      @map("company_id")
+  branchId       Int?      @map("branch_id")
+  userId         Int?      @map("user_id")
+  createdAt      DateTime  @default(now()) @map("created_at")
 
   type        DeviceType?        @relation(fields: [typeId], references: [id])
   company     Company?           @relation(fields: [companyId], references: [id])
@@ -156,8 +157,8 @@ model Ticket {
   id               Int       @id @default(autoincrement())
   noTiket          String?   @unique @map("no_tiket")
   deviceId         Int?      @map("device_id")
-  userId           Int?      @map("user_id")               // Pelapor
-  userTerkendalaId Int?      @map("user_terkendala_id")     // User yang mengalami kendala
+  userId           Int?      @map("user_id")               
+  userTerkendalaId Int?      @map("user_terkendala_id")    
   teknisiId        Int?      @map("teknisi_id")
   branchId         Int?      @map("branch_id")
   companyId        Int?      @map("company_id")

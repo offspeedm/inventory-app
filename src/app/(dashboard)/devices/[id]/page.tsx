@@ -1,12 +1,13 @@
 import prisma from "@/lib/prisma";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, User, Building2, Wrench, Paperclip } from "lucide-react";
+import { ArrowLeft, Wrench, Paperclip } from "lucide-react";
 import { hitungUsia, usiaBadgeColor } from "@/lib/format-usia";
 import { urgencyColor, statusColor } from "@/config/ticket-fields";
 import { DetailFormDevice } from "./detail-form";
 import { FormLampiran } from "./form-lampiran";
 import { GaleriLampiran } from "./galeri-lampiran";
+import { RiwayatPenggunaCard, RiwayatPenempatanCard } from "./riwayat-device";
 
 function fmtTanggal(d: Date | null): string {
   if (!d) return "sekarang";
@@ -19,11 +20,26 @@ function fmtTanggal(d: Date | null): string {
 
 export default async function DeviceDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { id } = await params;
+  const [{ id }, sp] = await Promise.all([params, searchParams]);
   const deviceId = Number(id);
+
+  const backParams = new URLSearchParams();
+  for (const [key, val] of Object.entries(sp)) {
+    if (typeof val === "string" && val) {
+      backParams.set(key, val);
+    } else if (Array.isArray(val)) {
+      val.forEach((v) => {
+        if (v) backParams.append(key, v);
+      });
+    }
+  }
+  const backQuery = backParams.toString();
+  const backHref = backQuery ? `/devices?${backQuery}` : "/devices";
 
   const [device, deviceTypes, companies, branches, users] = await Promise.all([
     prisma.device.findUnique({
@@ -46,13 +62,22 @@ export default async function DeviceDetailPage({
         attachments: { orderBy: { uploadedAt: "desc" } },
       },
     }),
-    prisma.deviceType.findMany({ select: { id: true, nama: true }, orderBy: { nama: "asc" } }),
-    prisma.company.findMany({ select: { id: true, nama: true }, orderBy: { nama: "asc" } }),
+    prisma.deviceType.findMany({
+      select: { id: true, nama: true },
+      orderBy: { nama: "asc" },
+    }),
+    prisma.company.findMany({
+      select: { id: true, nama: true },
+      orderBy: { nama: "asc" },
+    }),
     prisma.branch.findMany({
       select: { id: true, nama: true, companyId: true },
       orderBy: { nama: "asc" },
     }),
-    prisma.user.findMany({ select: { id: true, nama: true }, orderBy: { nama: "asc" } }),
+    prisma.user.findMany({
+      select: { id: true, nama: true },
+      orderBy: { nama: "asc" },
+    }),
   ]);
 
   if (!device) notFound();
@@ -63,7 +88,7 @@ export default async function DeviceDetailPage({
   return (
     <div>
       <Link
-        href="/devices"
+        href={backHref}
         className="mb-4 inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-indigo-600"
       >
         <ArrowLeft className="h-4 w-4" /> Kembali ke Devices
@@ -114,54 +139,40 @@ export default async function DeviceDetailPage({
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <RiwayatCard title="Riwayat Pengguna" icon={User} accent="text-amber-600 bg-amber-50">
-          {device.assignments.length === 0 ? (
-            <Kosong text="Belum ada riwayat pengguna." />
-          ) : (
-            <ul className="space-y-3">
-              {device.assignments.map((a) => (
-                <li key={a.id} className="relative border-l-2 border-slate-100 pl-4">
-                  <span className="absolute -left-[5px] top-1.5 h-2 w-2 rounded-full bg-amber-500" />
-                  <p className="text-sm font-medium text-slate-700">
-                    {a.user?.nama ?? "Tidak diketahui"}
-                  </p>
-                  <p className="text-xs text-slate-400">
-                    {fmtTanggal(a.tglMulai)} — {fmtTanggal(a.tglSelesai)}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </RiwayatCard>
+        <RiwayatPenggunaCard
+          deviceId={device.id}
+          assignments={device.assignments}
+          users={users}
+        />
 
-        <RiwayatCard title="Riwayat Penempatan" icon={Building2} accent="text-emerald-600 bg-emerald-50">
-          {device.placements.length === 0 ? (
-            <Kosong text="Belum ada riwayat penempatan." />
-          ) : (
-            <ul className="space-y-3">
-              {device.placements.map((p) => (
-                <li key={p.id} className="relative border-l-2 border-slate-100 pl-4">
-                  <span className="absolute -left-[5px] top-1.5 h-2 w-2 rounded-full bg-emerald-500" />
-                  <p className="text-sm font-medium text-slate-700">
-                    {p.company?.nama ?? "-"}
-                    {p.branch ? ` — ${p.branch.nama}` : ""}
-                  </p>
-                  <p className="text-xs text-slate-400">
-                    {fmtTanggal(p.tglMulai)} — {fmtTanggal(p.tglSelesai)}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </RiwayatCard>
+        <RiwayatPenempatanCard
+          deviceId={device.id}
+          placements={device.placements}
+          companies={companies}
+          branches={branches}
+        />
 
-        <RiwayatCard title="Riwayat Troubleshooting" icon={Wrench} accent="text-rose-600 bg-rose-50">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex items-center gap-2">
+            <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-rose-600">
+              <Wrench className="h-4 w-4" />
+            </span>
+            <h2 className="font-semibold text-slate-800">
+              Riwayat Troubleshooting
+            </h2>
+          </div>
+
           {device.tickets.length === 0 ? (
-            <Kosong text="Belum ada tiket troubleshoot." />
+            <p className="py-4 text-center text-sm text-slate-400">
+              Belum ada tiket troubleshoot.
+            </p>
           ) : (
-            <ul className="space-y-3">
+            <ul className="max-h-80 space-y-3 overflow-y-auto pr-2">
               {device.tickets.map((t) => (
-                <li key={t.id} className="relative border-l-2 border-slate-100 pl-4">
+                <li
+                  key={t.id}
+                  className="relative border-l-2 border-slate-100 pl-4"
+                >
                   <span className="absolute -left-[5px] top-1.5 h-2 w-2 rounded-full bg-rose-500" />
                   <Link
                     href={`/troubleshooting/${t.id}`}
@@ -195,36 +206,8 @@ export default async function DeviceDetailPage({
               ))}
             </ul>
           )}
-        </RiwayatCard>
+        </div>
       </div>
-    </div>
-  );
-}
-
-function Kosong({ text }: { text: string }) {
-  return <p className="py-4 text-center text-sm text-slate-400">{text}</p>;
-}
-
-function RiwayatCard({
-  title,
-  icon: Icon,
-  accent,
-  children,
-}: {
-  title: string;
-  icon: React.ComponentType<{ className?: string }>;
-  accent: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="mb-4 flex items-center gap-2">
-        <span className={"inline-flex h-8 w-8 items-center justify-center rounded-lg " + accent}>
-          <Icon className="h-4 w-4" />
-        </span>
-        <h2 className="font-semibold text-slate-800">{title}</h2>
-      </div>
-      {children}
     </div>
   );
 }

@@ -15,7 +15,20 @@ type UserData = {
   status: string;
   companyId: number | null;
   branchId: number | null;
+  password?: string;
 };
+
+const DIVISI = [
+  "Others",
+  "Admin - HR",
+  "Operational",
+  "Finance - Accounting",
+  "Billing",
+  "IT-CI-BD",
+  "Messenger",
+  "Management",
+  "Sales",
+];
 
 const fieldWrap =
   "group relative -mx-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-slate-50 focus-within:bg-indigo-50/60";
@@ -43,8 +56,10 @@ export function DetailFormUser({
   const [branchId, setBranchId] = useState(
     user.branchId ? String(user.branchId) : "",
   );
+  const [password, setPassword] = useState("");
   const [saving, setSaving] = useState(false);
   const [savedTick, setSavedTick] = useState(0);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const filteredBranches = companyId
     ? branches.filter((b) => b.companyId === Number(companyId))
@@ -58,18 +73,19 @@ export function DetailFormUser({
     .join("")
     .toUpperCase();
 
-  // PENTING: dipanggil lewat onSubmit + preventDefault, BUKAN lewat prop
-  // `action={handleSubmit}` pada <form>. Kalau dipasang sebagai form action,
-  // React otomatis me-reset seluruh isi form (termasuk <select> yang
-  // dikendalikan lewat useState) begitu proses selesai — sehingga tampilan
-  // sempat kosong walau data sudah tersimpan benar di database.
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     setSaving(true);
-    await updateUser(formData);
+    setErrorMsg(null);
+    const res = await updateUser(formData);
     setSaving(false);
+    if (!res.ok) {
+      setErrorMsg(res.error ?? "Gagal menyimpan perubahan.");
+      return;
+    }
     setSavedTick((t) => t + 1);
+    setPassword("");
   }
 
   return (
@@ -104,13 +120,19 @@ export function DetailFormUser({
               </button>
             </div>
 
-            {savedTick > 0 && !saving && (
+            {errorMsg && (
+              <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
+                {errorMsg}
+              </p>
+            )}
+
+            {!errorMsg && savedTick > 0 && !saving && (
               <p className="mt-1 text-xs text-emerald-600">
                 Perubahan tersimpan.
               </p>
             )}
 
-            <div className="mt-2 grid gap-x-4 gap-y-1 sm:grid-cols-2">
+            <div className="mt-2 grid gap-x-4 gap-y-1 sm:grid-cols-3">
               <div className={fieldWrap}>
                 <label className={fieldLabel}>Email</label>
                 <input
@@ -130,17 +152,33 @@ export function DetailFormUser({
                   className={fieldInput}
                 />
               </div>
+              <div className={fieldWrap}>
+                <label className={fieldLabel}>Password Baru</label>
+                <input
+                  name="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Kosongkan jika tak diubah"
+                  className={fieldInput}
+                />
+              </div>
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-5">
               <div className={fieldWrap}>
                 <label className={fieldLabel}>Divisi</label>
-                <input
+                <select
                   name="divisi"
-                  defaultValue={user.divisi ?? ""}
-                  placeholder="-"
-                  className={fieldInput}
-                />
+                  defaultValue={user.divisi || "Others"}
+                  className={fieldSelect}
+                >
+                  {DIVISI.map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className={fieldWrap}>
                 <label className={fieldLabel}>Status</label>

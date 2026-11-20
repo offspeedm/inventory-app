@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { MonitorSmartphone, Check, Tag, Clock, ListChecks } from "lucide-react";
+import { MonitorSmartphone, Check, Clock, ListChecks, Tag } from "lucide-react";
 import { updateDevice } from "../actions";
 import { getFieldsForType } from "@/config/device-fields";
 
@@ -11,8 +11,8 @@ type Attr = { key: string; value: string | null };
 
 type DeviceData = {
   id: number;
-  nama: string;
   kodeInventaris: string | null;
+  nama: string;
   merk: string | null;
   tipe: string | null;
   serialNumber: string | null;
@@ -109,10 +109,6 @@ export function DetailFormDevice({
     return device.attributes.find((a) => a.key === key)?.value ?? "";
   }
 
-  // PENTING: pakai onSubmit + preventDefault (bukan prop `action` pada
-  // <form>) supaya React TIDAK otomatis me-reset <select> yang dikendalikan
-  // lewat useState (Jenis, Perusahaan, Cabang, Pengguna) setelah data
-  // tersimpan. Tanpa ini, tampilan sempat kosong walau database sudah benar.
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);

@@ -31,11 +31,26 @@ function peranDalamTiket(
 
 export default async function UserDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { id } = await params;
+  const [{ id }, sp] = await Promise.all([params, searchParams]);
   const userId = Number(id);
+
+  const backParams = new URLSearchParams();
+  for (const [key, val] of Object.entries(sp)) {
+    if (typeof val === "string" && val) {
+      backParams.set(key, val);
+    } else if (Array.isArray(val)) {
+      val.forEach((v) => {
+        if (v) backParams.append(key, v);
+      });
+    }
+  }
+  const backQuery = backParams.toString();
+  const backHref = backQuery ? `/users?${backQuery}` : "/users";
 
   const [user, riwayatPerangkat, tiket, companies, branches] =
     await Promise.all([
@@ -87,7 +102,7 @@ export default async function UserDetailPage({
   return (
     <div>
       <Link
-        href="/users"
+        href={backHref}
         className="mb-4 inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-indigo-600"
       >
         <ArrowLeft className="h-4 w-4" />
@@ -104,6 +119,7 @@ export default async function UserDetailPage({
           status: user.status,
           companyId: user.companyId,
           branchId: user.branchId,
+          password: "",
         }}
         companies={companies}
         branches={branches}

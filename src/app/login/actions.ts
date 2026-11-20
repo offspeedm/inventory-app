@@ -1,30 +1,40 @@
-"use server";
+// src/app/login/actions.ts
+'use server'
 
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { redirect } from 'next/navigation'
+import prisma from '@/lib/prisma'
+import bcrypt from 'bcryptjs'
+import { createSession } from '@/lib/session'
 
 export async function login(formData: FormData) {
-  const supabase = await createClient();
+  const email = formData.get('email') as string
+  const password = formData.get('password') as string
 
-  const data = {
-    email: formData.get("email") as string,
-    password: formData.get("password") as string,
-  };
-
-  const { error } = await supabase.auth.signInWithPassword(data);
-
-  if (error) {
-    redirect("/login?error=" + encodeURIComponent(error.message));
+  if (!email || !password) {
+    return redirect('/login?error=Invalid credentials')
   }
 
-  revalidatePath("/", "layout");
-  redirect("/dashboard");
+  const user = await prisma.user.findUnique({
+    where: { email }
+  });
+
+  if (!user || !user.password) {
+    return redirect('/login?error=Invalid credentials')
+  }
+
+  const isMatch = await bcrypt.compare(password, user.password);
+
+  if (!isMatch) {
+    return redirect('/login?error=Invalid credentials')
+  }
+
+  await createSession(user.id.toString());
+  redirect('/dashboard')
 }
 
+// FUNGSI INI YANG HILANG DAN MEMBUAT ERROR
 export async function logout() {
-  const supabase = await createClient();
-  await supabase.auth.signOut();
-  revalidatePath("/", "layout");
-  redirect("/login");
+  const { deleteSession } = await import('@/lib/session');
+  await deleteSession();
+  redirect('/login');
 }

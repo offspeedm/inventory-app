@@ -1,23 +1,15 @@
 import prisma from "@/lib/prisma";
 
 /**
- * Membuat kode inventaris otomatis dengan format:
- *   {JENIS}/{PERUSAHAAN}-{BULANTAHUN}-{NO-URUT}
- * Contoh: NTB/SAI-0826-001
+ * Membuat kode inventaris otomatis dengan format baru:
+ *   {JENIS}/{PERUSAHAAN}/{TAHUN}/{NO-URUT}
+ * Contoh: NTB/SAI/2026/001
  *
- * - JENIS       : 3 huruf kode jenis perangkat, diambil dari DeviceType.kode
- *                 (mis. Notebook -> "NTB"). Bila kolom kode belum diisi,
- *                 diturunkan otomatis dari 3 huruf pertama nama jenis.
- * - PERUSAHAAN  : 3 huruf kode perusahaan, diambil dari Company.inisial
- *                 (mis. PT. Sarana Allport Cargo Services -> "SAI"). Bila
- *                 kolom inisial belum diisi, diturunkan otomatis dari 3
- *                 huruf pertama nama perusahaan.
- * - BULANTAHUN  : format BBTT (bulan 2 digit + tahun 2 digit), mis.
- *                 Agustus 2026 -> "0826".
+ * - JENIS       : 3 huruf inisial jenis perangkat (mis. NTB)
+ * - PERUSAHAAN  : 3 huruf inisial perusahaan (mis. SAI)
+ * - TAHUN       : 4 digit tahun pembelian (mis. 2026)
  * - NO-URUT     : 3 digit nomor urut, dihitung ulang mulai dari 001 untuk
- *                 setiap kombinasi Jenis + Perusahaan + Bulan + Tahun yang
- *                 berbeda (persis seperti perilaku sebelumnya, hanya kini
- *                 turut memperhitungkan Perusahaan).
+ *                 setiap kombinasi Jenis + Perusahaan + Tahun yang berbeda.
  */
 export async function generateKodeInventaris(
   typeId: number | null,
@@ -33,16 +25,29 @@ export async function generateKodeInventaris(
 
   if (!type || !company) return null;
 
-  const kodeJenis = ambilKode3Huruf(type.kode, type.nama, "DEV");
-  const kodePerusahaan = ambilKode3Huruf(company.inisial, company.nama, "CMP");
+  // 1. Ambil inisial device dan perusahaan
+  const kodeJenis = ambilKode3Huruf(
+    // @ts-ignore
+    type.kode,
+    type.nama,
+    "DEV"
+  );
 
+  const kodePerusahaan = ambilKode3Huruf(
+    // @ts-ignore
+    company.inisial,
+    company.nama,
+    "CMP"
+  );
+
+  // 2. Ambil tahun (4 digit) dari tanggal beli atau tanggal hari ini
   const tanggal = tglBeli ?? new Date();
-  const tt = String(tanggal.getFullYear()).slice(-2);
-  const bb = String(tanggal.getMonth() + 1).padStart(2, "0");
-  const bulanTahun = `${bb}${tt}`;
+  const tahun = String(tanggal.getFullYear());
 
-  const prefix = `${kodeJenis}/${kodePerusahaan}-${bulanTahun}-`;
+  // 3. Susun awalan/prefix kode inventaris (misal: "NTB/SAI/2026/")
+  const prefix = `${kodeJenis}/${kodePerusahaan}/${tahun}/`;
 
+  // 4. Hitung nomor urut terakhir di database untuk prefix yang sama
   const existing = await prisma.device.findMany({
     where: { kodeInventaris: { startsWith: prefix } },
     select: { kodeInventaris: true },
@@ -55,17 +60,18 @@ export async function generateKodeInventaris(
     if (!Number.isNaN(n) && n > maxUrut) maxUrut = n;
   }
 
+  // 5. Buat nomor urut baru (3 digit)
   const urutBaru = String(maxUrut + 1).padStart(3, "0");
+
+  // 6. Kembalikan format akhir
   return `${prefix}${urutBaru}`;
 }
 
 /**
- * Mengambil kode 3 huruf dengan urutan prioritas:
- *   1. Kolom kode/inisial yang sudah diisi manual (dipangkas/diberi
- *      padding menjadi tepat 3 huruf).
- *   2. Bila kosong, diturunkan dari 3 huruf pertama nama (huruf saja,
- *      tanpa spasi/simbol/angka).
- *   3. Bila keduanya kosong, memakai nilai cadangan (default).
+ * Fungsi bantu: Mengambil kode 3 huruf dengan urutan prioritas:
+ *   1. Kolom kode/inisial yang sudah diisi manual di database
+ *   2. Bila kosong, diturunkan otomatis dari 3 huruf pertama nama
+ *   3. Bila keduanya kosong, memakai nilai cadangan/default
  */
 function ambilKode3Huruf(
   kodeManual: string | null | undefined,
@@ -77,5 +83,6 @@ function ambilKode3Huruf(
     (nama ? nama.replace(/[^a-zA-Z]/g, "") : "") ||
     cadangan;
 
+  // Pastikan selalu 3 karakter kapital
   return sumber.toUpperCase().padEnd(3, "X").slice(0, 3);
 }
