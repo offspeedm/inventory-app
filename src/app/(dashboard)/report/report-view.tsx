@@ -18,7 +18,10 @@ import {
   BarChart3,
   Building2,
   Calendar,
+  History,
+  Laptop,
   MonitorSmartphone,
+  MousePointerClick,
   Network,
   Wrench,
   TrendingUp,
@@ -33,19 +36,81 @@ import {
   type LaporanTiket,
   type Breakdown,
   type OpsiFilter,
+  type DeviceBaruItem,
+  type TrenBulanan,
 } from "./actions";
 import { DevicesDetailSection } from "./devices-detail-section";
+import {
+  PerangkatBaruTabSection,
+  PerangkatBaruModal,
+} from "./perangkat-baru-section";
 
 type Tab = "devices" | "troubleshooting";
-type Preset = "bulan-ini" | "6-bulan" | "tahun-ini" | "tahun-lalu" | "12-bulan" | "kustom";
+type DeviceSubTab = "ringkasan" | "perangkat-baru" | "mutasi";
+type Preset =
+  | "bulan-ini"
+  | "6-bulan"
+  | "tahun-ini"
+  | "tahun-lalu"
+  | "12-bulan"
+  | "kustom";
 
-const WARNA_CHART = ["#6366f1", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4", "#ec4899"];
+type ModalPerangkatState = {
+  title: string;
+  subtitle?: string;
+  items: DeviceBaruItem[];
+  hideJenisFilter?: boolean;
+};
+
+type BarClickPayload = {
+  payload?: TrenBulanan;
+  tahun?: number;
+  bulanIndex?: number;
+  bulan?: string;
+};
+
+type PieClickPayload = {
+  payload?: Breakdown;
+  nama?: string;
+  name?: string;
+};
+
+const WARNA_CHART = [
+  "#6366f1",
+  "#10b981",
+  "#f59e0b",
+  "#ef4444",
+  "#8b5cf6",
+  "#06b6d4",
+  "#ec4899",
+];
+const NAMA_BULAN_PANJANG = [
+  "Januari",
+  "Februari",
+  "Maret",
+  "April",
+  "Mei",
+  "Juni",
+  "Juli",
+  "Agustus",
+  "September",
+  "Oktober",
+  "November",
+  "Desember",
+];
 
 function formatTanggalInput(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-// Menghitung rentang tanggal untuk masing-masing preset cepat.
+function fmtTanggalSingkat(value: string): string {
+  return new Date(value).toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 function hitungPresetRange(preset: Preset): { start: string; end: string } {
   const now = new Date();
   let start: Date;
@@ -79,14 +144,14 @@ function formatRupiah(n: number): string {
   return "Rp " + n.toLocaleString("id-ID");
 }
 
-// null berarti "tak terhingga" (periode lalu = 0), ditampilkan sbg "Baru".
-function hitungPersenPerubahan(sekarang: number, sebelumnya: number): number | null {
+function hitungPersenPerubahan(
+  sekarang: number,
+  sebelumnya: number,
+): number | null {
   if (sebelumnya === 0) return sekarang === 0 ? 0 : null;
   return ((sekarang - sebelumnya) / sebelumnya) * 100;
 }
 
-// Mengubah string dari <select> ("" atau "123") menjadi number|null,
-// dipakai sebelum dikirim ke server action.
 function parseFilterId(value: string): number | null {
   const n = Number(value);
   return value && !Number.isNaN(n) && n > 0 ? n : null;
@@ -103,18 +168,24 @@ const PRESET_LIST: { value: Preset; label: string }[] = [
 
 export function ReportView() {
   const [tab, setTab] = useState<Tab>("devices");
+  const [deviceSubTab, setDeviceSubTab] = useState<DeviceSubTab>("ringkasan");
+  const [subTabJenisAwal, setSubTabJenisAwal] = useState<string>("ALL");
+
   const [preset, setPreset] = useState<Preset>("tahun-ini");
-  const [startDate, setStartDate] = useState(() => hitungPresetRange("tahun-ini").start);
-  const [endDate, setEndDate] = useState(() => hitungPresetRange("tahun-ini").end);
+  const [startDate, setStartDate] = useState(
+    () => hitungPresetRange("tahun-ini").start,
+  );
+  const [endDate, setEndDate] = useState(
+    () => hitungPresetRange("tahun-ini").end,
+  );
   const [bandingkan, setBandingkan] = useState(true);
 
-  // ===== Filter Perusahaan & Cabang =====
-  // Berlaku untuk seluruh laporan (Devices maupun Troubleshooting),
-  // memenuhi 3 skenario: (1) satu Perusahaan - semua Cabang, (2) satu
-  // Cabang spesifik, (3) semua Perusahaan & Cabang (dikosongkan).
   const [companyIdStr, setCompanyIdStr] = useState("");
   const [branchIdStr, setBranchIdStr] = useState("");
-  const [opsiFilter, setOpsiFilter] = useState<OpsiFilter>({ companies: [], branches: [] });
+  const [opsiFilter, setOpsiFilter] = useState<OpsiFilter>({
+    companies: [],
+    branches: [],
+  });
 
   const companyId = parseFilterId(companyIdStr);
   const branchId = parseFilterId(branchIdStr);
@@ -122,24 +193,19 @@ export function ReportView() {
     ? opsiFilter.branches.filter((b) => b.companyId === companyId)
     : opsiFilter.branches;
 
-  // Mulai dari true supaya render pertama (sebelum data sempat diambil)
-  // langsung menampilkan teks "Memuat...", menghindari kedipan konten
-  // kosong. Karena sudah true sejak awal, effect pemuatan pertama TIDAK
-  // perlu memanggil setLoading(true) lagi (lihat useEffect di bawah).
   const [loading, setLoading] = useState(true);
   const [dataDevices, setDataDevices] = useState<LaporanDevice | null>(null);
   const [dataTiket, setDataTiket] = useState<LaporanTiket | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Dipakai oleh tombol preset & tombol "Terapkan" — keduanya dipicu dari
-  // event handler klik (bukan dari dalam useEffect), sehingga memanggil
-  // setLoading(true) sebagai baris pertama di sini aman-aman saja.
+  const [modalData, setModalData] = useState<ModalPerangkatState | null>(null);
+
   async function muatData(
     s: string,
     e: string,
     b: boolean,
     cId: number | null,
-    bId: number | null
+    bId: number | null,
   ) {
     setLoading(true);
     setError(null);
@@ -158,12 +224,6 @@ export function ReportView() {
     }
   }
 
-  // Pemuatan data PERTAMA KALI saat halaman dibuka ditulis TERPISAH dari
-  // muatData() di atas — supaya TIDAK ADA setState yang terpanggil secara
-  // sinkron langsung di dalam body useEffect (yang memicu error ESLint
-  // "react-hooks/set-state-in-effect"). Nilai `loading` sudah true sejak
-  // useState awal, jadi tidak perlu di-set ulang; setState lain di bawah
-  // baru berjalan SETELAH `await` selesai.
   useEffect(() => {
     async function muatAwal() {
       try {
@@ -183,7 +243,6 @@ export function ReportView() {
       }
     }
     muatAwal();
-    // Hanya dijalankan sekali saat halaman pertama dibuka.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -201,6 +260,86 @@ export function ReportView() {
     muatData(startDate, endDate, bandingkan, companyId, branchId);
   }
 
+  const labelLokasiAktif = (() => {
+    const namaCompany = opsiFilter.companies.find(
+      (c) => c.id === companyId,
+    )?.nama;
+    const namaBranch = opsiFilter.branches.find((b) => b.id === branchId)?.nama;
+    if (namaCompany && namaBranch) return `${namaCompany} — ${namaBranch}`;
+    if (namaCompany) return namaCompany;
+    return "Semua Perusahaan & Cabang";
+  })();
+
+  function bukaModalBulan(
+    tahun: number,
+    bulanIndex: number,
+    isTahunLalu: boolean,
+  ) {
+    if (!dataDevices) return;
+    const sumber = isTahunLalu
+      ? dataDevices.devicesSebelumnya
+      : dataDevices.devicesPeriodeIni;
+
+    const items = sumber.filter((d) => {
+      if (!d.tglBeli) return false;
+      const t = new Date(d.tglBeli);
+      return t.getFullYear() === tahun && t.getMonth() === bulanIndex;
+    });
+
+    const namaBulan = NAMA_BULAN_PANJANG[bulanIndex] ?? "";
+    setModalData({
+      title: `Perangkat Baru — ${namaBulan} ${tahun}${isTahunLalu ? " (Setahun Lalu)" : ""}`,
+      subtitle: `Lokasi: ${labelLokasiAktif}`,
+      items,
+    });
+  }
+
+  function bukaModalPeriodeIni() {
+    if (!dataDevices) return;
+    setModalData({
+      title: `Daftar Perangkat Baru (${fmtTanggalSingkat(startDate)} – ${fmtTanggalSingkat(endDate)})`,
+      subtitle: `Lokasi: ${labelLokasiAktif}`,
+      items: dataDevices.devicesPeriodeIni,
+    });
+  }
+
+  function bukaModalJenis(namaJenis: string) {
+    if (!dataDevices) return;
+    const items = dataDevices.devicesPeriodeIni.filter(
+      (d) => d.jenis === namaJenis,
+    );
+    setModalData({
+      title: `Perangkat Baru — Jenis: ${namaJenis}`,
+      subtitle: `Periode ${fmtTanggalSingkat(startDate)} – ${fmtTanggalSingkat(endDate)} · ${labelLokasiAktif}`,
+      items,
+      hideJenisFilter: true,
+    });
+  }
+
+  function bukaModalPerusahaan(namaPerusahaan: string) {
+    if (!dataDevices) return;
+    const items = dataDevices.devicesPeriodeIni.filter(
+      (d) => d.perusahaan === namaPerusahaan,
+    );
+    setModalData({
+      title: `Perangkat Baru — Perusahaan: ${namaPerusahaan}`,
+      subtitle: `Periode ${fmtTanggalSingkat(startDate)} – ${fmtTanggalSingkat(endDate)}`,
+      items,
+    });
+  }
+
+  function bukaModalStatus(namaStatus: string) {
+    if (!dataDevices) return;
+    const items = dataDevices.devicesPeriodeIni.filter(
+      (d) => d.status === namaStatus,
+    );
+    setModalData({
+      title: `Perangkat Baru — Status: ${namaStatus}`,
+      subtitle: `Periode ${fmtTanggalSingkat(startDate)} – ${fmtTanggalSingkat(endDate)} · ${labelLokasiAktif}`,
+      items,
+    });
+  }
+
   return (
     <div>
       {/* Header */}
@@ -211,8 +350,8 @@ export function ReportView() {
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Laporan</h1>
           <p className="text-sm text-slate-500">
-            Analisis Devices dan Troubleshooting berdasarkan periode &amp; lokasi, dengan
-            perbandingan tahun sebelumnya.
+            Analisis Devices dan Troubleshooting berdasarkan periode &amp;
+            lokasi, dengan perbandingan tahun sebelumnya.
           </p>
         </div>
       </div>
@@ -221,7 +360,9 @@ export function ReportView() {
       <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="mb-3 flex items-center gap-2">
           <Calendar className="h-4 w-4 text-slate-400" />
-          <p className="text-sm font-semibold text-slate-700">Periode Laporan</p>
+          <p className="text-sm font-semibold text-slate-700">
+            Periode Laporan
+          </p>
         </div>
 
         <div className="mb-4 flex flex-wrap gap-2">
@@ -243,7 +384,9 @@ export function ReportView() {
 
         <div className="mb-4 flex flex-wrap items-end gap-3">
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-500">Dari Tanggal</label>
+            <label className="mb-1 block text-xs font-medium text-slate-500">
+              Dari Tanggal
+            </label>
             <input
               type="date"
               value={startDate}
@@ -255,7 +398,9 @@ export function ReportView() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-500">Sampai Tanggal</label>
+            <label className="mb-1 block text-xs font-medium text-slate-500">
+              Sampai Tanggal
+            </label>
             <input
               type="date"
               value={endDate}
@@ -278,24 +423,29 @@ export function ReportView() {
           </label>
         </div>
 
-        {/* Filter Perusahaan & Cabang — berlaku untuk seluruh laporan */}
+        {/* Filter Perusahaan & Cabang */}
         <div className="mb-2 flex items-center gap-2 border-t border-slate-100 pt-4">
           <Building2 className="h-4 w-4 text-slate-400" />
-          <p className="text-sm font-semibold text-slate-700">Filter Perusahaan &amp; Cabang</p>
+          <p className="text-sm font-semibold text-slate-700">
+            Filter Perusahaan &amp; Cabang
+          </p>
         </div>
         <p className="mb-3 text-xs text-slate-500">
-          Pilih satu Perusahaan untuk melihat seluruh cabangnya, pilih Cabang spesifik untuk data
-          lebih rinci, atau biarkan keduanya kosong untuk melihat seluruh Perusahaan &amp; Cabang.
+          Pilih satu Perusahaan untuk melihat seluruh cabangnya, pilih Cabang
+          spesifik untuk data lebih rinci, atau biarkan keduanya kosong untuk
+          melihat seluruh Perusahaan &amp; Cabang.
         </p>
 
         <div className="flex flex-wrap items-end gap-3">
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-500">Perusahaan</label>
+            <label className="mb-1 block text-xs font-medium text-slate-500">
+              Perusahaan
+            </label>
             <select
               value={companyIdStr}
               onChange={(e) => {
                 setCompanyIdStr(e.target.value);
-                setBranchIdStr(""); // reset cabang setiap kali perusahaan berganti
+                setBranchIdStr("");
               }}
               className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
             >
@@ -308,7 +458,9 @@ export function ReportView() {
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-500">Cabang</label>
+            <label className="mb-1 block text-xs font-medium text-slate-500">
+              Cabang
+            </label>
             <select
               value={branchIdStr}
               onChange={(e) => setBranchIdStr(e.target.value)}
@@ -336,13 +488,15 @@ export function ReportView() {
 
       {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
 
-      {/* Tab pemilih */}
-      <div className="mb-6 inline-flex rounded-lg border border-slate-200 bg-slate-100 p-1">
+      {/* Tab Utama */}
+      <div className="mb-4 inline-flex rounded-lg border border-slate-200 bg-slate-100 p-1">
         <button
           type="button"
           onClick={() => setTab("devices")}
           className={`inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition ${
-            tab === "devices" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
+            tab === "devices"
+              ? "bg-white text-indigo-600 shadow-sm"
+              : "text-slate-500 hover:text-slate-700"
           }`}
         >
           <MonitorSmartphone className="h-4 w-4" /> Devices
@@ -360,34 +514,127 @@ export function ReportView() {
         </button>
       </div>
 
+      {/* Sub-Menu khusus Tab Devices */}
+      {tab === "devices" && (
+        <div className="mb-6 flex flex-wrap items-center gap-2 border-b border-slate-200 pb-3">
+          <button
+            type="button"
+            onClick={() => setDeviceSubTab("ringkasan")}
+            className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold transition ${
+              deviceSubTab === "ringkasan"
+                ? "bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-200"
+                : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            <BarChart3 className="h-3.5 w-3.5" />
+            Ringkasan &amp; Grafik
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setSubTabJenisAwal("ALL");
+              setDeviceSubTab("perangkat-baru");
+            }}
+            className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold transition ${
+              deviceSubTab === "perangkat-baru"
+                ? "bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-200"
+                : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            <Laptop className="h-3.5 w-3.5" />
+            Daftar Perangkat / Laptop Baru
+            {dataDevices && (
+              <span className="rounded-full bg-indigo-600 px-1.5 py-0.2 text-[10px] text-white">
+                {dataDevices.ringkasan.totalPerangkatBaru}
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setDeviceSubTab("mutasi")}
+            className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold transition ${
+              deviceSubTab === "mutasi"
+                ? "bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-200"
+                : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            <History className="h-3.5 w-3.5" />
+            Mutasi &amp; Riwayat Perubahan
+          </button>
+        </div>
+      )}
+
       {/* Indikator filter lokasi aktif */}
       {(companyId || branchId) && (
         <div className="mb-4 inline-flex items-center gap-2 rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700">
           <Network className="h-3.5 w-3.5" />
           Menampilkan:{" "}
-          {opsiFilter.companies.find((c) => c.id === companyId)?.nama ?? "Semua Perusahaan"}
-          {branchId && ` — ${opsiFilter.branches.find((b) => b.id === branchId)?.nama ?? ""}`}
+          {opsiFilter.companies.find((c) => c.id === companyId)?.nama ??
+            "Semua Perusahaan"}
+          {branchId &&
+            ` — ${opsiFilter.branches.find((b) => b.id === branchId)?.nama ?? ""}`}
         </div>
       )}
 
       {loading && !dataDevices && !dataTiket ? (
-        <p className="py-12 text-center text-sm text-slate-400">Memuat data laporan...</p>
+        <p className="py-12 text-center text-sm text-slate-400">
+          Memuat data laporan...
+        </p>
       ) : tab === "devices" ? (
         dataDevices && (
           <>
-            <LaporanDevicesView data={dataDevices} bandingkan={bandingkan} />
-            <div className="mt-6">
+            {deviceSubTab === "ringkasan" && (
+              <LaporanDevicesView
+                data={dataDevices}
+                bandingkan={bandingkan}
+                onKlikPerangkatBaru={bukaModalPeriodeIni}
+                onKlikBulan={bukaModalBulan}
+                onKlikJenis={bukaModalJenis}
+                onKlikPerusahaan={bukaModalPerusahaan}
+                onKlikStatus={bukaModalStatus}
+              />
+            )}
+
+            {deviceSubTab === "perangkat-baru" && (
+              <PerangkatBaruTabSection
+                devices={dataDevices.devicesPeriodeIni}
+                startDate={startDate}
+                endDate={endDate}
+                initialJenis={subTabJenisAwal}
+              />
+            )}
+
+            {deviceSubTab === "mutasi" && (
               <DevicesDetailSection
                 startDate={startDate}
                 endDate={endDate}
                 companyId={companyId}
                 branchId={branchId}
               />
-            </div>
+            )}
           </>
         )
       ) : (
-        dataTiket && <LaporanTiketView data={dataTiket} bandingkan={bandingkan} />
+        dataTiket && (
+          <LaporanTiketView data={dataTiket} bandingkan={bandingkan} />
+        )
+      )}
+
+      {/* Modal Detail Perangkat saat grafik / KPI diklik */}
+      {modalData && (
+        <PerangkatBaruModal
+          title={modalData.title}
+          subtitle={modalData.subtitle}
+          items={modalData.items}
+          hideJenisFilter={modalData.hideJenisFilter}
+          onClose={() => setModalData(null)}
+          onBukaSubMenu={(jenisTerpilih) => {
+            setSubTabJenisAwal(jenisTerpilih);
+            setDeviceSubTab("perangkat-baru");
+          }}
+        />
       )}
     </div>
   );
@@ -399,20 +646,52 @@ function KpiCard({
   sebelumnya,
   bandingkan,
   format,
+  onClick,
+  hint,
 }: {
   label: string;
   value: number;
   sebelumnya: number | null;
   bandingkan: boolean;
   format?: (n: number) => string;
+  onClick?: () => void;
+  hint?: string;
 }) {
   const tampilkanValue = format ? format(value) : value.toLocaleString("id-ID");
   const persen =
-    bandingkan && sebelumnya !== null ? hitungPersenPerubahan(value, sebelumnya) : null;
+    bandingkan && sebelumnya !== null
+      ? hitungPersenPerubahan(value, sebelumnya)
+      : null;
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
-      <p className="text-xs font-medium text-slate-400">{label}</p>
+    <div
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
+      className={`rounded-xl border border-slate-200 bg-white p-4 transition ${
+        onClick
+          ? "cursor-pointer hover:border-indigo-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          : ""
+      }`}
+    >
+      <div className="flex items-center justify-between gap-1">
+        <p className="text-xs font-medium text-slate-400">{label}</p>
+        {hint && (
+          <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-indigo-600">
+            <MousePointerClick className="h-3 w-3" /> {hint}
+          </span>
+        )}
+      </div>
       <p className="mt-1 text-2xl font-bold text-slate-800">{tampilkanValue}</p>
       {bandingkan && sebelumnya !== null && (
         <div className="mt-2 flex items-center gap-1 text-xs">
@@ -420,11 +699,13 @@ function KpiCard({
             <span className="text-slate-400">Baru (periode lalu: 0)</span>
           ) : persen > 0 ? (
             <span className="flex items-center gap-0.5 text-emerald-600">
-              <TrendingUp className="h-3 w-3" /> {persen.toFixed(1)}% vs tahun lalu
+              <TrendingUp className="h-3 w-3" /> {persen.toFixed(1)}% vs tahun
+              lalu
             </span>
           ) : persen < 0 ? (
             <span className="flex items-center gap-0.5 text-red-600">
-              <TrendingDown className="h-3 w-3" /> {Math.abs(persen).toFixed(1)}% vs tahun lalu
+              <TrendingDown className="h-3 w-3" /> {Math.abs(persen).toFixed(1)}
+              % vs tahun lalu
             </span>
           ) : (
             <span className="flex items-center gap-0.5 text-slate-400">
@@ -437,14 +718,32 @@ function KpiCard({
   );
 }
 
-function BreakdownCard({ title, items }: { title: string; items: Breakdown[] }) {
+function BreakdownCard({
+  title,
+  items,
+  onSelectItem,
+}: {
+  title: string;
+  items: Breakdown[];
+  onSelectItem?: (nama: string) => void;
+}) {
   const total = items.reduce((sum, item) => sum + item.jumlah, 0);
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5">
-      <h3 className="mb-4 text-sm font-semibold text-slate-800">{title}</h3>
+      <div className="mb-4 flex items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold text-slate-800">{title}</h3>
+        {onSelectItem && items.length > 0 && (
+          <span className="inline-flex items-center gap-1 text-[11px] text-slate-400">
+            <MousePointerClick className="h-3 w-3 text-indigo-500" /> Klik untuk
+            detail
+          </span>
+        )}
+      </div>
       {items.length === 0 ? (
-        <p className="py-6 text-center text-sm text-slate-400">Belum ada data.</p>
+        <p className="py-6 text-center text-sm text-slate-400">
+          Belum ada data.
+        </p>
       ) : (
         <>
           <ResponsiveContainer width="100%" height={180}>
@@ -458,26 +757,48 @@ function BreakdownCard({ title, items }: { title: string; items: Breakdown[] }) 
                 innerRadius={40}
                 outerRadius={70}
                 paddingAngle={2}
+                onClick={(entry: unknown) => {
+                  if (!onSelectItem) return;
+                  const raw = entry as PieClickPayload | undefined;
+                  const nama = raw?.payload?.nama ?? raw?.nama ?? raw?.name;
+                  if (nama) onSelectItem(String(nama));
+                }}
               >
-                {items.map((_, idx) => (
-                  <Cell key={idx} fill={WARNA_CHART[idx % WARNA_CHART.length]} />
+                {items.map((item, idx) => (
+                  <Cell
+                    key={idx}
+                    fill={WARNA_CHART[idx % WARNA_CHART.length]}
+                    onClick={() => onSelectItem?.(item.nama)}
+                    style={{ cursor: onSelectItem ? "pointer" : undefined }}
+                  />
                 ))}
               </Pie>
               <Tooltip />
             </PieChart>
           </ResponsiveContainer>
-          <ul className="mt-3 space-y-1.5">
+          <ul className="mt-3 space-y-1">
             {items.map((item, idx) => (
-              <li key={item.nama} className="flex items-center justify-between text-xs">
+              <li
+                key={item.nama}
+                onClick={() => onSelectItem?.(item.nama)}
+                className={`-mx-2 flex items-center justify-between rounded-lg px-2 py-1 text-xs ${
+                  onSelectItem
+                    ? "cursor-pointer transition-colors hover:bg-indigo-50/70"
+                    : ""
+                }`}
+              >
                 <span className="flex items-center gap-1.5 text-slate-600">
                   <span
                     className="h-2 w-2 shrink-0 rounded-full"
-                    style={{ backgroundColor: WARNA_CHART[idx % WARNA_CHART.length] }}
+                    style={{
+                      backgroundColor: WARNA_CHART[idx % WARNA_CHART.length],
+                    }}
                   />
                   <span className="truncate">{item.nama}</span>
                 </span>
                 <span className="shrink-0 font-medium text-slate-700">
-                  {item.jumlah} ({total > 0 ? ((item.jumlah / total) * 100).toFixed(0) : 0}%)
+                  {item.jumlah} (
+                  {total > 0 ? ((item.jumlah / total) * 100).toFixed(0) : 0}%)
                 </span>
               </li>
             ))}
@@ -488,7 +809,27 @@ function BreakdownCard({ title, items }: { title: string; items: Breakdown[] }) 
   );
 }
 
-function LaporanDevicesView({ data, bandingkan }: { data: LaporanDevice; bandingkan: boolean }) {
+function LaporanDevicesView({
+  data,
+  bandingkan,
+  onKlikPerangkatBaru,
+  onKlikBulan,
+  onKlikJenis,
+  onKlikPerusahaan,
+  onKlikStatus,
+}: {
+  data: LaporanDevice;
+  bandingkan: boolean;
+  onKlikPerangkatBaru: () => void;
+  onKlikBulan: (
+    tahun: number,
+    bulanIndex: number,
+    isTahunLalu: boolean,
+  ) => void;
+  onKlikJenis: (namaJenis: string) => void;
+  onKlikPerusahaan: (namaPerusahaan: string) => void;
+  onKlikStatus: (namaStatus: string) => void;
+}) {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -497,6 +838,8 @@ function LaporanDevicesView({ data, bandingkan }: { data: LaporanDevice; banding
           value={data.ringkasan.totalPerangkatBaru}
           sebelumnya={data.ringkasanSebelumnya?.totalPerangkatBaru ?? null}
           bandingkan={bandingkan}
+          onClick={onKlikPerangkatBaru}
+          hint="Lihat daftar"
         />
         <KpiCard
           label="Nilai Pembelian"
@@ -510,6 +853,7 @@ function LaporanDevicesView({ data, bandingkan }: { data: LaporanDevice; banding
           value={data.ringkasan.totalAktif}
           sebelumnya={data.ringkasanSebelumnya?.totalAktif ?? null}
           bandingkan={bandingkan}
+          onClick={() => onKlikStatus("Aktif")}
         />
         <KpiCard
           label="Bermasalah (Rusak/Perbaikan)"
@@ -520,9 +864,16 @@ function LaporanDevicesView({ data, bandingkan }: { data: LaporanDevice; banding
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-5">
-        <h3 className="mb-4 text-sm font-semibold text-slate-800">
-          Tren Perangkat Baru per Bulan{bandingkan ? " (Periode Ini vs Setahun Lalu)" : ""}
-        </h3>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold text-slate-800">
+            Tren Perangkat Baru per Bulan
+            {bandingkan ? " (Periode Ini vs Setahun Lalu)" : ""}
+          </h3>
+          <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-0.5 text-[11px] font-medium text-indigo-600">
+            <MousePointerClick className="h-3 w-3" /> Klik batang grafik untuk
+            lihat daftar perangkat
+          </span>
+        </div>
         <ResponsiveContainer width="100%" height={280}>
           <BarChart data={data.trenBulanan}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -530,13 +881,40 @@ function LaporanDevicesView({ data, bandingkan }: { data: LaporanDevice; banding
             <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
             <Tooltip />
             <Legend />
-            <Bar dataKey="periodeIni" name="Periode Ini" fill="#6366f1" radius={[4, 4, 0, 0]} />
+            <Bar
+              dataKey="periodeIni"
+              name="Periode Ini"
+              fill="#6366f1"
+              radius={[4, 4, 0, 0]}
+              cursor="pointer"
+              onClick={(entry: unknown) => {
+                const raw = entry as BarClickPayload | undefined;
+                const item = raw?.payload ?? raw;
+                if (
+                  typeof item?.tahun === "number" &&
+                  typeof item?.bulanIndex === "number"
+                ) {
+                  onKlikBulan(item.tahun, item.bulanIndex, false);
+                }
+              }}
+            />
             {bandingkan && (
               <Bar
                 dataKey="periodeSebelumnya"
                 name="Setahun Lalu"
                 fill="#cbd5e1"
                 radius={[4, 4, 0, 0]}
+                cursor="pointer"
+                onClick={(entry: unknown) => {
+                  const raw = entry as BarClickPayload | undefined;
+                  const item = raw?.payload ?? raw;
+                  if (
+                    typeof item?.tahun === "number" &&
+                    typeof item?.bulanIndex === "number"
+                  ) {
+                    onKlikBulan(item.tahun - 1, item.bulanIndex, true);
+                  }
+                }}
               />
             )}
           </BarChart>
@@ -544,15 +922,33 @@ function LaporanDevicesView({ data, bandingkan }: { data: LaporanDevice; banding
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <BreakdownCard title="Per Jenis" items={data.perJenis} />
-        <BreakdownCard title="Per Perusahaan" items={data.perPerusahaan} />
-        <BreakdownCard title="Per Status" items={data.perStatus} />
+        <BreakdownCard
+          title="Per Jenis"
+          items={data.perJenis}
+          onSelectItem={onKlikJenis}
+        />
+        <BreakdownCard
+          title="Per Perusahaan"
+          items={data.perPerusahaan}
+          onSelectItem={onKlikPerusahaan}
+        />
+        <BreakdownCard
+          title="Per Status"
+          items={data.perStatus}
+          onSelectItem={onKlikStatus}
+        />
       </div>
     </div>
   );
 }
 
-function LaporanTiketView({ data, bandingkan }: { data: LaporanTiket; bandingkan: boolean }) {
+function LaporanTiketView({
+  data,
+  bandingkan,
+}: {
+  data: LaporanTiket;
+  bandingkan: boolean;
+}) {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -584,7 +980,8 @@ function LaporanTiketView({ data, bandingkan }: { data: LaporanTiket; bandingkan
 
       <div className="rounded-2xl border border-slate-200 bg-white p-5">
         <h3 className="mb-4 text-sm font-semibold text-slate-800">
-          Tren Tiket per Bulan{bandingkan ? " (Periode Ini vs Setahun Lalu)" : ""}
+          Tren Tiket per Bulan
+          {bandingkan ? " (Periode Ini vs Setahun Lalu)" : ""}
         </h3>
         <ResponsiveContainer width="100%" height={280}>
           <BarChart data={data.trenBulanan}>
@@ -593,7 +990,12 @@ function LaporanTiketView({ data, bandingkan }: { data: LaporanTiket; bandingkan
             <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
             <Tooltip />
             <Legend />
-            <Bar dataKey="periodeIni" name="Periode Ini" fill="#f43f5e" radius={[4, 4, 0, 0]} />
+            <Bar
+              dataKey="periodeIni"
+              name="Periode Ini"
+              fill="#f43f5e"
+              radius={[4, 4, 0, 0]}
+            />
             {bandingkan && (
               <Bar
                 dataKey="periodeSebelumnya"

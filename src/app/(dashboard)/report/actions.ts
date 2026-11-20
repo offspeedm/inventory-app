@@ -18,11 +18,29 @@ export type RingkasanTiket = {
 
 export type TrenBulanan = {
   bulan: string;
+  tahun: number;
+  bulanIndex: number;
   periodeIni: number;
   periodeSebelumnya: number | null;
 };
 
 export type Breakdown = { nama: string; jumlah: number };
+
+export type DeviceBaruItem = {
+  id: number;
+  nama: string;
+  kodeInventaris: string | null;
+  merk: string | null;
+  tipe: string | null;
+  serialNumber: string | null;
+  jenis: string;
+  perusahaan: string;
+  cabang: string;
+  pengguna: string;
+  status: string;
+  tglBeli: Date | null;
+  hargaBeli: number | null;
+};
 
 export type LaporanDevice = {
   ringkasan: RingkasanDevice;
@@ -31,6 +49,8 @@ export type LaporanDevice = {
   perJenis: Breakdown[];
   perPerusahaan: Breakdown[];
   perStatus: Breakdown[];
+  devicesPeriodeIni: DeviceBaruItem[];
+  devicesSebelumnya: DeviceBaruItem[];
 };
 
 export type LaporanTiket = {
@@ -58,9 +78,6 @@ export type DetailDeviceRow = {
   jumlahPerubahanCabang: number;
 };
 
-// Tiga kategori perubahan yang diminta: User (kepemilikan), Perusahaan,
-// dan Cabang — dipisah otomatis dari data DeviceAssignment (User) dan
-// DevicePlacement (Perusahaan/Cabang).
 export type JenisPerubahan = "User" | "Perusahaan" | "Cabang";
 
 export type RiwayatPerubahanRow = {
@@ -165,6 +182,54 @@ function toNullableInt(value: number | null | undefined): number | null {
   return value && value > 0 ? value : null;
 }
 
+const SELECT_DEVICE_LAPORAN = {
+  id: true,
+  nama: true,
+  kodeInventaris: true,
+  merk: true,
+  tipe: true,
+  serialNumber: true,
+  hargaBeli: true,
+  status: true,
+  tglBeli: true,
+  type: { select: { nama: true } },
+  company: { select: { nama: true } },
+  branch: { select: { nama: true } },
+  user: { select: { nama: true } },
+} as const;
+
+function mapDeviceBaruItem(d: {
+  id: number;
+  nama: string;
+  kodeInventaris: string | null;
+  merk: string | null;
+  tipe: string | null;
+  serialNumber: string | null;
+  hargaBeli: unknown;
+  status: string;
+  tglBeli: Date | null;
+  type: { nama: string } | null;
+  company: { nama: string } | null;
+  branch: { nama: string } | null;
+  user: { nama: string } | null;
+}): DeviceBaruItem {
+  return {
+    id: d.id,
+    nama: d.nama,
+    kodeInventaris: d.kodeInventaris,
+    merk: d.merk,
+    tipe: d.tipe,
+    serialNumber: d.serialNumber,
+    jenis: d.type?.nama ?? "Tanpa Jenis",
+    perusahaan: d.company?.nama ?? "Belum Ditempatkan",
+    cabang: d.branch?.nama ?? "-",
+    pengguna: d.user?.nama ?? "-",
+    status: d.status,
+    tglBeli: d.tglBeli,
+    hargaBeli: d.hargaBeli ? Number(d.hargaBeli) : null,
+  };
+}
+
 /** Daftar Perusahaan & Cabang untuk mengisi dropdown filter di halaman. */
 export async function getOpsiFilter(): Promise<OpsiFilter> {
   const [companies, branches] = await Promise.all([
@@ -180,7 +245,7 @@ export async function getOpsiFilter(): Promise<OpsiFilter> {
 /**
  * Mengambil data laporan Devices untuk satu rentang tanggal (berdasarkan
  * Tanggal Beli), dengan filter opsional Perusahaan/Cabang, lengkap dengan
- * tren bulanan, breakdown, dan (opsional) data pembanding setahun lalu.
+ * tren bulanan, breakdown, daftar perangkat baru, dan data pembanding.
  */
 export async function getLaporanDevices(
   startDate: string,
@@ -197,64 +262,69 @@ export async function getLaporanDevices(
     ...(bId ? { branchId: bId } : {}),
   };
 
-  const devicesPeriodeIni = await prisma.device.findMany({
+  const devicesPeriodeIniRaw = await prisma.device.findMany({
     where: { tglBeli: { gte: start, lte: end }, ...filterLokasi },
-    select: {
-      hargaBeli: true,
-      status: true,
-      tglBeli: true,
-      type: { select: { nama: true } },
-      company: { select: { nama: true } },
-    },
+    select: SELECT_DEVICE_LAPORAN,
+    orderBy: [{ tglBeli: "desc" }, { nama: "asc" }],
   });
 
-  const ringkasan = hitungRingkasanDevice(devicesPeriodeIni);
+  const ringkasan = hitungRingkasanDevice(devicesPeriodeIniRaw);
 
   let ringkasanSebelumnya: RingkasanDevice | null = null;
-  let devicesSebelumnya: typeof devicesPeriodeIni = [];
+  let devicesSebelumnyaRaw: typeof devicesPeriodeIniRaw = [];
 
   if (bandingkan) {
     const periodeLalu = periodeSetahunSebelumnya(start, end);
-    devicesSebelumnya = await prisma.device.findMany({
+    devicesSebelumnyaRaw = await prisma.device.findMany({
       where: { tglBeli: { gte: periodeLalu.start, lte: periodeLalu.end }, ...filterLokasi },
-      select: {
-        hargaBeli: true,
-        status: true,
-        tglBeli: true,
-        type: { select: { nama: true } },
-        company: { select: { nama: true } },
-      },
+      select: SELECT_DEVICE_LAPORAN,
+      orderBy: [{ tglBeli: "desc" }, { nama: "asc" }],
     });
-    ringkasanSebelumnya = hitungRingkasanDevice(devicesSebelumnya);
+    ringkasanSebelumnya = hitungRingkasanDevice(devicesSebelumnyaRaw);
   }
 
   const bulanList = labelBulanUrut(start, end);
   const trenBulanan: TrenBulanan[] = bulanList.map(({ label, tahun, bulan }) => {
-    const periodeIni = devicesPeriodeIni.filter((d) => {
+    const periodeIni = devicesPeriodeIniRaw.filter((d) => {
       if (!d.tglBeli) return false;
       const t = new Date(d.tglBeli);
       return t.getFullYear() === tahun && t.getMonth() === bulan;
     }).length;
 
     const periodeSebelumnya = bandingkan
-      ? devicesSebelumnya.filter((d) => {
+      ? devicesSebelumnyaRaw.filter((d) => {
           if (!d.tglBeli) return false;
           const t = new Date(d.tglBeli);
           return t.getFullYear() === tahun - 1 && t.getMonth() === bulan;
         }).length
       : null;
 
-    return { bulan: label, periodeIni, periodeSebelumnya };
+    return {
+      bulan: label,
+      tahun,
+      bulanIndex: bulan,
+      periodeIni,
+      periodeSebelumnya,
+    };
   });
 
-  const perJenis = kelompokkan(devicesPeriodeIni, (d) => d.type?.nama ?? "Tanpa Jenis");
+  const perJenis = kelompokkan(devicesPeriodeIniRaw, (d) => d.type?.nama ?? "Tanpa Jenis");
   const perPerusahaan = kelompokkan(
-    devicesPeriodeIni,
+    devicesPeriodeIniRaw,
     (d) => d.company?.nama ?? "Belum Ditempatkan"
   );
-  const perStatus = kelompokkan(devicesPeriodeIni, (d) => d.status);
+  const perStatus = kelompokkan(devicesPeriodeIniRaw, (d) => d.status);
 
-  return { ringkasan, ringkasanSebelumnya, trenBulanan, perJenis, perPerusahaan, perStatus };
+  return {
+    ringkasan,
+    ringkasanSebelumnya,
+    trenBulanan,
+    perJenis,
+    perPerusahaan,
+    perStatus,
+    devicesPeriodeIni: devicesPeriodeIniRaw.map(mapDeviceBaruItem),
+    devicesSebelumnya: devicesSebelumnyaRaw.map(mapDeviceBaruItem),
+  };
 }
 
 /**
@@ -309,7 +379,13 @@ export async function getLaporanTiket(
         }).length
       : null;
 
-    return { bulan: label, periodeIni, periodeSebelumnya };
+    return {
+      bulan: label,
+      tahun,
+      bulanIndex: bulan,
+      periodeIni,
+      periodeSebelumnya,
+    };
   });
 
   const perKategori = kelompokkan(tiketPeriodeIni, (t) => t.kategori ?? "Tanpa Kategori");
@@ -334,21 +410,6 @@ async function idPerangkatSesuaiFilter(
   return new Set(devices.map((d) => d.id));
 }
 
-/**
- * Mengambil SELURUH riwayat perubahan (belum difilter Perusahaan/Cabang)
- * dalam rentang tanggal, diklasifikasikan otomatis ke 3 kategori:
- *
- *  - "User"       : berasal dari DeviceAssignment (pergantian pengguna).
- *  - "Perusahaan" : dari DevicePlacement, ketika Perusahaan sebelumnya
- *                   BERBEDA dari yang baru (atau ini penempatan pertama
- *                   device tsb — dianggap sbg penetapan awal).
- *  - "Cabang"     : dari DevicePlacement, ketika Perusahaan SAMA tapi
- *                   Cabang berbeda.
- *
- * Dipakai bersama oleh getDetailDevices (untuk menghitung jumlah per
- * device) dan getRiwayatPerubahan (daftar rinci, difilter ulang di sana
- * sesuai Perusahaan/Cabang bila diperlukan).
- */
 async function ambilRiwayatMentah(start: Date, end: Date): Promise<RiwayatPerubahanRow[]> {
   const [assignments, placements] = await Promise.all([
     prisma.deviceAssignment.findMany({
@@ -373,9 +434,6 @@ async function ambilRiwayatMentah(start: Date, end: Date): Promise<RiwayatPeruba
   const hasil: RiwayatPerubahanRow[] = [];
 
   for (const a of assignments) {
-    // Penjaga null wajib ada supaya TypeScript menyempitkan tipe
-    // a.tglMulai dari `Date | null` menjadi `Date` sebelum dipakai
-    // sebagai filter `lt:` di bawah.
     if (!a.tglMulai) continue;
 
     const sebelumnya = await prisma.deviceAssignment.findFirst({
@@ -407,8 +465,6 @@ async function ambilRiwayatMentah(start: Date, end: Date): Promise<RiwayatPeruba
       orderBy: { tglMulai: "desc" },
     });
 
-    // Klasifikasi otomatis: Perusahaan berbeda -> "Perusahaan";
-    // Perusahaan sama tapi Cabang berbeda -> "Cabang".
     const perusahaanBerubah = !sebelumnya || sebelumnya.companyId !== p.companyId;
     const jenisPerubahan: JenisPerubahan = perusahaanBerubah ? "Perusahaan" : "Cabang";
 
@@ -433,11 +489,6 @@ async function ambilRiwayatMentah(start: Date, end: Date): Promise<RiwayatPeruba
   return hasil;
 }
 
-/**
- * Mengambil daftar SEMUA Device (kondisi terkini), dengan filter opsional
- * Perusahaan/Cabang, ditambah jumlah perubahan User/Perusahaan/Cabang yang
- * terjadi dalam periode terpilih.
- */
 export async function getDetailDevices(
   startDate: string,
   endDate: string,
@@ -492,11 +543,6 @@ export async function getDetailDevices(
   });
 }
 
-/**
- * Mengambil daftar RINCI setiap perubahan (User/Perusahaan/Cabang) dalam
- * periode terpilih, dengan filter opsional Perusahaan/Cabang (menyaring
- * berdasarkan device yang SAAT INI berada di Perusahaan/Cabang tsb).
- */
 export async function getRiwayatPerubahan(
   startDate: string,
   endDate: string,
