@@ -1,41 +1,39 @@
-"use server";
+// src/app/(dashboard)/troubleshooting/[id]/actions.ts
+'use server';
 
-import prisma from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
-import { revalidatePath } from "next/cache";
-import { simpanLampiranTiket } from "@/lib/lampiran-tiket";
+import { revalidatePath } from 'next/cache';
+import { prisma } from '@/lib/prisma';
+import { hapusLampiranLokal } from '@/lib/lampiran';
 
-const BUCKET = "ticket-attachments";
+export async function hapusLampiranTiket(formData: FormData): Promise<void> {
+  const id = String(formData.get('id') ?? '').trim();
+  const ticketId = String(formData.get('ticket_id') ?? '').trim();
+  const fileUrl = String(formData.get('file_url') ?? '').trim();
 
-export async function uploadLampiranTiket(formData: FormData) {
-  const ticketId = Number(formData.get("ticket_id"));
-  const files = formData.getAll("files") as File[];
-
-  if (!ticketId || files.length === 0) return;
-
-  await simpanLampiranTiket(ticketId, files);
-
-  revalidatePath(`/troubleshooting/${ticketId}`);
-}
-
-export async function hapusLampiranTiket(formData: FormData) {
-  const id = Number(formData.get("id"));
-  const ticketId = Number(formData.get("ticket_id"));
-  const fileUrl = formData.get("file_url") as string;
-
-  try {
-    const supabase = await createClient();
-    const marker = `/object/public/${BUCKET}/`;
-    const idx = fileUrl.indexOf(marker);
-    if (idx !== -1) {
-      const path = fileUrl.slice(idx + marker.length);
-      await supabase.storage.from(BUCKET).remove([path]);
-    }
-  } catch (e) {
-    console.error("Gagal hapus file storage tiket:", e);
+  if (!id || !ticketId) {
+    throw new Error('ID lampiran dan ID tiket wajib disertakan.');
   }
 
-  await prisma.ticketAttachment.delete({ where: { id } });
+  // Ambil path dari database jika file_url tidak dikirim melalui formData
+  let targetUrl = fileUrl;
+  if (!targetUrl) {
+    const attachment = await prisma.ticketAttachment.findUnique({
+      where: { id },
+      select: { file_url: true },
+    });
+    targetUrl = attachment?.file_url ?? '';
+  }
+
+  // Hapus file fisik dari public/uploads/
+  if (targetUrl) {
+    await hapusLampiranLokal(targetUrl);
+  }
+
+  // Hapus record dari PostgreSQL
+  await prisma.ticketAttachment.delete({
+    where: { id },
+  });
 
   revalidatePath(`/troubleshooting/${ticketId}`);
+  revalidatePath('/troubleshooting');
 }

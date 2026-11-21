@@ -1,9 +1,11 @@
+// src/app/(dashboard)/users/[id]/page.tsx
 import prisma from "@/lib/prisma";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, MonitorSmartphone, Wrench } from "lucide-react";
 import { statusColor, urgencyColor } from "@/config/ticket-fields";
 import { DetailFormUser } from "./detail-form";
+import { DeviceLinkModalTrigger } from "@/components/device-link-modal-trigger";
 
 function formatTanggal(value: Date | null): string {
   if (!value) return "Sekarang";
@@ -150,12 +152,12 @@ export default async function UserDetailPage({
                   {user.devices.map((device) => (
                     <tr key={device.id} className="border-t border-slate-100">
                       <td className="px-3 py-2.5">
-                        <Link
-                          href={`/devices/${device.id}`}
-                          className="font-medium text-slate-700 hover:text-indigo-600 hover:underline"
+                        <DeviceLinkModalTrigger
+                          deviceId={device.id}
+                          className="cursor-pointer text-left font-medium text-slate-700 hover:text-indigo-600 hover:underline"
                         >
                           {device.nama}
-                        </Link>
+                        </DeviceLinkModalTrigger>
                         <p className="text-xs font-mono text-slate-400">
                           {device.kodeInventaris ?? "Tanpa kode inventaris"}
                         </p>
@@ -193,12 +195,12 @@ export default async function UserDetailPage({
             <ul className="max-h-96 divide-y divide-slate-100 overflow-y-auto">
               {riwayatPerangkat.map((item) => (
                 <li key={item.id} className="py-3">
-                  <Link
-                    href={`/devices/${item.device.id}`}
-                    className="font-medium text-slate-700 hover:text-indigo-600 hover:underline"
+                  <DeviceLinkModalTrigger
+                    deviceId={item.device.id}
+                    className="cursor-pointer text-left font-medium text-slate-700 hover:text-indigo-600 hover:underline"
                   >
                     {item.device.nama}
-                  </Link>
+                  </DeviceLinkModalTrigger>
                   <p className="text-xs font-mono text-slate-400">
                     {item.device.kodeInventaris ?? "Tanpa kode inventaris"}
                   </p>
@@ -272,12 +274,12 @@ export default async function UserDetailPage({
                     </td>
                     <td className="px-3 py-2.5">
                       {item.device ? (
-                        <Link
-                          href={`/devices/${item.device.id}`}
-                          className="text-slate-600 hover:text-indigo-600 hover:underline"
+                        <DeviceLinkModalTrigger
+                          deviceId={item.device.id}
+                          className="cursor-pointer text-left text-slate-600 hover:text-indigo-600 hover:underline"
                         >
                           {item.device.nama}
-                        </Link>
+                        </DeviceLinkModalTrigger>
                       ) : (
                         <span className="text-slate-400">-</span>
                       )}

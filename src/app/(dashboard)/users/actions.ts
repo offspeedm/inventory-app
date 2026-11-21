@@ -1,161 +1,301 @@
-"use server";
+// src/app/(dashboard)/users/actions.ts
+'use server';
 
-import { Prisma } from "@prisma/client";
-import prisma from "@/lib/prisma";
-import { revalidatePath } from "next/cache";
-import bcrypt from "bcryptjs";
+import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
+import { Prisma } from '@prisma/client';
+import { revalidatePath } from 'next/cache';
+import prisma from '@/lib/prisma';
 
 export type UserActionResult = {
-  ok: boolean;
+  success?: boolean;
   error?: string;
+  message?: string;
 };
 
+function normalisasiStatus(raw: unknown): 'Aktif' | 'Non-Aktif' {
+  const val = String(raw ?? '').trim().toLowerCase();
+  if (val === 'non-aktif' || val === 'nonaktif' || val === 'inactive' || val === 'false') {
+    return 'Non-Aktif';
+  }
+  return 'Aktif';
+}
+
 function toNullableInt(value: FormDataEntryValue | null): number | null {
-  const n = Number(value);
-  return value && !Number.isNaN(n) && n > 0 ? n : null;
+  if (value === null || value === undefined) return null;
+  const str = String(value).trim();
+  if (!str) return null;
+  const parsed = Number.parseInt(str, 10);
+  return Number.isNaN(parsed) ? null : parsed;
 }
 
-function normalisasiStatus(value: FormDataEntryValue | null): "Aktif" | "Non-Aktif" {
-  return value === "Non-Aktif" ? "Non-Aktif" : "Aktif";
+function toNullableString(value: FormDataEntryValue | null): string | null {
+  if (value === null || value === undefined) return null;
+  const str = String(value).trim();
+  return str.length > 0 ? str : null;
 }
 
-// Tambah user baru (dengan password)
 export async function tambahUser(formData: FormData): Promise<UserActionResult> {
-  const nama = String(formData.get("nama") ?? "").trim();
-  const email = String(formData.get("email") ?? "").trim() || null;
+  const nama = String(formData.get('nama') ?? formData.get('name') ?? '').trim();
+  const email = String(formData.get('email') ?? '').trim().toLowerCase();
+  const rawPassword = String(formData.get('password') ?? '').trim();
+  const jabatan = toNullableString(formData.get('jabatan'));
+  const role = String(formData.get('role') ?? 'Teknisi').trim() || 'Teknisi';
+  const divisi = toNullableString(formData.get('divisi'));
+  const noTelp = toNullableString(formData.get('noTelp') ?? formData.get('no_telp'));
+  const status = normalisasiStatus(formData.get('status') ?? 'Aktif');
+  const companyId = toNullableInt(formData.get('companyId'));
+  const branchId = toNullableInt(formData.get('branchId'));
 
-  if (!nama) {
-    return { ok: false, error: "Nama lengkap wajib diisi." };
+  if (!nama || !email) {
+    return {
+      success: false,
+      error: 'Nama lengkap dan email wajib diisi.',
+    };
   }
-
-  if (email) {
-    const duplikat = await prisma.user.findFirst({
-      where: { email: { equals: email, mode: "insensitive" } },
-      select: { id: true, nama: true },
-    });
-
-    if (duplikat) {
-      return {
-        ok: false,
-        error: `Email "${email}" sudah digunakan oleh user "${duplikat.nama}".`,
-      };
-    }
-  }
-
-  let password = String(formData.get("password") ?? "").trim();
-  if (!password) {
-    password = Math.random().toString(36).slice(2, 10);
-  }
-
-  const salt = await bcrypt.genSalt(10);
-  const hashedPassword = await bcrypt.hash(password, salt);
 
   try {
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    });
+
+    if (existingUser) {
+      return {
+        success: false,
+        error: `Email "${email}" sudah terdaftar. Gunakan email lain.`,
+      };
+    }
+
+    // Jika password dikosongkan saat tambah user, buat password acak 8 karakter
+    const plainPassword =
+      rawPassword.length > 0
+        ? rawPassword
+        : crypto.randomBytes(4).toString('hex');
+    const hashedPassword = await bcrypt.hash(plainPassword, 10);
+
     await prisma.user.create({
       data: {
         nama,
         email,
         password: hashedPassword,
-        noTelp: String(formData.get("no_telp") ?? "").trim() || null,
-        divisi: String(formData.get("divisi") ?? "").trim() || null,
-        status: normalisasiStatus(formData.get("status")),
-        companyId: toNullableInt(formData.get("company_id")),
-        branchId: toNullableInt(formData.get("branch_id")),
+        jabatan,
+        role,
+        divisi,
+        noTelp,
+        status,
+        companyId,
+        branchId,
       },
     });
-  } catch (err) {
-    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
-      return { ok: false, error: `Email "${email}" sudah terdaftar pada user lain.` };
-    }
-    throw err;
-  }
 
-  revalidatePath("/users");
-  revalidatePath("/dashboard");
-  return { ok: true };
-}
-
-// Ubah data user (dan opsi ubah password)
-export async function updateUser(formData: FormData): Promise<UserActionResult> {
-  const id = Number(formData.get("id"));
-  const nama = String(formData.get("nama") ?? "").trim();
-  const email = String(formData.get("email") ?? "").trim() || null;
-  const passwordBaru = String(formData.get("password") ?? "").trim();
-
-  if (!Number.isInteger(id) || id <= 0) {
-    return { ok: false, error: "ID user tidak valid." };
-  }
-
-  if (!nama) {
-    return { ok: false, error: "Nama lengkap wajib diisi." };
-  }
-
-  if (email) {
-    const duplikat = await prisma.user.findFirst({
-      where: {
-        email: { equals: email, mode: "insensitive" },
-        NOT: { id },
-      },
-      select: { id: true, nama: true },
-    });
-
-    if (duplikat) {
+    revalidatePath('/users');
+    return {
+      success: true,
+      message: 'Pengguna berhasil ditambahkan.',
+    };
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002'
+    ) {
       return {
-        ok: false,
-        error: `Email "${email}" sudah digunakan oleh user "${duplikat.nama}".`,
+        success: false,
+        error: `Email "${email}" sudah terdaftar.`,
       };
     }
+
+    console.error('Error tambahUser:', error);
+    return {
+      success: false,
+      error: 'Gagal menambahkan pengguna karena kesalahan server.',
+    };
+  }
+}
+
+export async function updateUser(formData: FormData): Promise<UserActionResult>;
+export async function updateUser(id: number, formData: FormData): Promise<UserActionResult>;
+export async function updateUser(
+  idOrFormData: number | FormData,
+  maybeFormData?: FormData
+): Promise<UserActionResult> {
+  const formData =
+    idOrFormData instanceof FormData ? idOrFormData : maybeFormData!;
+  const id =
+    idOrFormData instanceof FormData
+      ? toNullableInt(formData.get('id'))
+      : Number(idOrFormData);
+
+  if (!id) {
+    return { success: false, error: 'ID pengguna tidak valid.' };
   }
 
-  const updateData: Prisma.UserUncheckedUpdateInput = {
-    nama,
-    email,
-    noTelp: String(formData.get("no_telp") ?? "").trim() || null,
-    divisi: String(formData.get("divisi") ?? "").trim() || null,
-    status: normalisasiStatus(formData.get("status")),
-    companyId: toNullableInt(formData.get("company_id")),
-    branchId: toNullableInt(formData.get("branch_id")),
-  };
+  const nama = String(formData.get('nama') ?? formData.get('name') ?? '').trim();
+  const email = String(formData.get('email') ?? '').trim().toLowerCase();
+  const rawPassword = String(formData.get('password') ?? '').trim();
+  const jabatan = toNullableString(formData.get('jabatan'));
+  const role = String(formData.get('role') ?? '').trim();
+  const divisi = toNullableString(formData.get('divisi'));
+  const noTelp = toNullableString(formData.get('noTelp') ?? formData.get('no_telp'));
+  const statusRaw = formData.get('status');
+  const companyId = toNullableInt(formData.get('companyId'));
+  const branchId = toNullableInt(formData.get('branchId'));
 
-  if (passwordBaru) {
-    const salt = await bcrypt.genSalt(10);
-    updateData.password = await bcrypt.hash(passwordBaru, salt);
+  if (!nama || !email) {
+    return {
+      success: false,
+      error: 'Nama lengkap dan email wajib diisi.',
+    };
   }
 
   try {
+    const duplicateUser = await prisma.user.findFirst({
+      where: {
+        email,
+        NOT: { id },
+      },
+      select: { id: true },
+    });
+
+    if (duplicateUser) {
+      return {
+        success: false,
+        error: `Email "${email}" sudah digunakan oleh akun lain.`,
+      };
+    }
+
+    const updateData: Prisma.UserUpdateInput = {
+      nama,
+      email,
+      jabatan,
+      ...(role ? { role } : {}),
+      divisi,
+      noTelp,
+      ...(statusRaw !== null ? { status: normalisasiStatus(statusRaw) } : {}),
+      company: companyId ? { connect: { id: companyId } } : { disconnect: true },
+      branch: branchId ? { connect: { id: branchId } } : { disconnect: true },
+    };
+
+    if (rawPassword.length > 0) {
+      updateData.password = await bcrypt.hash(rawPassword, 10);
+    }
+
     await prisma.user.update({
       where: { id },
       data: updateData,
     });
-  } catch (err) {
-    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
-      return { ok: false, error: `Email "${email}" sudah terdaftar pada user lain.` };
+
+    revalidatePath('/users');
+    return {
+      success: true,
+      message: 'Data pengguna berhasil diperbarui.',
+    };
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002'
+    ) {
+      return {
+        success: false,
+        error: `Email "${email}" sudah digunakan oleh akun lain.`,
+      };
     }
-    throw err;
+
+    console.error('Error updateUser:', error);
+    return {
+      success: false,
+      error: 'Gagal memperbarui data pengguna.',
+    };
+  }
+}
+
+export async function toggleStatusUser(
+  idOrFormData: number | FormData,
+  currentStatus?: string
+): Promise<UserActionResult> {
+  const id =
+    idOrFormData instanceof FormData
+      ? toNullableInt(idOrFormData.get('id'))
+      : Number(idOrFormData);
+
+  if (!id) {
+    return { success: false, error: 'ID pengguna tidak valid.' };
   }
 
-  revalidatePath("/users");
-  revalidatePath(`/users/${id}`);
-  revalidatePath("/dashboard");
-  return { ok: true };
+  try {
+    let statusSekarang = currentStatus;
+
+    if (!statusSekarang) {
+      const user = await prisma.user.findUnique({
+        where: { id },
+        select: { status: true },
+      });
+      if (!user) {
+        return { success: false, error: 'Pengguna tidak ditemukan.' };
+      }
+      statusSekarang = user.status;
+    }
+
+    const statusBaru =
+      normalisasiStatus(statusSekarang) === 'Aktif' ? 'Non-Aktif' : 'Aktif';
+
+    await prisma.user.update({
+      where: { id },
+      data: { status: statusBaru },
+    });
+
+    revalidatePath('/users');
+    return {
+      success: true,
+      message: `Status pengguna diubah menjadi ${statusBaru}.`,
+    };
+  } catch (error) {
+    console.error('Error toggleStatusUser:', error);
+    return {
+      success: false,
+      error: 'Gagal mengubah status pengguna.',
+    };
+  }
 }
 
-// Ubah status Aktif <-> Non-Aktif secara instan
-export async function toggleStatusUser(formData: FormData) {
-  const id = Number(formData.get("id"));
-  const status = normalisasiStatus(formData.get("status"));
+export async function hapusUser(
+  idOrFormData: number | FormData
+): Promise<UserActionResult> {
+  const id =
+    idOrFormData instanceof FormData
+      ? toNullableInt(idOrFormData.get('id'))
+      : Number(idOrFormData);
 
-  await prisma.user.update({ where: { id }, data: { status } });
+  if (!id) {
+    return { success: false, error: 'ID pengguna tidak valid.' };
+  }
 
-  revalidatePath("/users");
-  revalidatePath(`/users/${id}`);
-  revalidatePath("/dashboard");
-}
+  try {
+    await prisma.user.delete({
+      where: { id },
+    });
 
-// Hapus user
-export async function hapusUser(formData: FormData) {
-  const id = Number(formData.get("id"));
-  await prisma.user.delete({ where: { id } });
-  revalidatePath("/users");
-  revalidatePath("/dashboard");
+    revalidatePath('/users');
+    return {
+      success: true,
+      message: 'Pengguna berhasil dihapus.',
+    };
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2003'
+    ) {
+      return {
+        success: false,
+        error:
+          'Pengguna tidak dapat dihapus karena masih terhubung dengan data tiket atau perangkat. Ubah status menjadi Non-Aktif sebagai gantinya.',
+      };
+    }
+
+    console.error('Error hapusUser:', error);
+    return {
+      success: false,
+      error: 'Gagal menghapus pengguna.',
+    };
+  }
 }
