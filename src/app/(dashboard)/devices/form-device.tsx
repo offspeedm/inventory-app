@@ -17,7 +17,14 @@ type Company = { id: number; nama: string };
 type Branch = { id: number; nama: string; companyId: number | null };
 type UserOpt = { id: number; nama: string };
 
-const STATUS = ["Aktif", "Rusak", "Perbaikan", "Tidak dipakai", "Hilang"];
+const STATUS = [
+  "Aktif",
+  "Available",
+  "Rusak",
+  "Perbaikan",
+  "Tidak dipakai",
+  "Hilang",
+];
 
 export function FormDevice({
   deviceTypes,

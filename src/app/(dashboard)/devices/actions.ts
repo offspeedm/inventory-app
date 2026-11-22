@@ -1,8 +1,10 @@
+// src/app/(dashboard)/devices/actions.ts
 "use server";
 
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { simpanLampiranDevice } from "@/lib/lampiran";
+import { generateKodeInventaris } from "@/lib/kode-inventaris";
 
 function toNullableInt(value: FormDataEntryValue | null): number | null {
   if (typeof value !== "string") return null;
@@ -76,12 +78,19 @@ export async function tambahDevice(formData: FormData) {
     throw new Error("Nama perangkat wajib diisi.");
   }
 
+  const kodeInventaris = await generateKodeInventaris(
+    dataBaru.typeId,
+    dataBaru.companyId,
+    dataBaru.tglBeli
+  );
+
   const waktuSekarang = new Date();
 
   const device = await prisma.$transaction(async (tx) => {
     const created = await tx.device.create({
       data: {
         ...dataBaru,
+        kodeInventaris,
       },
     });
 
@@ -141,6 +150,20 @@ export async function updateDevice(formData: FormData) {
   const atribut = kumpulkanAtribut(formData, id);
   const waktuPerubahan = new Date();
 
+  const existingDevice = await prisma.device.findUnique({
+    where: { id },
+    select: { kodeInventaris: true },
+  });
+
+  const kodeInventarisBaru =
+    existingDevice && !existingDevice.kodeInventaris
+      ? await generateKodeInventaris(
+          dataBaru.typeId,
+          dataBaru.companyId,
+          dataBaru.tglBeli
+        )
+      : undefined;
+
   await prisma.$transaction(async (tx) => {
     const dataLama = await tx.device.findUnique({
       where: { id },
@@ -158,19 +181,31 @@ export async function updateDevice(formData: FormData) {
     }
 
     const userBerubah = dataLama.userId !== dataBaru.userId;
+    const userDikosongkan = dataLama.userId !== null && dataBaru.userId === null;
+    const statusFinal =
+      userDikosongkan && dataBaru.status === dataLama.status
+        ? "Available"
+        : dataBaru.status;
+
     const perusahaanBerubah = dataLama.companyId !== dataBaru.companyId;
     const cabangBerubah = dataLama.branchId !== dataBaru.branchId;
     const penempatanBerubah = perusahaanBerubah || cabangBerubah;
 
     const statusMenutupRiwayat = new Set(["Rusak", "Hilang"]);
     const statusLamaMenutup = statusMenutupRiwayat.has(dataLama.status);
-    const statusBaruMenutup = statusMenutupRiwayat.has(dataBaru.status);
+    const statusBaruMenutup = statusMenutupRiwayat.has(statusFinal);
     const mulaiDitutup = !statusLamaMenutup && statusBaruMenutup;
     const kembaliAktif = statusLamaMenutup && !statusBaruMenutup;
 
     await tx.device.update({
       where: { id },
-      data: dataBaru,
+      data: {
+        ...dataBaru,
+        status: statusFinal,
+        ...(kodeInventarisBaru !== undefined
+          ? { kodeInventaris: kodeInventarisBaru }
+          : {}),
+      },
     });
 
     if (userBerubah || mulaiDitutup) {

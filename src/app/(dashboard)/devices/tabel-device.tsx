@@ -53,6 +53,7 @@ type SortDir = "asc" | "desc";
 
 const STATUS_OPTIONS = [
   "Aktif",
+  "Available",
   "Rusak",
   "Perbaikan",
   "Tidak dipakai",
@@ -621,7 +622,7 @@ export function TabelDevice({
                   <BarisDevice
                     key={device.id}
                     device={device}
-                    index={(safePage - 1) * pageSize + idx + 1}
+                    index={(safePage - 1) * pageSize + idx}
                     deviceTypes={deviceTypes}
                     companies={companies}
                     branches={branches}

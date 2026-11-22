@@ -45,12 +45,21 @@ type DeviceRow = {
   attributes: Attr[];
 };
 
-const STATUS = ["Aktif", "Rusak", "Perbaikan", "Tidak dipakai", "Hilang"];
+const STATUS = [
+  "Aktif",
+  "Available",
+  "Rusak",
+  "Perbaikan",
+  "Tidak dipakai",
+  "Hilang",
+];
 
 function statusColor(status: string) {
   switch (status) {
     case "Aktif":
       return "bg-green-100 text-green-700";
+    case "Available":
+      return "bg-sky-100 text-sky-700";
     case "Rusak":
       return "bg-orange-100 text-orange-700";
     case "Perbaikan":
@@ -95,12 +104,31 @@ export function BarisDevice({
   const [typeId, setTypeId] = useState<string>(
     device.typeId ? String(device.typeId) : "",
   );
+  const [userId, setUserId] = useState<string>(
+    device.userId ? String(device.userId) : "",
+  );
+  const [status, setStatus] = useState<string>(device.status);
 
   useEffect(() => {
     if (autoEditId && autoEditId === device.id) {
       setEditing(true);
     }
   }, [autoEditId, device.id]);
+
+  function openEditModal() {
+    setCompanyId(device.companyId ? String(device.companyId) : "");
+    setTypeId(device.typeId ? String(device.typeId) : "");
+    setUserId(device.userId ? String(device.userId) : "");
+    setStatus(device.status);
+    setEditing(true);
+  }
+
+  function handleUserChange(nextUserId: string) {
+    if (userId !== "" && nextUserId === "") {
+      setStatus("Available");
+    }
+    setUserId(nextUserId);
+  }
 
   const filteredBranches = companyId
     ? branches.filter((b) => b.companyId === Number(companyId))
@@ -216,7 +244,7 @@ export function BarisDevice({
             <History className="w-4 h-4" />
           </Link>
           <button
-            onClick={() => setEditing(true)}
+            onClick={openEditModal}
             title="Edit"
             aria-label="Edit"
             className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-indigo-600 hover:bg-indigo-50 transition-colors"
@@ -371,7 +399,8 @@ export function BarisDevice({
                     </label>
                     <select
                       name="status"
-                      defaultValue={device.status}
+                      value={status}
+                      onChange={(e) => setStatus(e.target.value)}
                       className={inputClass}
                     >
                       {STATUS.map((s) => (
@@ -453,7 +482,8 @@ export function BarisDevice({
                     </label>
                     <select
                       name="user_id"
-                      defaultValue={device.userId ?? ""}
+                      value={userId}
+                      onChange={(e) => handleUserChange(e.target.value)}
                       className={inputClass}
                     >
                       <option value="">Belum ada</option>

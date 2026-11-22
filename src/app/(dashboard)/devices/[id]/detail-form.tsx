@@ -1,6 +1,7 @@
+// src/app/(dashboard)/devices/[id]/detail-form.tsx
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { MonitorSmartphone, Check, Clock, ListChecks, Tag } from "lucide-react";
 import { updateDevice } from "../actions";
 import { getFieldsForType } from "@/config/device-fields";
@@ -29,6 +30,7 @@ type DeviceData = {
 
 const STATUS_OPTIONS = [
   "Aktif",
+  "Available",
   "Rusak",
   "Perbaikan",
   "Tidak dipakai",
@@ -44,6 +46,8 @@ function statusColor(status: string): string {
   switch (status) {
     case "Aktif":
       return "bg-green-100 text-green-700";
+    case "Available":
+      return "bg-sky-100 text-sky-700";
     case "Rusak":
       return "bg-orange-100 text-orange-700";
     case "Perbaikan":
@@ -94,8 +98,21 @@ export function DetailFormDevice({
   const [userId, setUserId] = useState(
     device.userId ? String(device.userId) : "",
   );
+  const [status, setStatus] = useState(device.status);
   const [saving, setSaving] = useState(false);
   const [savedTick, setSavedTick] = useState(0);
+
+  useEffect(() => {
+    setUserId(device.userId ? String(device.userId) : "");
+    setStatus(device.status);
+  }, [device.userId, device.status]);
+
+  function handleUserChange(nextUserId: string) {
+    if (userId !== "" && nextUserId === "") {
+      setStatus("Available");
+    }
+    setUserId(nextUserId);
+  }
 
   const selectedTypeName = deviceTypes.find(
     (t) => t.id === Number(typeId),
@@ -256,7 +273,8 @@ export function DetailFormDevice({
             <label className={fieldLabel}>Status</label>
             <select
               name="status"
-              defaultValue={device.status}
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
               className={fieldSelect}
             >
               {STATUS_OPTIONS.map((s) => (
@@ -291,7 +309,7 @@ export function DetailFormDevice({
             <select
               name="user_id"
               value={userId}
-              onChange={(e) => setUserId(e.target.value)}
+              onChange={(e) => handleUserChange(e.target.value)}
               className={fieldSelect}
             >
               <option value="">Belum ada</option>
