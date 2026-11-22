@@ -1,12 +1,14 @@
+// src/app/(dashboard)/users/page.tsx
 import { Suspense } from "react";
 import prisma from "@/lib/prisma";
+import { Users } from "lucide-react";
 import { FormUser } from "./form-user";
 import { TabelUser } from "./tabel-user";
 import { StatistikUser } from "./statistik-user";
-import { Users } from "lucide-react";
+import { WHERE_USER_AKTIF } from "@/lib/status-filter";
 
 export default async function UsersPage() {
-  const [companies, branches, users] = await Promise.all([
+  const [companies, branches, users, activeUsers] = await Promise.all([
     prisma.company.findMany({
       select: { id: true, nama: true },
       orderBy: { nama: "asc" },
@@ -20,12 +22,19 @@ export default async function UsersPage() {
         company: { select: { nama: true } },
         branch: { select: { nama: true } },
       },
-      orderBy: { id: "asc" },
+      orderBy: { nama: "asc" },
+    }),
+    prisma.user.findMany({
+      where: WHERE_USER_AKTIF,
+      include: {
+        company: { select: { nama: true } },
+      },
     }),
   ]);
 
+  // Statistik per perusahaan (khusus user aktif)
   const perPerusahaanMap = new Map<string, number>();
-  users.forEach((u) => {
+  activeUsers.forEach((u) => {
     const nama = u.company?.nama ?? "Belum ditempatkan";
     perPerusahaanMap.set(nama, (perPerusahaanMap.get(nama) ?? 0) + 1);
   });
@@ -34,9 +43,10 @@ export default async function UsersPage() {
     jumlah,
   })).sort((a, b) => b.jumlah - a.jumlah);
 
+  // Statistik per divisi (khusus user aktif)
   const perDivisiMap = new Map<string, number>();
-  users.forEach((u) => {
-    const nama = u.divisi ?? "Tanpa divisi";
+  activeUsers.forEach((u) => {
+    const nama = u.divisi?.trim() || "Tanpa divisi";
     perDivisiMap.set(nama, (perDivisiMap.get(nama) ?? 0) + 1);
   });
   const perDivisi = Array.from(perDivisiMap, ([nama, jumlah]) => ({
@@ -46,27 +56,37 @@ export default async function UsersPage() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center gap-3">
-        <div className="flex items-center justify-center w-11 h-11 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-sm">
-          <Users className="w-6 h-6" />
+      {/* Header halaman */}
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-sm">
+            <Users className="h-6 w-6" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-800">
+              Manajemen User
+            </h1>
+            <p className="text-sm text-slate-500">
+              Total user aktif:{" "}
+              <span className="font-semibold text-slate-700">
+                {activeUsers.length}
+              </span>
+            </p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">User</h1>
-          <p className="text-slate-500 text-sm">
-            Kelola data pengguna aplikasi. Total: {users.length} user.
-          </p>
-        </div>
+
+        <FormUser companies={companies} branches={branches} />
       </div>
 
-      <FormUser companies={companies} branches={branches} />
-
-      <Suspense
-        fallback={<p className="text-sm text-slate-400">Memuat data…</p>}
-      >
+      {/* Filter Slicer, Search, & Tabel User */}
+      <Suspense fallback={null}>
         <TabelUser users={users} companies={companies} branches={branches} />
       </Suspense>
-      <br />
-      <StatistikUser perDivisi={perDivisi} perPerusahaan={perPerusahaan} />
+
+      {/* Kartu Statistik dipindahkan ke bawah baris tabel */}
+      <div className="mt-6">
+        <StatistikUser perPerusahaan={perPerusahaan} perDivisi={perDivisi} />
+      </div>
     </div>
   );
 }

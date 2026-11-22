@@ -1,7 +1,7 @@
 // src/app/(dashboard)/users/baris-user.tsx
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Pencil, Trash2, Power, Eye, EyeOff, X } from "lucide-react";
 import { hapusUser, toggleStatusUser, updateUser } from "./actions";
@@ -10,15 +10,15 @@ export type UserSummary = {
   id: number;
   nama: string;
   email: string;
-  jabatan: string | null;
-  role: string;
+  jabatan?: string | null;
+  role?: string;
   divisi: string | null;
   noTelp: string | null;
   status: string;
   companyId: number | null;
   branchId: number | null;
-  company?: { id: number; nama: string } | null;
-  branch?: { id: number; nama: string } | null;
+  company?: { id?: number; nama: string } | null;
+  branch?: { id?: number; nama: string } | null;
 };
 
 type Company = { id: number; nama: string };
@@ -39,12 +39,16 @@ export function BarisUser({
   branches,
   nomor,
   index,
+  autoEditId,
+  detailQuery = "",
 }: {
   user: UserSummary;
   companies: Company[];
   branches: Branch[];
   nomor?: number;
   index?: number;
+  autoEditId?: number | null;
+  detailQuery?: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -54,7 +58,14 @@ export function BarisUser({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  useEffect(() => {
+    if (autoEditId && autoEditId === user.id) {
+      setEditing(true);
+    }
+  }, [autoEditId, user.id]);
+
   const nomorUrut = nomor ?? (typeof index === "number" ? index + 1 : "-");
+  const detailHref = `/users/${user.id}${detailQuery}`;
 
   const filteredBranches = selectedCompanyId
     ? branches.filter(
@@ -69,7 +80,7 @@ export function BarisUser({
     const res = await updateUser(user.id, formData);
     setSubmitting(false);
 
-    if (res?.error) {
+    if (res && "error" in res && res.error) {
       setErrorMsg(res.error);
       return;
     }
@@ -77,14 +88,13 @@ export function BarisUser({
   }
 
   async function handleToggleStatus() {
-    const res = await toggleStatusUser(user.id, user.status);
-    if (res?.error) alert(res.error);
+    const res = await toggleStatusUser(user.id);
+    if (res && "error" in res && res.error) alert(res.error);
   }
 
   async function handleHapus() {
     if (!confirm(`Yakin ingin menghapus user "${user.nama}"?`)) return;
-    const res = await hapusUser(user.id);
-    if (res?.error) alert(res.error);
+    await hapusUser(user.id);
   }
 
   return (
@@ -93,12 +103,9 @@ export function BarisUser({
         {/* 1. No */}
         <td className="px-4 py-3 text-sm text-slate-500">{nomorUrut}</td>
 
-        {/* 2. Nama / Kontak -> Navigasi ke /users/[id] */}
+        {/* 2. Nama / Kontak -> Navigasi ke /users/[id] + query filter/pencarian */}
         <td className="px-4 py-3">
-          <Link
-            href={`/users/${user.id}`}
-            className="group flex items-center gap-3"
-          >
+          <Link href={detailHref} className="group flex items-center gap-3">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700">
               {getInisial(user.nama)}
             </div>
@@ -322,7 +329,7 @@ export function BarisUser({
                   </label>
                   <select
                     name="role"
-                    defaultValue={user.role}
+                    defaultValue={user.role ?? "Staff"}
                     className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
                   >
                     <option value="Admin">Admin</option>

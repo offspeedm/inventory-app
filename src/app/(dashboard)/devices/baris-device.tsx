@@ -1,3 +1,4 @@
+// src/app/(dashboard)/devices/baris-device.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -124,16 +125,20 @@ export function BarisDevice({
 
   return (
     <tr className="border-t border-slate-100 hover:bg-slate-50/60 transition-colors">
-      <td className="px-4 py-3 text-slate-500">{index + 1}</td>
+      <td className="px-4 py-3.5 align-top text-slate-500">{index + 1}</td>
 
-      <td className="px-4 py-3">
-        <Link href={detailHref} className="group inline-flex items-start gap-3">
-          <div className="shrink-0 w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+      {/* Kolom Perangkat dibatasi lebarnya & otomatis turun paragraf jika panjang */}
+      <td className="w-[320px] max-w-[320px] px-4 py-3.5 align-top whitespace-normal break-words">
+        <Link
+          href={detailHref}
+          className="group flex items-start gap-3 max-w-full"
+        >
+          <div className="shrink-0 w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center mt-0.5">
             <MonitorSmartphone className="w-5 h-5" />
           </div>
-          <div className="min-w-0">
-            <p className="font-medium text-slate-800 group-hover:text-indigo-600 truncate flex items-center gap-1.5">
-              {device.nama}
+          <div className="min-w-0 flex-1">
+            <p className="font-medium text-slate-800 group-hover:text-indigo-600 leading-snug break-words flex flex-wrap items-center gap-1.5">
+              <span>{device.nama}</span>
               {device.attachmentsCount > 0 && (
                 <span className="inline-flex items-center gap-0.5 text-[11px] text-slate-400 font-normal">
                   <Paperclip className="w-3 h-3" /> {device.attachmentsCount}
@@ -141,16 +146,16 @@ export function BarisDevice({
               )}
             </p>
             {device.kodeInventaris && (
-              <p className="text-[11px] font-mono text-indigo-500 flex items-center gap-1 mt-0.5 mb-0.5">
-                <Tag className="w-3 h-3" /> {device.kodeInventaris}
+              <p className="text-[11px] font-mono text-indigo-500 flex items-center gap-1 mt-0.5 mb-0.5 break-all">
+                <Tag className="w-3 h-3 shrink-0" /> {device.kodeInventaris}
               </p>
             )}
-            <p className="text-xs text-slate-400 truncate">
+            <p className="text-xs text-slate-400 leading-relaxed break-words">
               {[device.merk, device.tipe].filter(Boolean).join(" · ") || "—"}
               {device.serialNumber ? ` · SN: ${device.serialNumber}` : ""}
             </p>
             {device.attributes.length > 0 && (
-              <p className="text-[11px] text-slate-400 truncate mt-0.5">
+              <p className="text-[11px] text-slate-400 leading-relaxed break-words mt-0.5">
                 {device.attributes
                   .map((a) => `${a.key}: ${a.value ?? "-"}`)
                   .join(" · ")}
@@ -160,9 +165,11 @@ export function BarisDevice({
         </Link>
       </td>
 
-      <td className="px-4 py-3 text-slate-600">{device.type?.nama ?? "-"}</td>
+      <td className="px-4 py-3.5 align-top whitespace-nowrap text-slate-600">
+        {device.type?.nama ?? "-"}
+      </td>
 
-      <td className="px-4 py-3">
+      <td className="px-4 py-3.5 align-top whitespace-nowrap">
         <span
           className={
             "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium " +
@@ -173,7 +180,7 @@ export function BarisDevice({
         </span>
       </td>
 
-      <td className="px-4 py-3">
+      <td className="px-4 py-3.5 align-top whitespace-nowrap">
         <span
           className={
             "inline-block rounded-full px-2 py-0.5 text-xs font-medium " +
@@ -184,7 +191,7 @@ export function BarisDevice({
         </span>
       </td>
 
-      <td className="px-4 py-3 text-slate-600">
+      <td className="max-w-[200px] px-4 py-3.5 align-top text-slate-600 break-words">
         {device.company?.nama ?? "-"}
         {device.branch && (
           <span className="block text-xs text-slate-400">
@@ -198,7 +205,7 @@ export function BarisDevice({
         )}
       </td>
 
-      <td className="px-4 py-3">
+      <td className="px-4 py-3.5 align-top whitespace-nowrap">
         <div className="flex gap-1 justify-end">
           <Link
             href={detailHref}
@@ -230,7 +237,7 @@ export function BarisDevice({
         </div>
 
         {editing && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 whitespace-normal">
             <div
               onClick={() => setEditing(false)}
               className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200"

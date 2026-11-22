@@ -1,6 +1,7 @@
+// src/app/(dashboard)/devices/[id]/page.tsx
 import prisma from "@/lib/prisma";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, Wrench, Paperclip } from "lucide-react";
 import { hitungUsia, usiaBadgeColor } from "@/lib/format-usia";
 import { urgencyColor, statusColor } from "@/config/ticket-fields";
@@ -8,6 +9,7 @@ import { DetailFormDevice } from "./detail-form";
 import { FormLampiran } from "./form-lampiran";
 import { GaleriLampiran } from "./galeri-lampiran";
 import { RiwayatPenggunaCard, RiwayatPenempatanCard } from "./riwayat-device";
+import { WHERE_USER_AKTIF } from "@/lib/status-filter";
 
 function fmtTanggal(d: Date | null): string {
   if (!d) return "sekarang";
@@ -26,7 +28,15 @@ export default async function DeviceDetailPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
+
+  if (id === "jenis-devices") {
+    redirect("/jenis-devices");
+  }
+
   const deviceId = Number(id);
+  if (!Number.isInteger(deviceId) || deviceId <= 0) {
+    notFound();
+  }
 
   const backParams = new URLSearchParams();
   for (const [key, val] of Object.entries(sp)) {
@@ -75,6 +85,9 @@ export default async function DeviceDetailPage({
       orderBy: { nama: "asc" },
     }),
     prisma.user.findMany({
+      where: {
+        OR: [WHERE_USER_AKTIF, { devices: { some: { id: deviceId } } }],
+      },
       select: { id: true, nama: true },
       orderBy: { nama: "asc" },
     }),

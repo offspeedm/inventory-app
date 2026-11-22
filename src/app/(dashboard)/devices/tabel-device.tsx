@@ -1,28 +1,33 @@
+// src/app/(dashboard)/devices/tabel-device.tsx
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
-import { Search } from "lucide-react";
+import { useMemo, useState, useEffect, useCallback } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import {
+  Search,
+  X,
+  RotateCcw,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Check,
+  SlidersHorizontal,
+  ChevronDown,
+} from "lucide-react";
 import { BarisDevice } from "./baris-device";
-import { FilterDropdown } from "@/components/filter-dropdown";
 import { PaginationBar } from "@/components/pagination-bar";
 
-type DeviceType = { id: number; nama: string };
-type Company = { id: number; nama: string };
-type Branch = { id: number; nama: string; companyId: number | null };
-type UserOpt = { id: number; nama: string };
-type Attr = { key: string; value: string | null };
-type DeviceRow = {
+export type DeviceItem = {
   id: number;
-  kodeInventaris: string | null;
   nama: string;
+  kodeInventaris: string | null;
   merk: string | null;
   tipe: string | null;
-  keterangan: string | null;
   serialNumber: string | null;
   tglBeli: Date | null;
   hargaBeli: number | null;
   status: string;
+  keterangan: string | null;
   typeId: number | null;
   companyId: number | null;
   branchId: number | null;
@@ -31,76 +36,43 @@ type DeviceRow = {
   company: { nama: string } | null;
   branch: { nama: string } | null;
   user: { nama: string } | null;
+  attributes: { key: string; value: string }[];
   attachmentsCount: number;
-  attributes: Attr[];
 };
 
-const STATUS_LIST = ["Aktif", "Rusak", "Perbaikan", "Tidak dipakai", "Hilang"];
-const VALID_PAGE_SIZES = [10, 25, 50, 100];
-type SortField = "nama" | "jenis" | "status";
+type TabelDeviceProps = {
+  devices: DeviceItem[];
+  deviceTypes: { id: number; nama: string }[];
+  companies: { id: number; nama: string }[];
+  branches: { id: number; nama: string; companyId: number | null }[];
+  users: { id: number; nama: string }[];
+};
+
+type SortField = "nama" | "jenis" | "usia" | "status" | "penempatan";
 type SortDir = "asc" | "desc";
-const VALID_SORT_FIELDS: SortField[] = ["nama", "jenis", "status"];
 
-function parsePage(raw: string | null): number {
-  const n = Number(raw);
-  return Number.isInteger(n) && n > 0 ? n : 1;
+const STATUS_OPTIONS = [
+  "Aktif",
+  "Rusak",
+  "Perbaikan",
+  "Tidak dipakai",
+  "Hilang",
+] as const;
+
+function parseNumberList(param: string | null): number[] {
+  if (!param) return [];
+  return param
+    .split(",")
+    .map((v) => Number(v.trim()))
+    .filter((n) => !Number.isNaN(n) && n > 0);
 }
 
-function parsePageSize(raw: string | null): number {
-  const n = Number(raw);
-  return VALID_PAGE_SIZES.includes(n) ? n : 10;
-}
-
-function parseSortField(raw: string | null): SortField {
-  return VALID_SORT_FIELDS.includes(raw as SortField)
-    ? (raw as SortField)
-    : "nama";
-}
-
-function parseSortDir(raw: string | null): SortDir {
-  return raw === "desc" ? "desc" : "asc";
-}
-
-function parseIdList(values: string[]): number[] {
-  return Array.from(
-    new Set(
-      values
-        .flatMap((v) => v.split(","))
-        .map((v) => Number(v.trim()))
-        .filter((n) => Number.isInteger(n) && n > 0),
-    ),
-  );
-}
-
-function buildQueryString(state: {
-  q: string;
-  companies: number[];
-  branches: number[];
-  types: number[];
-  status: string[];
-  usia: string[];
-  sort: SortField;
-  dir: SortDir;
-  page: number;
-  pageSize: number;
-}): string {
-  const params = new URLSearchParams();
-
-  const trimmedQ = state.q.trim();
-  if (trimmedQ) params.set("q", trimmedQ);
-
-  state.companies.forEach((id) => params.append("company", String(id)));
-  state.branches.forEach((id) => params.append("branch", String(id)));
-  state.types.forEach((id) => params.append("type", String(id)));
-  state.status.forEach((s) => params.append("status", s));
-  state.usia.forEach((u) => params.append("usia", u));
-
-  if (state.sort !== "nama") params.set("sort", state.sort);
-  if (state.dir !== "asc") params.set("dir", state.dir);
-  if (state.page > 1) params.set("page", String(state.page));
-  if (state.pageSize !== 10) params.set("pageSize", String(state.pageSize));
-
-  return params.toString();
+function parseStringList(param: string | null): string[] {
+  if (!param) return [];
+  return param
+    .split(",")
+    .map((v) => v.trim())
+    .filter(Boolean);
 }
 
 export function TabelDevice({
@@ -109,573 +81,552 @@ export function TabelDevice({
   companies,
   branches,
   users,
-}: {
-  devices: DeviceRow[];
-  deviceTypes: DeviceType[];
-  companies: Company[];
-  branches: Branch[];
-  users: UserOpt[];
-}) {
+}: TabelDeviceProps) {
+  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const [cari, setCari] = useState(() => searchParams.get("q") ?? "");
+  const [search, setSearch] = useState(() => searchParams.get("q") ?? "");
   const [selectedCompanies, setSelectedCompanies] = useState<number[]>(() =>
-    parseIdList(searchParams.getAll("company")),
+    parseNumberList(searchParams.get("company")),
   );
   const [selectedBranches, setSelectedBranches] = useState<number[]>(() =>
-    parseIdList(searchParams.getAll("branch")),
+    parseNumberList(searchParams.get("branch")),
   );
   const [selectedTypes, setSelectedTypes] = useState<number[]>(() =>
-    parseIdList(searchParams.getAll("type")),
+    parseNumberList(searchParams.get("type")),
   );
-  const [selectedStatus, setSelectedStatus] = useState<string[]>(() =>
-    searchParams.getAll("status").filter((s) => STATUS_LIST.includes(s)),
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>(() =>
+    parseStringList(searchParams.get("status")),
   );
-  const [filterUsia3Thn, setFilterUsia3Thn] = useState<string[]>(() =>
-    searchParams.getAll("usia").filter((u) => u === "diatas_3_tahun"),
+  const [onlyOver3Years, setOnlyOver3Years] = useState<boolean>(
+    () => searchParams.get("over3y") === "1",
   );
 
-  const [sortField, setSortField] = useState<SortField>(() =>
-    parseSortField(searchParams.get("sort")),
+  // Otomatis terbuka jika ada filter aktif di URL, default tertutup saat bersih
+  const [isFilterOpen, setIsFilterOpen] = useState<boolean>(() =>
+    Boolean(
+      searchParams.get("company") ||
+      searchParams.get("branch") ||
+      searchParams.get("type") ||
+      searchParams.get("status") ||
+      searchParams.get("over3y") === "1",
+    ),
   );
+
+  const [sortField, setSortField] = useState<SortField>(() => {
+    const s = searchParams.get("sort");
+    if (
+      s === "nama" ||
+      s === "jenis" ||
+      s === "usia" ||
+      s === "status" ||
+      s === "penempatan"
+    ) {
+      return s;
+    }
+    return "nama";
+  });
   const [sortDir, setSortDir] = useState<SortDir>(() =>
-    parseSortDir(searchParams.get("dir")),
-  );
-  const [page, setPage] = useState(() => parsePage(searchParams.get("page")));
-  const [pageSize, setPageSize] = useState(() =>
-    parsePageSize(searchParams.get("pageSize")),
+    searchParams.get("dir") === "desc" ? "desc" : "asc",
   );
 
-  const lastPushedQueryRef = useRef<string>(searchParams.toString());
+  const [page, setPage] = useState<number>(() => {
+    const p = Number(searchParams.get("page"));
+    return !Number.isNaN(p) && p > 0 ? p : 1;
+  });
+  const [pageSize, setPageSize] = useState<number>(() => {
+    const s = Number(searchParams.get("size"));
+    return [10, 25, 50, 100].includes(s) ? s : 10;
+  });
 
-  const syncQueryToUrl = useCallback(
-    (qs: string) => {
-      if (qs === lastPushedQueryRef.current) return;
-      lastPushedQueryRef.current = qs;
-      const target = qs ? `${pathname}?${qs}` : pathname;
-      window.history.replaceState(null, "", target);
-    },
-    [pathname],
-  );
-
-  // Sinkronkan ulang state jika navigasi datang dari luar (tombol Back/Forward browser)
-  useEffect(() => {
-    const currentUrlQs = searchParams.toString();
-    if (currentUrlQs === lastPushedQueryRef.current) return;
-
-    lastPushedQueryRef.current = currentUrlQs;
-    setCari(searchParams.get("q") ?? "");
-    setSelectedCompanies(parseIdList(searchParams.getAll("company")));
-    setSelectedBranches(parseIdList(searchParams.getAll("branch")));
-    setSelectedTypes(parseIdList(searchParams.getAll("type")));
-    setSelectedStatus(
-      searchParams.getAll("status").filter((s) => STATUS_LIST.includes(s)),
-    );
-    setFilterUsia3Thn(
-      searchParams.getAll("usia").filter((u) => u === "diatas_3_tahun"),
-    );
-    setSortField(parseSortField(searchParams.get("sort")));
-    setSortDir(parseSortDir(searchParams.get("dir")));
-    setPage(parsePage(searchParams.get("page")));
-    setPageSize(parsePageSize(searchParams.get("pageSize")));
+  const autoEditId = useMemo(() => {
+    const e = Number(searchParams.get("edit"));
+    return !Number.isNaN(e) && e > 0 ? e : null;
   }, [searchParams]);
 
-  // Debounce pembaruan URL khusus input pencarian
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      const qs = buildQueryString({
-        q: cari,
-        companies: selectedCompanies,
-        branches: selectedBranches,
-        types: selectedTypes,
-        status: selectedStatus,
-        usia: filterUsia3Thn,
-        sort: sortField,
-        dir: sortDir,
-        page,
-        pageSize,
-      });
-      syncQueryToUrl(qs);
-    }, 200);
-
-    return () => clearTimeout(timer);
+  // Sinkronisasi state filter/pencarian ke URL query string
+  const buildQueryString = useCallback(() => {
+    const params = new URLSearchParams();
+    if (search.trim()) params.set("q", search.trim());
+    if (selectedCompanies.length > 0)
+      params.set("company", selectedCompanies.join(","));
+    if (selectedBranches.length > 0)
+      params.set("branch", selectedBranches.join(","));
+    if (selectedTypes.length > 0) params.set("type", selectedTypes.join(","));
+    if (selectedStatuses.length > 0)
+      params.set("status", selectedStatuses.join(","));
+    if (onlyOver3Years) params.set("over3y", "1");
+    if (sortField !== "nama") params.set("sort", sortField);
+    if (sortDir !== "asc") params.set("dir", sortDir);
+    if (page > 1) params.set("page", String(page));
+    if (pageSize !== 10) params.set("size", String(pageSize));
+    return params.toString();
   }, [
-    cari,
+    search,
     selectedCompanies,
     selectedBranches,
     selectedTypes,
-    selectedStatus,
-    filterUsia3Thn,
+    selectedStatuses,
+    onlyOver3Years,
     sortField,
     sortDir,
     page,
     pageSize,
-    syncQueryToUrl,
   ]);
 
-  const branchList = useMemo(() => {
+  useEffect(() => {
+    const qs = buildQueryString();
+    const currentQs = searchParams.toString();
+    if (qs !== currentQs) {
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    }
+  }, [buildQueryString, pathname, router, searchParams]);
+
+  const rawQuery = buildQueryString();
+  const detailQuery = rawQuery ? `?${rawQuery}` : "";
+
+  const availableBranches = useMemo(() => {
     if (selectedCompanies.length === 0) return branches;
     return branches.filter(
-      (b) => b.companyId && selectedCompanies.includes(b.companyId),
+      (b) => b.companyId !== null && selectedCompanies.includes(b.companyId),
     );
   }, [branches, selectedCompanies]);
 
-  function toggleCompany(id: number) {
-    const nextCompanies = selectedCompanies.includes(id)
-      ? selectedCompanies.filter((x) => x !== id)
-      : [...selectedCompanies, id];
+  function toggleNumber(list: number[], id: number): number[] {
+    return list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
+  }
 
-    const nextBranches =
-      nextCompanies.length > 0
-        ? selectedBranches.filter((bId) => {
-            const br = branches.find((b) => b.id === bId);
-            return br && br.companyId && nextCompanies.includes(br.companyId);
-          })
-        : selectedBranches;
+  function toggleString(list: string[], val: string): string[] {
+    return list.includes(val) ? list.filter((x) => x !== val) : [...list, val];
+  }
 
+  function handleToggleCompany(companyId: number) {
+    const nextCompanies = toggleNumber(selectedCompanies, companyId);
     setSelectedCompanies(nextCompanies);
-    setSelectedBranches(nextBranches);
+    if (nextCompanies.length > 0) {
+      setSelectedBranches((prev) =>
+        prev.filter((bId) => {
+          const branch = branches.find((b) => b.id === bId);
+          return (
+            branch?.companyId !== null &&
+            branch?.companyId !== undefined &&
+            nextCompanies.includes(branch.companyId)
+          );
+        }),
+      );
+    }
     setPage(1);
-
-    syncQueryToUrl(
-      buildQueryString({
-        q: cari,
-        companies: nextCompanies,
-        branches: nextBranches,
-        types: selectedTypes,
-        status: selectedStatus,
-        usia: filterUsia3Thn,
-        sort: sortField,
-        dir: sortDir,
-        page: 1,
-        pageSize,
-      }),
-    );
   }
 
-  function toggleBranch(id: number) {
-    const nextBranches = selectedBranches.includes(id)
-      ? selectedBranches.filter((x) => x !== id)
-      : [...selectedBranches, id];
-
-    setSelectedBranches(nextBranches);
-    setPage(1);
-
-    syncQueryToUrl(
-      buildQueryString({
-        q: cari,
-        companies: selectedCompanies,
-        branches: nextBranches,
-        types: selectedTypes,
-        status: selectedStatus,
-        usia: filterUsia3Thn,
-        sort: sortField,
-        dir: sortDir,
-        page: 1,
-        pageSize,
-      }),
-    );
-  }
-
-  function toggleType(id: number) {
-    const nextTypes = selectedTypes.includes(id)
-      ? selectedTypes.filter((x) => x !== id)
-      : [...selectedTypes, id];
-
-    setSelectedTypes(nextTypes);
-    setPage(1);
-
-    syncQueryToUrl(
-      buildQueryString({
-        q: cari,
-        companies: selectedCompanies,
-        branches: selectedBranches,
-        types: nextTypes,
-        status: selectedStatus,
-        usia: filterUsia3Thn,
-        sort: sortField,
-        dir: sortDir,
-        page: 1,
-        pageSize,
-      }),
-    );
-  }
-
-  function toggleStatus(value: string) {
-    const nextStatus = selectedStatus.includes(value)
-      ? selectedStatus.filter((x) => x !== value)
-      : [...selectedStatus, value];
-
-    setSelectedStatus(nextStatus);
-    setPage(1);
-
-    syncQueryToUrl(
-      buildQueryString({
-        q: cari,
-        companies: selectedCompanies,
-        branches: selectedBranches,
-        types: selectedTypes,
-        status: nextStatus,
-        usia: filterUsia3Thn,
-        sort: sortField,
-        dir: sortDir,
-        page: 1,
-        pageSize,
-      }),
-    );
-  }
-
-  function toggleUsia3Thn(value: string) {
-    const nextUsia = filterUsia3Thn.includes(value) ? [] : [value];
-
-    setFilterUsia3Thn(nextUsia);
-    setPage(1);
-
-    syncQueryToUrl(
-      buildQueryString({
-        q: cari,
-        companies: selectedCompanies,
-        branches: selectedBranches,
-        types: selectedTypes,
-        status: selectedStatus,
-        usia: nextUsia,
-        sort: sortField,
-        dir: sortDir,
-        page: 1,
-        pageSize,
-      }),
-    );
-  }
-
-  function resetFilter() {
-    setSelectedCompanies([]);
-    setSelectedBranches([]);
-    setSelectedTypes([]);
-    setSelectedStatus([]);
-    setFilterUsia3Thn([]);
-    setPage(1);
-
-    syncQueryToUrl(
-      buildQueryString({
-        q: cari,
-        companies: [],
-        branches: [],
-        types: [],
-        status: [],
-        usia: [],
-        sort: sortField,
-        dir: sortDir,
-        page: 1,
-        pageSize,
-      }),
-    );
-  }
-
-  function toggleSort(field: SortField) {
-    const nextDir: SortDir =
-      sortField === field ? (sortDir === "asc" ? "desc" : "asc") : "asc";
-
-    setSortField(field);
-    setSortDir(nextDir);
-    setPage(1);
-
-    syncQueryToUrl(
-      buildQueryString({
-        q: cari,
-        companies: selectedCompanies,
-        branches: selectedBranches,
-        types: selectedTypes,
-        status: selectedStatus,
-        usia: filterUsia3Thn,
-        sort: field,
-        dir: nextDir,
-        page: 1,
-        pageSize,
-      }),
-    );
-  }
-
-  function handlePageChange(nextPage: number) {
-    setPage(nextPage);
-    syncQueryToUrl(
-      buildQueryString({
-        q: cari,
-        companies: selectedCompanies,
-        branches: selectedBranches,
-        types: selectedTypes,
-        status: selectedStatus,
-        usia: filterUsia3Thn,
-        sort: sortField,
-        dir: sortDir,
-        page: nextPage,
-        pageSize,
-      }),
-    );
-  }
-
-  function handlePageSizeChange(nextSize: number) {
-    setPage(1);
-    setPageSize(nextSize);
-    syncQueryToUrl(
-      buildQueryString({
-        q: cari,
-        companies: selectedCompanies,
-        branches: selectedBranches,
-        types: selectedTypes,
-        status: selectedStatus,
-        usia: filterUsia3Thn,
-        sort: sortField,
-        dir: sortDir,
-        page: 1,
-        pageSize: nextSize,
-      }),
-    );
-  }
-
-  const filtered = useMemo(() => {
-    const keyword = cari.trim().toLowerCase();
-    const now = new Date();
-
-    let data = devices.filter((d) => {
-      if (
-        selectedCompanies.length > 0 &&
-        !selectedCompanies.includes(d.companyId ?? -1)
-      )
-        return false;
-      if (
-        selectedBranches.length > 0 &&
-        !selectedBranches.includes(d.branchId ?? -1)
-      )
-        return false;
-      if (selectedTypes.length > 0 && !selectedTypes.includes(d.typeId ?? -1))
-        return false;
-      if (selectedStatus.length > 0 && !selectedStatus.includes(d.status))
-        return false;
-
-      if (filterUsia3Thn.includes("diatas_3_tahun")) {
-        if (!d.tglBeli) return false;
-        const tglBeli = new Date(d.tglBeli);
-        const selisihTahun =
-          (now.getTime() - tglBeli.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
-        if (selisihTahun <= 3) return false;
-      }
-
-      if (!keyword) return true;
-      return [
-        d.nama,
-        d.kodeInventaris,
-        d.merk,
-        d.tipe,
-        d.serialNumber,
-        d.type?.nama,
-        d.company?.nama,
-        d.branch?.nama,
-        d.user?.nama,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase()
-        .includes(keyword);
-    });
-
-    data = [...data].sort((a, b) => {
-      let cmp = 0;
-      if (sortField === "nama") cmp = a.nama.localeCompare(b.nama);
-      if (sortField === "jenis")
-        cmp = (a.type?.nama ?? "").localeCompare(b.type?.nama ?? "");
-      if (sortField === "status") cmp = a.status.localeCompare(b.status);
-      return sortDir === "asc" ? cmp : -cmp;
-    });
-
-    return data;
-  }, [
-    devices,
-    cari,
-    selectedCompanies,
-    selectedBranches,
-    selectedTypes,
-    selectedStatus,
-    filterUsia3Thn,
-    sortField,
-    sortDir,
-  ]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const safePage = Math.min(page, totalPages);
-  const paged = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
-
-  const detailQuery = useMemo(() => {
-    const qs = buildQueryString({
-      q: cari,
-      companies: selectedCompanies,
-      branches: selectedBranches,
-      types: selectedTypes,
-      status: selectedStatus,
-      usia: filterUsia3Thn,
-      sort: sortField,
-      dir: sortDir,
-      page: safePage,
-      pageSize,
-    });
-    return qs ? `?${qs}` : "";
-  }, [
-    cari,
-    selectedCompanies,
-    selectedBranches,
-    selectedTypes,
-    selectedStatus,
-    filterUsia3Thn,
-    sortField,
-    sortDir,
-    safePage,
-    pageSize,
-  ]);
-
-  const activeCount =
+  const activeFilterCount =
     selectedCompanies.length +
     selectedBranches.length +
     selectedTypes.length +
-    selectedStatus.length +
-    filterUsia3Thn.length;
+    selectedStatuses.length +
+    (onlyOver3Years ? 1 : 0);
 
-  const inputClass =
-    "rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500";
+  function resetAllFilters() {
+    setSelectedCompanies([]);
+    setSelectedBranches([]);
+    setSelectedTypes([]);
+    setSelectedStatuses([]);
+    setOnlyOver3Years(false);
+    setPage(1);
+  }
+
+  const filteredDevices = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const batasTigaTahun = new Date();
+    batasTigaTahun.setFullYear(batasTigaTahun.getFullYear() - 3);
+
+    return devices.filter((d) => {
+      if (q) {
+        const haystack = [
+          d.kodeInventaris,
+          d.nama,
+          d.merk,
+          d.tipe,
+          d.serialNumber,
+          d.type?.nama,
+          d.company?.nama,
+          d.branch?.nama,
+          d.user?.nama,
+          ...d.attributes.map((a) => `${a.key} ${a.value}`),
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
+
+      if (
+        selectedCompanies.length > 0 &&
+        (!d.companyId || !selectedCompanies.includes(d.companyId))
+      ) {
+        return false;
+      }
+
+      if (
+        selectedBranches.length > 0 &&
+        (!d.branchId || !selectedBranches.includes(d.branchId))
+      ) {
+        return false;
+      }
+
+      if (
+        selectedTypes.length > 0 &&
+        (!d.typeId || !selectedTypes.includes(d.typeId))
+      ) {
+        return false;
+      }
+
+      if (selectedStatuses.length > 0 && !selectedStatuses.includes(d.status)) {
+        return false;
+      }
+
+      if (onlyOver3Years) {
+        if (!d.tglBeli) return false;
+        if (new Date(d.tglBeli) > batasTigaTahun) return false;
+      }
+
+      return true;
+    });
+  }, [
+    devices,
+    search,
+    selectedCompanies,
+    selectedBranches,
+    selectedTypes,
+    selectedStatuses,
+    onlyOver3Years,
+  ]);
+
+  const sortedDevices = useMemo(() => {
+    const copy = [...filteredDevices];
+    const dir = sortDir === "asc" ? 1 : -1;
+
+    copy.sort((a, b) => {
+      if (sortField === "nama") {
+        return a.nama.localeCompare(b.nama, "id") * dir;
+      }
+      if (sortField === "jenis") {
+        return (
+          (a.type?.nama ?? "").localeCompare(b.type?.nama ?? "", "id") * dir
+        );
+      }
+      if (sortField === "status") {
+        return a.status.localeCompare(b.status, "id") * dir;
+      }
+      if (sortField === "penempatan") {
+        const penA = `${a.company?.nama ?? ""} ${a.branch?.nama ?? ""} ${a.user?.nama ?? ""}`;
+        const penB = `${b.company?.nama ?? ""} ${b.branch?.nama ?? ""} ${b.user?.nama ?? ""}`;
+        return penA.localeCompare(penB, "id") * dir;
+      }
+      if (sortField === "usia") {
+        if (!a.tglBeli && !b.tglBeli) return 0;
+        if (!a.tglBeli) return 1;
+        if (!b.tglBeli) return -1;
+        return (
+          (new Date(b.tglBeli).getTime() - new Date(a.tglBeli).getTime()) * dir
+        );
+      }
+      return 0;
+    });
+
+    return copy;
+  }, [filteredDevices, sortField, sortDir]);
+
+  const totalItems = sortedDevices.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const safePage = Math.min(page, totalPages);
+
+  const paginatedDevices = useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return sortedDevices.slice(start, start + pageSize);
+  }, [sortedDevices, safePage, pageSize]);
+
+  function handleSort(field: SortField) {
+    if (sortField === field) {
+      setSortDir((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDir("asc");
+    }
+    setPage(1);
+  }
 
   return (
-    <div>
-      <div className="mb-3 flex flex-col gap-3 sm:flex-row">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input
-            value={cari}
-            onChange={(e) => {
-              setCari(e.target.value);
-              setPage(1);
-            }}
-            placeholder="Cari kode inventaris, nama, merk, serial..."
-            className={inputClass + " w-full pl-9"}
-          />
+    <div className="space-y-3">
+      {/* ================= FILTER SLICER DROPDOWN CARD ================= */}
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
+        {/* Header Bar Filter */}
+        <div
+          className={
+            "flex items-center justify-between gap-2 bg-slate-50/80 px-4 py-2.5 " +
+            (isFilterOpen ? "border-b border-slate-200" : "")
+          }
+        >
+          <button
+            type="button"
+            aria-expanded={isFilterOpen}
+            onClick={() => setIsFilterOpen((prev) => !prev)}
+            className="flex flex-1 items-center justify-between gap-2 text-left cursor-pointer"
+          >
+            <div className="flex items-center gap-2">
+              <SlidersHorizontal className="h-3.5 w-3.5 text-indigo-600" />
+              <span className="text-xs font-semibold tracking-wider text-slate-600 uppercase">
+                Filter Perangkat
+              </span>
+              {activeFilterCount > 0 && (
+                <span className="inline-flex items-center rounded-full bg-indigo-600 px-2 py-0.5 text-[11px] font-semibold text-white">
+                  {activeFilterCount} aktif
+                </span>
+              )}
+            </div>
+
+            <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-indigo-600">
+              <span>{isFilterOpen ? "Tutup" : "Tampilkan"}</span>
+              <ChevronDown
+                className={`h-4 w-4 text-slate-500 transition-transform duration-200 ${
+                  isFilterOpen ? "rotate-180" : ""
+                }`}
+              />
+            </span>
+          </button>
+
+          {activeFilterCount > 0 && (
+            <button
+              type="button"
+              onClick={resetAllFilters}
+              className="ml-2 inline-flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 cursor-pointer"
+            >
+              <RotateCcw className="h-3 w-3" />
+              Reset Filter
+            </button>
+          )}
         </div>
 
-        <FilterDropdown
-          activeCount={activeCount}
-          onReset={resetFilter}
-          sections={[
-            {
-              title: "Perusahaan",
-              options: companies.map((c) => ({
-                key: String(c.id),
-                label: c.nama,
-                checked: selectedCompanies.includes(c.id),
-                onToggle: () => toggleCompany(c.id),
-              })),
-            },
-            {
-              title: "Cabang",
-              options: branchList.map((b) => ({
-                key: String(b.id),
-                label: b.nama,
-                checked: selectedBranches.includes(b.id),
-                onToggle: () => toggleBranch(b.id),
-              })),
-            },
-            {
-              title: "Jenis Perangkat",
-              options: deviceTypes.map((t) => ({
-                key: String(t.id),
-                label: t.nama,
-                checked: selectedTypes.includes(t.id),
-                onToggle: () => toggleType(t.id),
-              })),
-            },
-            {
-              title: "Status",
-              options: STATUS_LIST.map((s) => ({
-                key: s,
-                label: s,
-                checked: selectedStatus.includes(s),
-                onToggle: () => toggleStatus(s),
-              })),
-            },
-            {
-              title: "Masa Aktif",
-              options: [
-                {
-                  key: "diatas_3_tahun",
-                  label: "Di atas 3 Tahun (> 3 Thn)",
-                  checked: filterUsia3Thn.includes("diatas_3_tahun"),
-                  onToggle: () => toggleUsia3Thn("diatas_3_tahun"),
-                },
-              ],
-            },
-          ]}
-        />
+        {/* Isi Dropdown: Grid 12 Kolom */}
+        {isFilterOpen && (
+          <div className="grid grid-cols-1 divide-y divide-slate-200 sm:grid-cols-2 lg:grid-cols-12 lg:divide-x lg:divide-y-0">
+            {/* Kolom 1: Perusahaan */}
+            <div className="flex flex-col p-3 lg:col-span-3">
+              <div className="mb-2 border-b border-slate-100 pb-1.5 text-center text-xs font-semibold text-slate-700">
+                Perusahaan
+              </div>
+              <div className="flex flex-col gap-1.5">
+                {companies.map((c) => (
+                  <SlicerButton
+                    key={c.id}
+                    label={c.nama.replace(/^PT\.?\s*/i, "")}
+                    active={selectedCompanies.includes(c.id)}
+                    onClick={() => handleToggleCompany(c.id)}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Kolom 2: Cabang (3 sub-kolom, judul di tengah) */}
+            <div className="flex flex-col p-3 sm:col-span-2 lg:col-span-4">
+              <div className="mb-2 flex items-center justify-center gap-1.5 border-b border-slate-100 pb-1.5 text-center">
+                <span className="text-xs font-semibold text-slate-700">
+                  Cabang
+                </span>
+                {selectedCompanies.length > 0 && (
+                  <span className="text-[11px] text-slate-400">
+                    ({availableBranches.length})
+                  </span>
+                )}
+              </div>
+              {availableBranches.length === 0 ? (
+                <p className="py-4 text-center text-xs text-slate-400">
+                  Tidak ada cabang
+                </p>
+              ) : (
+                <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+                  {availableBranches.map((b) => (
+                    <SlicerButton
+                      key={b.id}
+                      label={b.nama}
+                      compact
+                      active={selectedBranches.includes(b.id)}
+                      onClick={() => {
+                        setSelectedBranches((prev) => toggleNumber(prev, b.id));
+                        setPage(1);
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Kolom 3: Jenis */}
+            <div className="flex flex-col p-3 lg:col-span-2">
+              <div className="mb-2 border-b border-slate-100 pb-1.5 text-center text-xs font-semibold text-slate-700">
+                Jenis
+              </div>
+              <div className="flex flex-col gap-1.5">
+                {deviceTypes.map((dt) => (
+                  <SlicerButton
+                    key={dt.id}
+                    label={dt.nama}
+                    active={selectedTypes.includes(dt.id)}
+                    onClick={() => {
+                      setSelectedTypes((prev) => toggleNumber(prev, dt.id));
+                      setPage(1);
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Kolom 4: Status dan Usia */}
+            <div className="flex flex-col justify-between p-3 lg:col-span-3">
+              <div>
+                <div className="mb-2 border-b border-slate-100 pb-1.5 text-center text-xs font-semibold text-slate-700">
+                  Status dan Usia
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  {STATUS_OPTIONS.map((st) => (
+                    <SlicerButton
+                      key={st}
+                      label={st}
+                      active={selectedStatuses.includes(st)}
+                      onClick={() => {
+                        setSelectedStatuses((prev) => toggleString(prev, st));
+                        setPage(1);
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-2.5 border-t border-slate-100 pt-2.5">
+                <SlicerButton
+                  label="Di atas 3 Tahun (> 3 Thn)"
+                  active={onlyOver3Years}
+                  onClick={() => {
+                    setOnlyOver3Years((prev) => !prev);
+                    setPage(1);
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
-      <p className="mb-2 text-xs text-slate-400">
-        Menampilkan {paged.length} dari {filtered.length} perangkat (total{" "}
-        {devices.length}).
+      {/* ================= TEXTBOX SEARCH ================= */}
+      <div className="relative">
+        <Search className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
+          placeholder="Cari kode inventaris, nama, merk, serial..."
+          className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pr-9 pl-10 text-sm text-slate-700 shadow-xs placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none"
+        />
+        {search && (
+          <button
+            type="button"
+            onClick={() => {
+              setSearch("");
+              setPage(1);
+            }}
+            aria-label="Hapus pencarian"
+            className="absolute top-1/2 right-3 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
+      {/* Info jumlah data */}
+      <p className="text-xs text-slate-500">
+        Menampilkan{" "}
+        <span className="font-medium text-slate-700">
+          {paginatedDevices.length}
+        </span>{" "}
+        dari <span className="font-medium text-slate-700">{totalItems}</span>{" "}
+        perangkat (total {devices.length}).
       </p>
 
-      <div className="rounded-xl border border-slate-200 bg-white">
+      {/* ================= TABEL PERANGKAT ================= */}
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[820px] text-sm">
-            <thead className="bg-slate-50 text-left text-slate-600">
+          <table className="w-full text-sm">
+            <thead className="border-b border-slate-200 bg-slate-50/80 text-left text-xs font-semibold text-slate-600">
               <tr>
-                <th className="w-14 px-4 py-3">No</th>
-                <th className="px-4 py-3">
+                <th className="w-12 px-4 py-3">No</th>
+                <th className="w-[320px] max-w-[320px] px-4 py-3">
                   <SortButton
                     label="Perangkat"
-                    field="nama"
-                    sortField={sortField}
-                    sortDir={sortDir}
-                    onClick={toggleSort}
+                    active={sortField === "nama"}
+                    dir={sortDir}
+                    onClick={() => handleSort("nama")}
                   />
                 </th>
-                <th className="px-4 py-3">
+                <th className="w-28 px-4 py-3">
                   <SortButton
                     label="Jenis"
-                    field="jenis"
-                    sortField={sortField}
-                    sortDir={sortDir}
-                    onClick={toggleSort}
+                    active={sortField === "jenis"}
+                    dir={sortDir}
+                    onClick={() => handleSort("jenis")}
                   />
                 </th>
-                <th className="px-4 py-3">Usia</th>
-                <th className="px-4 py-3">
+                <th className="w-28 px-4 py-3">
+                  <SortButton
+                    label="Usia"
+                    active={sortField === "usia"}
+                    dir={sortDir}
+                    onClick={() => handleSort("usia")}
+                  />
+                </th>
+                <th className="w-28 px-4 py-3">
                   <SortButton
                     label="Status"
-                    field="status"
-                    sortField={sortField}
-                    sortDir={sortDir}
-                    onClick={toggleSort}
+                    active={sortField === "status"}
+                    dir={sortDir}
+                    onClick={() => handleSort("status")}
                   />
                 </th>
-                <th className="px-4 py-3">Penempatan / Pengguna</th>
-                <th className="px-4 py-3 text-right">Aksi</th>
+                <th className="w-52 px-4 py-3">
+                  <SortButton
+                    label="Penempatan / Pengguna"
+                    active={sortField === "penempatan"}
+                    dir={sortDir}
+                    onClick={() => handleSort("penempatan")}
+                  />
+                </th>
+                <th className="w-28 px-4 py-3 text-right">Aksi</th>
               </tr>
             </thead>
             <tbody>
-              {paged.length === 0 ? (
+              {paginatedDevices.length === 0 ? (
                 <tr>
                   <td
                     colSpan={7}
-                    className="px-4 py-10 text-center text-slate-400"
+                    className="px-4 py-12 text-center text-sm text-slate-400"
                   >
-                    Tidak ada perangkat yang cocok.
+                    Tidak ada perangkat yang sesuai dengan filter atau
+                    pencarian.
                   </td>
                 </tr>
               ) : (
-                paged.map((device, index) => (
+                paginatedDevices.map((device, idx) => (
                   <BarisDevice
                     key={device.id}
                     device={device}
-                    index={(safePage - 1) * pageSize + index}
+                    index={(safePage - 1) * pageSize + idx + 1}
                     deviceTypes={deviceTypes}
                     companies={companies}
                     branches={branches}
                     users={users}
+                    autoEditId={autoEditId}
                     detailQuery={detailQuery}
                   />
                 ))
@@ -683,44 +634,79 @@ export function TabelDevice({
             </tbody>
           </table>
         </div>
-
-        <PaginationBar
-          page={safePage}
-          totalPages={totalPages}
-          totalItems={filtered.length}
-          pageSize={pageSize}
-          onPageChange={handlePageChange}
-          onPageSizeChange={handlePageSizeChange}
-        />
       </div>
+
+      <PaginationBar
+        page={safePage}
+        totalPages={totalPages}
+        totalItems={totalItems}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          setPage(1);
+        }}
+        pageSizeOptions={[10, 25, 50, 100]}
+      />
     </div>
+  );
+}
+
+function SlicerButton({
+  label,
+  active,
+  compact = false,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  compact?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={label}
+      className={
+        "flex w-full items-center justify-between gap-1 rounded-lg border text-left font-medium transition cursor-pointer " +
+        (compact ? "px-2 py-1.5 text-[11px] " : "px-2.5 py-1.5 text-xs ") +
+        (active
+          ? "border-indigo-600 bg-indigo-600 text-white shadow-xs"
+          : "border-slate-200/80 bg-slate-50/70 text-slate-700 hover:border-indigo-300 hover:bg-indigo-50/60 hover:text-indigo-700")
+      }
+    >
+      <span className="truncate">{label}</span>
+      {active && <Check className="h-3 w-3 shrink-0" />}
+    </button>
   );
 }
 
 function SortButton({
   label,
-  field,
-  sortField,
-  sortDir,
+  active,
+  dir,
   onClick,
 }: {
   label: string;
-  field: SortField;
-  sortField: SortField;
-  sortDir: SortDir;
-  onClick: (f: SortField) => void;
+  active: boolean;
+  dir: SortDir;
+  onClick: () => void;
 }) {
-  const active = sortField === field;
   return (
     <button
       type="button"
-      onClick={() => onClick(field)}
-      className="inline-flex items-center gap-1 hover:text-slate-800"
+      onClick={onClick}
+      className="inline-flex items-center gap-1 text-left font-semibold text-slate-600 hover:text-indigo-600 cursor-pointer"
     >
-      {label}{" "}
-      <span className={active ? "text-indigo-600" : "text-slate-300"}>
-        {active ? (sortDir === "asc" ? "↑" : "↓") : "↕"}
-      </span>
+      <span>{label}</span>
+      {!active ? (
+        <ArrowUpDown className="h-3.5 w-3.5 text-slate-400" />
+      ) : dir === "asc" ? (
+        <ArrowUp className="h-3.5 w-3.5 text-indigo-600" />
+      ) : (
+        <ArrowDown className="h-3.5 w-3.5 text-indigo-600" />
+      )}
     </button>
   );
 }

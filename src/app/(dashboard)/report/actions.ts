@@ -1,6 +1,8 @@
+// src/app/(dashboard)/report/actions.ts
 "use server";
 
 import prisma from "@/lib/prisma";
+import { WHERE_DEVICE_AKTIF } from "@/lib/status-filter";
 
 export type RingkasanDevice = {
   totalPerangkatBaru: number;
@@ -244,8 +246,9 @@ export async function getOpsiFilter(): Promise<OpsiFilter> {
 
 /**
  * Mengambil data laporan Devices untuk satu rentang tanggal (berdasarkan
- * Tanggal Beli), dengan filter opsional Perusahaan/Cabang, lengkap dengan
- * tren bulanan, breakdown, daftar perangkat baru, dan data pembanding.
+ * Tanggal Beli), mengecualikan perangkat non-aktif, dengan filter opsional
+ * Perusahaan/Cabang, lengkap dengan tren bulanan, breakdown, daftar perangkat
+ * baru, dan data pembanding.
  */
 export async function getLaporanDevices(
   startDate: string,
@@ -263,7 +266,11 @@ export async function getLaporanDevices(
   };
 
   const devicesPeriodeIniRaw = await prisma.device.findMany({
-    where: { tglBeli: { gte: start, lte: end }, ...filterLokasi },
+    where: {
+      ...WHERE_DEVICE_AKTIF,
+      tglBeli: { gte: start, lte: end },
+      ...filterLokasi,
+    },
     select: SELECT_DEVICE_LAPORAN,
     orderBy: [{ tglBeli: "desc" }, { nama: "asc" }],
   });
@@ -276,7 +283,11 @@ export async function getLaporanDevices(
   if (bandingkan) {
     const periodeLalu = periodeSetahunSebelumnya(start, end);
     devicesSebelumnyaRaw = await prisma.device.findMany({
-      where: { tglBeli: { gte: periodeLalu.start, lte: periodeLalu.end }, ...filterLokasi },
+      where: {
+        ...WHERE_DEVICE_AKTIF,
+        tglBeli: { gte: periodeLalu.start, lte: periodeLalu.end },
+        ...filterLokasi,
+      },
       select: SELECT_DEVICE_LAPORAN,
       orderBy: [{ tglBeli: "desc" }, { nama: "asc" }],
     });
@@ -402,6 +413,7 @@ async function idPerangkatSesuaiFilter(
   if (!companyId && !branchId) return null;
   const devices = await prisma.device.findMany({
     where: {
+      ...WHERE_DEVICE_AKTIF,
       ...(companyId ? { companyId } : {}),
       ...(branchId ? { branchId } : {}),
     },
@@ -413,7 +425,10 @@ async function idPerangkatSesuaiFilter(
 async function ambilRiwayatMentah(start: Date, end: Date): Promise<RiwayatPerubahanRow[]> {
   const [assignments, placements] = await Promise.all([
     prisma.deviceAssignment.findMany({
-      where: { tglMulai: { gte: start, lte: end } },
+      where: {
+        tglMulai: { gte: start, lte: end },
+        device: WHERE_DEVICE_AKTIF,
+      },
       include: {
         device: { select: { nama: true, kodeInventaris: true } },
         user: { select: { nama: true } },
@@ -421,7 +436,10 @@ async function ambilRiwayatMentah(start: Date, end: Date): Promise<RiwayatPeruba
       orderBy: { tglMulai: "asc" },
     }),
     prisma.devicePlacement.findMany({
-      where: { tglMulai: { gte: start, lte: end } },
+      where: {
+        tglMulai: { gte: start, lte: end },
+        device: WHERE_DEVICE_AKTIF,
+      },
       include: {
         device: { select: { nama: true, kodeInventaris: true } },
         company: { select: { nama: true } },
@@ -501,6 +519,7 @@ export async function getDetailDevices(
 
   const devices = await prisma.device.findMany({
     where: {
+      ...WHERE_DEVICE_AKTIF,
       ...(cId ? { companyId: cId } : {}),
       ...(bId ? { branchId: bId } : {}),
     },

@@ -1,249 +1,350 @@
+// src/app/(dashboard)/users/[id]/detail-form.tsx
 "use client";
 
-import { useState, type FormEvent } from "react";
-import { UserRound, Check } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Check, Eye, EyeOff, Loader2, X } from "lucide-react";
 import { updateUser } from "../actions";
 
-type Company = { id: number; nama: string };
-type Branch = { id: number; nama: string; companyId: number | null };
-type UserData = {
+type UserDetail = {
   id: number;
   nama: string;
-  email: string | null;
+  email: string;
   noTelp: string | null;
   divisi: string | null;
   status: string;
   companyId: number | null;
   branchId: number | null;
-  password?: string;
 };
 
-const DIVISI = [
-  "Others",
-  "Admin - HR",
+type CompanyOpt = { id: number; nama: string };
+type BranchOpt = { id: number; nama: string; companyId: number | null };
+
+const DEFAULT_DIVISI = [
   "Operational",
   "Finance - Accounting",
+  "Admin - HR",
   "Billing",
   "IT-CI-BD",
-  "Messenger",
-  "Management",
   "Sales",
+  "Management",
 ];
 
-const fieldWrap =
-  "group relative -mx-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-slate-50 focus-within:bg-indigo-50/60";
-const fieldLabel = "mb-0.5 block text-[11px] font-medium text-slate-400";
-const fieldInput =
-  "w-full border-0 border-b border-dashed border-slate-200 bg-transparent p-0 pb-0.5 text-sm font-medium text-slate-800 focus:border-solid focus:border-indigo-400 focus:outline-none focus:ring-0";
-const fieldSelect = fieldInput + " cursor-pointer";
+function getInitials(nama: string): string {
+  const parts = nama.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "U";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
+function normalizeStatusValue(status: string): "Aktif" | "Non-Aktif" {
+  const s = status.trim().toLowerCase();
+  return s === "non-aktif" || s === "nonaktif" ? "Non-Aktif" : "Aktif";
+}
 
 export function DetailFormUser({
   user,
   companies,
   branches,
-  jumlahPerangkat,
-  jumlahTiketAktif,
+  jumlahPerangkat = 0,
+  jumlahTiketAktif = 0,
 }: {
-  user: UserData;
-  companies: Company[];
-  branches: Branch[];
-  jumlahPerangkat: number;
-  jumlahTiketAktif: number;
+  user: UserDetail;
+  companies: CompanyOpt[];
+  branches: BranchOpt[];
+  jumlahPerangkat?: number;
+  jumlahTiketAktif?: number;
 }) {
-  const [companyId, setCompanyId] = useState(
+  const [nama, setNama] = useState(user.nama);
+  const [email, setEmail] = useState(user.email);
+  const [noTelp, setNoTelp] = useState(user.noTelp ?? "");
+  const [passwordBaru, setPasswordBaru] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [divisi, setDivisi] = useState(user.divisi ?? "");
+  const [status, setStatus] = useState<"Aktif" | "Non-Aktif">(
+    normalizeStatusValue(user.status),
+  );
+  const [companyId, setCompanyId] = useState<string>(
     user.companyId ? String(user.companyId) : "",
   );
-  const [branchId, setBranchId] = useState(
+  const [branchId, setBranchId] = useState<string>(
     user.branchId ? String(user.branchId) : "",
   );
-  const [password, setPassword] = useState("");
+
   const [saving, setSaving] = useState(false);
-  const [savedTick, setSavedTick] = useState(0);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  const filteredBranches = companyId
-    ? branches.filter((b) => b.companyId === Number(companyId))
-    : [];
+  const divisiOptions = useMemo(() => {
+    const set = new Set(DEFAULT_DIVISI);
+    if (user.divisi?.trim()) set.add(user.divisi.trim());
+    return Array.from(set);
+  }, [user.divisi]);
 
-  const inisial = user.nama
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase();
+  const filteredBranches = useMemo(() => {
+    if (!companyId) return [];
+    return branches.filter((b) => b.companyId === Number(companyId));
+  }, [branches, companyId]);
 
-  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    setSaving(true);
-    setErrorMsg(null);
-    const res = await updateUser(formData);
-    setSaving(false);
-    if (!res.ok) {
-      setErrorMsg(res.error ?? "Gagal menyimpan perubahan.");
+  function handleCompanyChange(nextCompanyId: string) {
+    setCompanyId(nextCompanyId);
+    if (!nextCompanyId) {
+      setBranchId("");
       return;
     }
-    setSavedTick((t) => t + 1);
-    setPassword("");
+    const stillValid = branches.some(
+      (b) => b.id === Number(branchId) && b.companyId === Number(nextCompanyId),
+    );
+    if (!stillValid) {
+      setBranchId("");
+    }
+  }
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    setSaving(true);
+
+    const formData = new FormData();
+    formData.set("id", String(user.id));
+    formData.set("nama", nama);
+    formData.set("email", email);
+    formData.set("no_telp", noTelp);
+    formData.set("divisi", divisi);
+    formData.set("status", status);
+    formData.set("company_id", companyId);
+    formData.set("branch_id", branchId);
+    if (passwordBaru.trim()) {
+      formData.set("password", passwordBaru.trim());
+    }
+
+    const res = await updateUser(formData);
+    setSaving(false);
+
+    if (!res.ok) {
+      setErrorMsg(res.error);
+      return;
+    }
+
+    setPasswordBaru("");
+    setSuccessMsg("Perubahan data user berhasil disimpan.");
   }
 
   return (
-    <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <form onSubmit={handleSubmit}>
-        <input type="hidden" name="id" value={user.id} />
+    <form
+      onSubmit={handleSubmit}
+      className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-xs"
+    >
+      <input type="hidden" name="id" value={user.id} />
 
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-lg font-bold text-white shadow-sm">
-            {inisial || <UserRound className="h-7 w-7" />}
+      {/* Header: Avatar + Nama Lengkap + Tombol Simpan */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex min-w-0 flex-1 items-center gap-4">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-lg font-bold text-white shadow-xs">
+            {getInitials(nama)}
           </div>
-
           <div className="min-w-0 flex-1">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div className={fieldWrap + " flex-1"}>
-                <label className={fieldLabel}>Nama Lengkap</label>
-                <input
-                  name="nama"
-                  defaultValue={user.nama}
-                  required
-                  className={fieldInput + " text-lg font-bold"}
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={saving}
-                className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-500/30 transition-all hover:from-indigo-700 hover:to-violet-700 disabled:opacity-60"
-              >
-                <Check className="h-4 w-4" />
-                {saving ? "Menyimpan..." : "Simpan Perubahan"}
-              </button>
-            </div>
-
-            {errorMsg && (
-              <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
-                {errorMsg}
-              </p>
-            )}
-
-            {!errorMsg && savedTick > 0 && !saving && (
-              <p className="mt-1 text-xs text-emerald-600">
-                Perubahan tersimpan.
-              </p>
-            )}
-
-            <div className="mt-2 grid gap-x-4 gap-y-1 sm:grid-cols-3">
-              <div className={fieldWrap}>
-                <label className={fieldLabel}>Email</label>
-                <input
-                  name="email"
-                  type="email"
-                  defaultValue={user.email ?? ""}
-                  placeholder="-"
-                  className={fieldInput}
-                />
-              </div>
-              <div className={fieldWrap}>
-                <label className={fieldLabel}>No. Telepon</label>
-                <input
-                  name="no_telp"
-                  defaultValue={user.noTelp ?? ""}
-                  placeholder="-"
-                  className={fieldInput}
-                />
-              </div>
-              <div className={fieldWrap}>
-                <label className={fieldLabel}>Password Baru</label>
-                <input
-                  name="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Kosongkan jika tak diubah"
-                  className={fieldInput}
-                />
-              </div>
-            </div>
-
-            <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-5">
-              <div className={fieldWrap}>
-                <label className={fieldLabel}>Divisi</label>
-                <select
-                  name="divisi"
-                  defaultValue={user.divisi || "Others"}
-                  className={fieldSelect}
-                >
-                  {DIVISI.map((d) => (
-                    <option key={d} value={d}>
-                      {d}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className={fieldWrap}>
-                <label className={fieldLabel}>Status</label>
-                <select
-                  name="status"
-                  defaultValue={
-                    user.status === "Non-Aktif" ? "Non-Aktif" : "Aktif"
-                  }
-                  className={fieldSelect}
-                >
-                  <option value="Aktif">Aktif</option>
-                  <option value="Non-Aktif">Non-Aktif</option>
-                </select>
-              </div>
-              <div className={fieldWrap}>
-                <label className={fieldLabel}>Perusahaan</label>
-                <select
-                  name="company_id"
-                  value={companyId}
-                  onChange={(e) => {
-                    setCompanyId(e.target.value);
-                    setBranchId("");
-                  }}
-                  className={fieldSelect}
-                >
-                  <option value="">-</option>
-                  {companies.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.nama}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className={fieldWrap}>
-                <label className={fieldLabel}>Cabang</label>
-                <select
-                  name="branch_id"
-                  value={branchId}
-                  onChange={(e) => setBranchId(e.target.value)}
-                  disabled={!companyId}
-                  className={
-                    fieldSelect +
-                    " disabled:cursor-not-allowed disabled:text-slate-300"
-                  }
-                >
-                  <option value="">-</option>
-                  {filteredBranches.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.nama}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="rounded-lg bg-slate-50 px-2 py-1.5 text-center">
-                <p className="text-[11px] font-medium text-slate-400">
-                  Perangkat / Tiket Aktif
-                </p>
-                <p className="text-sm font-semibold text-slate-700">
-                  {jumlahPerangkat} / {jumlahTiketAktif}
-                </p>
-              </div>
-            </div>
+            <label className="block text-xs font-medium text-slate-400">
+              Nama Lengkap
+            </label>
+            <input
+              type="text"
+              name="nama"
+              required
+              value={nama}
+              onChange={(e) => setNama(e.target.value)}
+              className="mt-0.5 w-full border-b border-slate-200 bg-transparent pb-1 text-base font-semibold text-slate-800 focus:border-indigo-500 focus:outline-none"
+            />
           </div>
         </div>
-      </form>
-    </section>
+
+        <button
+          type="submit"
+          disabled={saving}
+          className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-700 disabled:opacity-60 cursor-pointer"
+        >
+          {saving ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Check className="h-4 w-4" />
+          )}
+          {saving ? "Menyimpan..." : "Simpan Perubahan"}
+        </button>
+      </div>
+
+      {/* Notifikasi Error / Sukses */}
+      {errorMsg && (
+        <div className="mt-4 flex items-center justify-between rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-xs font-medium text-rose-600">
+          <span>{errorMsg}</span>
+          <button
+            type="button"
+            onClick={() => setErrorMsg(null)}
+            className="rounded p-0.5 hover:bg-rose-100"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+
+      {successMsg && (
+        <div className="mt-4 flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-medium text-emerald-700">
+          <span>{successMsg}</span>
+          <button
+            type="button"
+            onClick={() => setSuccessMsg(null)}
+            className="rounded p-0.5 hover:bg-emerald-100"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+
+      {/* Baris 1: Email | No. Telepon | Password Baru */}
+      <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-3">
+        <div>
+          <label className="block text-xs font-medium text-slate-400">
+            Email
+          </label>
+          <input
+            type="email"
+            name="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="mt-1 w-full border-b border-slate-200 bg-transparent pb-1.5 text-sm text-slate-800 focus:border-indigo-500 focus:outline-none"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-slate-400">
+            No. Telepon
+          </label>
+          <input
+            type="text"
+            name="no_telp"
+            value={noTelp}
+            onChange={(e) => setNoTelp(e.target.value)}
+            placeholder="-"
+            className="mt-1 w-full border-b border-slate-200 bg-transparent pb-1.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-slate-400">
+            Password Baru
+          </label>
+          <div className="relative mt-1">
+            <input
+              type={showPassword ? "text" : "password"}
+              name="password"
+              value={passwordBaru}
+              onChange={(e) => setPasswordBaru(e.target.value)}
+              placeholder="Kosongkan jika tak diubah"
+              autoComplete="new-password"
+              className="w-full border-b border-slate-200 bg-transparent pr-8 pb-1.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((prev) => !prev)}
+              aria-label="Tampilkan password"
+              className="absolute top-1/2 right-1 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+            >
+              {showPassword ? (
+                <EyeOff className="h-4 w-4" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Baris 2: Divisi | Status | Perusahaan | Cabang | Perangkat / Tiket Aktif */}
+      <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-5">
+        <div>
+          <label className="block text-xs font-medium text-slate-400">
+            Divisi
+          </label>
+          <select
+            name="divisi"
+            value={divisi}
+            onChange={(e) => setDivisi(e.target.value)}
+            className="mt-1 w-full border-b border-slate-200 bg-transparent pb-1.5 text-sm text-slate-800 focus:border-indigo-500 focus:outline-none"
+          >
+            <option value="">Tanpa divisi</option>
+            {divisiOptions.map((d) => (
+              <option key={d} value={d}>
+                {d}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-slate-400">
+            Status
+          </label>
+          <select
+            name="status"
+            value={status}
+            onChange={(e) => setStatus(e.target.value as "Aktif" | "Non-Aktif")}
+            className="mt-1 w-full border-b border-slate-200 bg-transparent pb-1.5 text-sm text-slate-800 focus:border-indigo-500 focus:outline-none"
+          >
+            <option value="Aktif">Aktif</option>
+            <option value="Non-Aktif">Non-Aktif</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-slate-400">
+            Perusahaan
+          </label>
+          <select
+            name="company_id"
+            value={companyId}
+            onChange={(e) => handleCompanyChange(e.target.value)}
+            className="mt-1 w-full border-b border-slate-200 bg-transparent pb-1.5 text-sm text-slate-800 focus:border-indigo-500 focus:outline-none"
+          >
+            <option value="">Belum ditempatkan</option>
+            {companies.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.nama}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-slate-400">
+            Cabang
+          </label>
+          <select
+            name="branch_id"
+            value={branchId}
+            disabled={!companyId}
+            onChange={(e) => setBranchId(e.target.value)}
+            className="mt-1 w-full border-b border-slate-200 bg-transparent pb-1.5 text-sm text-slate-800 disabled:text-slate-400 focus:border-indigo-500 focus:outline-none"
+          >
+            <option value="">
+              {companyId ? "Pilih cabang..." : "Pilih PT dulu"}
+            </option>
+            {filteredBranches.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.nama}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex flex-col items-center justify-center rounded-xl bg-slate-50 px-4 py-2.5 text-center">
+          <span className="text-[11px] font-medium text-slate-400">
+            Perangkat / Tiket Aktif
+          </span>
+          <span className="mt-0.5 text-sm font-bold text-slate-800">
+            {jumlahPerangkat} / {jumlahTiketAktif}
+          </span>
+        </div>
+      </div>
+    </form>
   );
 }

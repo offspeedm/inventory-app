@@ -6,6 +6,7 @@ import { ArrowLeft, MonitorSmartphone, Wrench } from "lucide-react";
 import { statusColor, urgencyColor } from "@/config/ticket-fields";
 import { DetailFormUser } from "./detail-form";
 import { DeviceLinkModalTrigger } from "@/components/device-link-modal-trigger";
+import { isDeviceAktif } from "@/lib/status-filter";
 
 function formatTanggal(value: Date | null): string {
   if (!value) return "Sekarang";
@@ -99,6 +100,7 @@ export default async function UserDetailPage({
 
   if (!user) notFound();
 
+  const perangkatAktif = user.devices.filter((d) => isDeviceAktif(d.status));
   const tiketAktif = tiket.filter((t) => t.status !== "Selesai").length;
 
   return (
@@ -125,7 +127,7 @@ export default async function UserDetailPage({
         }}
         companies={companies}
         branches={branches}
-        jumlahPerangkat={user.devices.length}
+        jumlahPerangkat={perangkatAktif.length}
         jumlahTiketAktif={tiketAktif}
       />
 
@@ -133,7 +135,7 @@ export default async function UserDetailPage({
         <Seksi
           title="Perangkat Terdaftar Saat Ini"
           icon={MonitorSmartphone}
-          count={user.devices.length}
+          count={perangkatAktif.length}
           accent="bg-indigo-50 text-indigo-600"
         >
           {user.devices.length === 0 ? (
