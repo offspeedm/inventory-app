@@ -1,10 +1,11 @@
 // src/app/(dashboard)/users/baris-user.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Pencil, Trash2, Power, Eye, EyeOff, X } from "lucide-react";
 import { hapusUser, toggleStatusUser, updateUser } from "./actions";
+import { SearchableSelect } from "@/components/searchable-select";
 
 export type UserSummary = {
   id: number;
@@ -23,6 +24,29 @@ export type UserSummary = {
 
 type Company = { id: number; nama: string };
 type Branch = { id: number; nama: string; companyId: number | null };
+
+const DIVISI_LIST = [
+  "Others",
+  "Admin - HR",
+  "Operational",
+  "Finance - Accounting",
+  "Billing",
+  "IT-CI-BD",
+  "Messenger",
+  "Management",
+  "Sales",
+];
+
+const ROLE_OPTIONS = [
+  { value: "Admin", label: "Admin" },
+  { value: "Teknisi", label: "Teknisi" },
+  { value: "Staff", label: "Staff" },
+];
+
+const STATUS_OPTIONS = [
+  { value: "Aktif", label: "Aktif" },
+  { value: "Non-Aktif", label: "Non-Aktif" },
+];
 
 function getInisial(nama: string): string {
   return nama
@@ -52,27 +76,79 @@ export function BarisUser({
 }) {
   const [editing, setEditing] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [selectedDivisi, setSelectedDivisi] = useState<string>(
+    user.divisi ?? "",
+  );
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>(
     user.companyId ? String(user.companyId) : "",
   );
+  const [selectedBranchId, setSelectedBranchId] = useState<string>(
+    user.branchId ? String(user.branchId) : "",
+  );
+  const [selectedRole, setSelectedRole] = useState<string>(
+    user.role ?? "Staff",
+  );
+  const [selectedStatus, setSelectedStatus] = useState<string>(user.status);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (autoEditId && autoEditId === user.id) {
-      setEditing(true);
+      openEditModal();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoEditId, user.id]);
+
+  function openEditModal() {
+    setErrorMsg(null);
+    setShowPassword(false);
+    setSelectedDivisi(user.divisi ?? "");
+    setSelectedCompanyId(user.companyId ? String(user.companyId) : "");
+    setSelectedBranchId(user.branchId ? String(user.branchId) : "");
+    setSelectedRole(user.role ?? "Staff");
+    setSelectedStatus(user.status);
+    setEditing(true);
+  }
 
   const nomorUrut = nomor ?? (typeof index === "number" ? index + 1 : "-");
   const detailHref = `/users/${user.id}${detailQuery}`;
 
-  const filteredBranches = selectedCompanyId
-    ? branches.filter(
-        (b) =>
-          b.companyId === null || String(b.companyId) === selectedCompanyId,
-      )
-    : branches;
+  const divisiOptions = useMemo(() => {
+    const set = new Set(DIVISI_LIST);
+    if (user.divisi?.trim()) set.add(user.divisi.trim());
+    return Array.from(set).map((d) => ({ value: d, label: d }));
+  }, [user.divisi]);
+
+  const companyOptions = useMemo(
+    () => companies.map((c) => ({ value: String(c.id), label: c.nama })),
+    [companies],
+  );
+
+  const branchOptions = useMemo(() => {
+    const list = selectedCompanyId
+      ? branches.filter(
+          (b) =>
+            b.companyId === null || String(b.companyId) === selectedCompanyId,
+        )
+      : branches;
+    return list.map((b) => ({ value: String(b.id), label: b.nama }));
+  }, [branches, selectedCompanyId]);
+
+  function handleCompanyChange(nextCompanyId: string) {
+    setSelectedCompanyId(nextCompanyId);
+    if (!nextCompanyId) {
+      setSelectedBranchId("");
+      return;
+    }
+    const stillValid = branches.some(
+      (b) =>
+        String(b.id) === selectedBranchId &&
+        (b.companyId === null || String(b.companyId) === nextCompanyId),
+    );
+    if (!stillValid) {
+      setSelectedBranchId("");
+    }
+  }
 
   async function handleUpdate(formData: FormData) {
     setSubmitting(true);
@@ -103,7 +179,7 @@ export function BarisUser({
         {/* 1. No */}
         <td className="px-4 py-3 text-sm text-slate-500">{nomorUrut}</td>
 
-        {/* 2. Nama / Kontak -> Navigasi ke /users/[id] + query filter/pencarian */}
+        {/* 2. Nama / Kontak */}
         <td className="px-4 py-3">
           <Link href={detailHref} className="group flex items-center gap-3">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700">
@@ -161,10 +237,7 @@ export function BarisUser({
           <div className="inline-flex items-center gap-1">
             <button
               type="button"
-              onClick={() => {
-                setErrorMsg(null);
-                setEditing(true);
-              }}
+              onClick={openEditModal}
               title="Edit user"
               className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-indigo-600"
             >
@@ -190,7 +263,7 @@ export function BarisUser({
         </td>
       </tr>
 
-      {/* Modal Form Edit User (dari tombol aksi tabel) */}
+      {/* Modal Form Edit User */}
       {editing && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-xs"
@@ -275,11 +348,12 @@ export function BarisUser({
                   <label className="mb-1 block text-xs font-medium text-slate-700">
                     Divisi
                   </label>
-                  <input
-                    type="text"
+                  <SearchableSelect
                     name="divisi"
-                    defaultValue={user.divisi ?? ""}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                    value={selectedDivisi}
+                    onChange={setSelectedDivisi}
+                    options={divisiOptions}
+                    placeholder="Ketik atau pilih divisi..."
                   />
                 </div>
               </div>
@@ -289,36 +363,30 @@ export function BarisUser({
                   <label className="mb-1 block text-xs font-medium text-slate-700">
                     Perusahaan
                   </label>
-                  <select
+                  <SearchableSelect
                     name="companyId"
                     value={selectedCompanyId}
-                    onChange={(e) => setSelectedCompanyId(e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
-                  >
-                    <option value="">- Pilih Perusahaan -</option>
-                    {companies.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.nama}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={handleCompanyChange}
+                    options={companyOptions}
+                    placeholder="Ketik nama perusahaan..."
+                  />
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-medium text-slate-700">
                     Cabang
                   </label>
-                  <select
+                  <SearchableSelect
                     name="branchId"
-                    defaultValue={user.branchId ? String(user.branchId) : ""}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
-                  >
-                    <option value="">- Pilih Cabang -</option>
-                    {filteredBranches.map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.nama}
-                      </option>
-                    ))}
-                  </select>
+                    value={selectedBranchId}
+                    onChange={setSelectedBranchId}
+                    disabled={!selectedCompanyId}
+                    options={branchOptions}
+                    placeholder={
+                      selectedCompanyId
+                        ? "Ketik nama cabang..."
+                        : "Pilih perusahaan dulu"
+                    }
+                  />
                 </div>
               </div>
 
@@ -327,28 +395,25 @@ export function BarisUser({
                   <label className="mb-1 block text-xs font-medium text-slate-700">
                     Role
                   </label>
-                  <select
+                  <SearchableSelect
                     name="role"
-                    defaultValue={user.role ?? "Staff"}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
-                  >
-                    <option value="Admin">Admin</option>
-                    <option value="Teknisi">Teknisi</option>
-                    <option value="Staff">Staff</option>
-                  </select>
+                    value={selectedRole}
+                    onChange={setSelectedRole}
+                    options={ROLE_OPTIONS}
+                    placeholder="Pilih role..."
+                  />
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-medium text-slate-700">
                     Status
                   </label>
-                  <select
+                  <SearchableSelect
                     name="status"
-                    defaultValue={user.status}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
-                  >
-                    <option value="Aktif">Aktif</option>
-                    <option value="Non-Aktif">Non-Aktif</option>
-                  </select>
+                    value={selectedStatus}
+                    onChange={setSelectedStatus}
+                    options={STATUS_OPTIONS}
+                    placeholder="Pilih status..."
+                  />
                 </div>
               </div>
 

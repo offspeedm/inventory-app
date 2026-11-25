@@ -17,8 +17,6 @@ export type UserSummary = {
   id: number;
   nama: string;
   email: string;
-  jabatan: string | null;
-  role: string;
   divisi: string | null;
   noTelp: string | null;
   status: string;
@@ -36,7 +34,7 @@ type UserDetailResponse = UserSummary & {
     merk: string | null;
     tipe: string | null;
     status: string;
-    deviceType?: { nama: string } | null;
+    type?: { nama: string } | null;
   }[];
   assignments: {
     id: number;
@@ -52,10 +50,10 @@ type UserDetailResponse = UserSummary & {
   }[];
   tickets: {
     id: number;
-    nomorTiket: string;
+    noTiket: string | null;
     judul?: string | null;
     status: string;
-    createdAt: string;
+    tglLapor: string;
     device?: {
       id: number;
       nama: string;
@@ -94,15 +92,13 @@ export default function ModalDetailUser({
   onEditClick: () => void;
 }) {
   const [detail, setDetail] = useState<UserDetailResponse | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loadedUserId, setLoadedUserId] = useState<number | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
 
     let active = true;
-    setLoading(true);
-    setErrorMsg(null);
 
     fetch(`/api/users/${user.id}`)
       .then(async (res) => {
@@ -111,13 +107,17 @@ export default function ModalDetailUser({
         return json as UserDetailResponse;
       })
       .then((data) => {
-        if (active) setDetail(data);
+        if (active) {
+          setDetail(data);
+          setErrorMsg(null);
+          setLoadedUserId(user.id);
+        }
       })
       .catch((err: Error) => {
-        if (active) setErrorMsg(err.message);
-      })
-      .finally(() => {
-        if (active) setLoading(false);
+        if (active) {
+          setErrorMsg(err.message);
+          setLoadedUserId(user.id);
+        }
       });
 
     return () => {
@@ -127,9 +127,11 @@ export default function ModalDetailUser({
 
   if (!open) return null;
 
-  const dataTampil = detail ?? user;
+  const loading = loadedUserId !== user.id;
+  const activeDetail = detail?.id === user.id ? detail : null;
+  const dataTampil = activeDetail ?? user;
   const tiketAktifCount =
-    detail?.tickets.filter(
+    activeDetail?.tickets.filter(
       (t) =>
         t.status.toLowerCase() !== "selesai" &&
         t.status.toLowerCase() !== "closed",
@@ -155,7 +157,7 @@ export default function ModalDetailUser({
                 {dataTampil.nama}
               </h2>
               <p className="text-xs text-slate-500">
-                {dataTampil.jabatan || dataTampil.role} ·{" "}
+                {dataTampil.divisi || "User"} ·{" "}
                 <span
                   className={
                     dataTampil.status === "Aktif"
@@ -195,7 +197,7 @@ export default function ModalDetailUser({
         {/* Body Pop-up (Scrollable & Read-Only) */}
         <div className="space-y-6 overflow-y-auto p-6">
           {/* Informasi Profil Read-Only */}
-          <div className="grid grid-cols-1 gap-4 rounded-xl border border-slate-200/80 bg-slate-50/40 p-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 rounded-xl border border-slate-200/80 bg-slate-50/40 p-4 sm:grid-cols-2 lg:grid-cols-3">
             <div>
               <span className="text-xs font-medium text-slate-400">Email</span>
               <p className="mt-0.5 text-sm font-medium text-slate-800 break-all">
@@ -218,14 +220,6 @@ export default function ModalDetailUser({
             </div>
             <div>
               <span className="text-xs font-medium text-slate-400">
-                Role Sistem
-              </span>
-              <p className="mt-0.5 text-sm font-medium text-slate-800">
-                {dataTampil.role}
-              </p>
-            </div>
-            <div>
-              <span className="text-xs font-medium text-slate-400">
                 Perusahaan
               </span>
               <p className="mt-0.5 text-sm font-medium text-slate-800">
@@ -238,21 +232,13 @@ export default function ModalDetailUser({
                 {dataTampil.branch?.nama || "-"}
               </p>
             </div>
-            <div>
-              <span className="text-xs font-medium text-slate-400">
-                Jabatan
-              </span>
-              <p className="mt-0.5 text-sm font-medium text-slate-800">
-                {dataTampil.jabatan || "-"}
-              </p>
-            </div>
             <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-center">
               <span className="block text-[11px] font-medium text-slate-400">
                 Perangkat / Tiket Aktif
               </span>
               <span className="text-sm font-bold text-slate-800">
-                {detail
-                  ? `${detail.devices.length} / ${tiketAktifCount}`
+                {activeDetail
+                  ? `${activeDetail.devices.length} / ${tiketAktifCount}`
                   : "..."}
               </span>
             </div>
@@ -277,17 +263,17 @@ export default function ModalDetailUser({
                     <Laptop className="h-4 w-4 text-indigo-600" />
                     <h3 className="text-sm font-semibold text-slate-800">
                       Perangkat Terdaftar Saat Ini (
-                      {detail?.devices.length ?? 0})
+                      {activeDetail?.devices.length ?? 0})
                     </h3>
                   </div>
 
-                  {!detail?.devices.length ? (
+                  {!activeDetail?.devices.length ? (
                     <p className="py-6 text-center text-xs text-slate-400">
                       Tidak ada perangkat yang terdaftar pada user ini.
                     </p>
                   ) : (
                     <div className="divide-y divide-slate-100">
-                      {detail.devices.map((dev) => (
+                      {activeDetail.devices.map((dev) => (
                         <div
                           key={dev.id}
                           className="flex items-start justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
@@ -313,7 +299,7 @@ export default function ModalDetailUser({
                           </div>
                           <div className="text-right">
                             <span className="block text-xs font-medium text-slate-600">
-                              {dev.deviceType?.nama || "Perangkat"}
+                              {dev.type?.nama || "Perangkat"}
                             </span>
                             <span className="mt-1 inline-block rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700">
                               {dev.status}
@@ -331,17 +317,17 @@ export default function ModalDetailUser({
                     <History className="h-4 w-4 text-indigo-600" />
                     <h3 className="text-sm font-semibold text-slate-800">
                       Riwayat Penggunaan Perangkat (
-                      {detail?.assignments.length ?? 0})
+                      {activeDetail?.assignments.length ?? 0})
                     </h3>
                   </div>
 
-                  {!detail?.assignments.length ? (
+                  {!activeDetail?.assignments.length ? (
                     <p className="py-6 text-center text-xs text-slate-400">
                       Belum ada riwayat penggunaan perangkat.
                     </p>
                   ) : (
                     <div className="divide-y divide-slate-100">
-                      {detail.assignments.map((item) => (
+                      {activeDetail.assignments.map((item) => (
                         <div
                           key={item.id}
                           className="py-2.5 first:pt-0 last:pb-0"
@@ -374,18 +360,19 @@ export default function ModalDetailUser({
                 <div className="mb-3 flex items-center gap-2">
                   <Wrench className="h-4 w-4 text-rose-500" />
                   <h3 className="text-sm font-semibold text-slate-800">
-                    Riwayat Troubleshooting ({detail?.tickets.length ?? 0})
+                    Riwayat Troubleshooting ({activeDetail?.tickets.length ?? 0}
+                    )
                   </h3>
                 </div>
 
-                {!detail?.tickets.length ? (
+                {!activeDetail?.tickets.length ? (
                   <p className="py-6 text-center text-xs text-slate-400">
                     Belum ada tiket troubleshooting yang berkaitan dengan user
                     ini.
                   </p>
                 ) : (
                   <div className="divide-y divide-slate-100">
-                    {detail.tickets.map((tiket) => (
+                    {activeDetail.tickets.map((tiket) => (
                       <div
                         key={tiket.id}
                         className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
@@ -395,16 +382,18 @@ export default function ModalDetailUser({
                             href={`/troubleshooting/${tiket.id}`}
                             className="inline-flex items-center gap-1 text-sm font-semibold text-indigo-600 hover:underline"
                           >
-                            {tiket.nomorTiket}
+                            {tiket.judul ||
+                              tiket.noTiket ||
+                              `Tiket #${tiket.id}`}
                             <ExternalLink className="h-3 w-3" />
                           </Link>
-                          {tiket.judul && (
-                            <p className="text-xs text-slate-600">
-                              {tiket.judul}
+                          {tiket.noTiket && (
+                            <p className="text-xs font-mono text-slate-500">
+                              {tiket.noTiket}
                             </p>
                           )}
                           <p className="text-[11px] text-slate-400">
-                            {formatTanggal(tiket.createdAt)}
+                            {formatTanggal(tiket.tglLapor)}
                             {tiket.device ? ` · ${tiket.device.nama}` : ""}
                           </p>
                         </div>

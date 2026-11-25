@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   Plus,
   X,
@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { tambahDevice } from "./actions";
 import { getFieldsForType } from "@/config/device-fields";
+import { SearchableSelect } from "@/components/searchable-select";
 
 type DeviceType = { id: number; nama: string };
 type Company = { id: number; nama: string };
@@ -24,6 +25,7 @@ const STATUS = [
   "Perbaikan",
   "Tidak dipakai",
   "Hilang",
+  "Dihibahkan",
 ];
 
 export function FormDevice({
@@ -40,14 +42,46 @@ export function FormDevice({
   const formRef = useRef<HTMLFormElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
-  const [companyId, setCompanyId] = useState<string>("");
   const [typeId, setTypeId] = useState<string>("");
+  const [status, setStatus] = useState<string>("Aktif");
+  const [companyId, setCompanyId] = useState<string>("");
+  const [branchId, setBranchId] = useState<string>("");
+  const [userId, setUserId] = useState<string>("");
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [saving, setSaving] = useState(false);
 
-  const filteredBranches = companyId
-    ? branches.filter((b) => b.companyId === Number(companyId))
-    : [];
+  const filteredBranches = useMemo(
+    () =>
+      companyId
+        ? branches.filter((b) => b.companyId === Number(companyId))
+        : [],
+    [branches, companyId],
+  );
+
+  const typeOptions = useMemo(
+    () => deviceTypes.map((t) => ({ value: String(t.id), label: t.nama })),
+    [deviceTypes],
+  );
+
+  const statusOptions = useMemo(
+    () => STATUS.map((s) => ({ value: s, label: s })),
+    [],
+  );
+
+  const companyOptions = useMemo(
+    () => companies.map((c) => ({ value: String(c.id), label: c.nama })),
+    [companies],
+  );
+
+  const branchOptions = useMemo(
+    () => filteredBranches.map((b) => ({ value: String(b.id), label: b.nama })),
+    [filteredBranches],
+  );
+
+  const userOptions = useMemo(
+    () => users.map((u) => ({ value: String(u.id), label: u.nama })),
+    [users],
+  );
 
   const selectedTypeName = deviceTypes.find(
     (t) => t.id === Number(typeId),
@@ -56,6 +90,20 @@ export function FormDevice({
 
   const inputClass =
     "w-full border border-slate-300 rounded-lg px-3 py-2 text-sm transition-shadow focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500";
+
+  function handleCompanyChange(nextCompanyId: string) {
+    setCompanyId(nextCompanyId);
+    if (!nextCompanyId) {
+      setBranchId("");
+      return;
+    }
+    const stillValid = branches.some(
+      (b) => b.id === Number(branchId) && b.companyId === Number(nextCompanyId),
+    );
+    if (!stillValid) {
+      setBranchId("");
+    }
+  }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     setSelectedFiles(Array.from(e.target.files ?? []));
@@ -71,8 +119,11 @@ export function FormDevice({
 
   function resetSemua() {
     formRef.current?.reset();
-    setCompanyId("");
     setTypeId("");
+    setStatus("Aktif");
+    setCompanyId("");
+    setBranchId("");
+    setUserId("");
     setSelectedFiles([]);
   }
 
@@ -93,7 +144,10 @@ export function FormDevice({
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
-            onClick={() => setOpen(false)}
+            onClick={() => {
+              setOpen(false);
+              resetSemua();
+            }}
             className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200"
           />
 
@@ -113,7 +167,10 @@ export function FormDevice({
                 </div>
               </div>
               <button
-                onClick={() => setOpen(false)}
+                onClick={() => {
+                  setOpen(false);
+                  resetSemua();
+                }}
                 aria-label="Tutup"
                 className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
               >
@@ -148,19 +205,13 @@ export function FormDevice({
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">
                     Jenis
                   </label>
-                  <select
+                  <SearchableSelect
                     name="type_id"
                     value={typeId}
-                    onChange={(e) => setTypeId(e.target.value)}
-                    className={inputClass}
-                  >
-                    <option value="">Pilih jenis…</option>
-                    {deviceTypes.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.nama}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setTypeId}
+                    options={typeOptions}
+                    placeholder="Ketik atau pilih jenis…"
+                  />
                 </div>
               </div>
 
@@ -224,17 +275,14 @@ export function FormDevice({
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">
                     Status
                   </label>
-                  <select
+                  <SearchableSelect
                     name="status"
-                    defaultValue="Aktif"
-                    className={inputClass}
-                  >
-                    {STATUS.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
+                    value={status}
+                    onChange={(val) => setStatus(val || "Aktif")}
+                    options={statusOptions}
+                    allowClear={false}
+                    placeholder="Pilih status…"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">
@@ -261,51 +309,38 @@ export function FormDevice({
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">
                     Perusahaan
                   </label>
-                  <select
+                  <SearchableSelect
                     name="company_id"
                     value={companyId}
-                    onChange={(e) => setCompanyId(e.target.value)}
-                    className={inputClass}
-                  >
-                    <option value="">Pilih…</option>
-                    {companies.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.nama}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={handleCompanyChange}
+                    options={companyOptions}
+                    placeholder="Ketik perusahaan…"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">
                     Cabang
                   </label>
-                  <select
+                  <SearchableSelect
                     name="branch_id"
+                    value={branchId}
+                    onChange={setBranchId}
+                    options={branchOptions}
                     disabled={!companyId}
-                    className={inputClass + " disabled:bg-slate-100"}
-                  >
-                    <option value="">
-                      {companyId ? "Pilih…" : "Pilih PT dulu"}
-                    </option>
-                    {filteredBranches.map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.nama}
-                      </option>
-                    ))}
-                  </select>
+                    placeholder={companyId ? "Ketik cabang…" : "Pilih PT dulu"}
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">
                     Pengguna
                   </label>
-                  <select name="user_id" defaultValue="" className={inputClass}>
-                    <option value="">Belum ada</option>
-                    {users.map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.nama}
-                      </option>
-                    ))}
-                  </select>
+                  <SearchableSelect
+                    name="user_id"
+                    value={userId}
+                    onChange={setUserId}
+                    options={userOptions}
+                    placeholder="Ketik nama pengguna…"
+                  />
                 </div>
               </div>
 

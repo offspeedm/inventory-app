@@ -1,7 +1,7 @@
 // src/app/(dashboard)/devices/baris-device.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Pencil,
@@ -16,6 +16,7 @@ import {
 import { updateDevice, hapusDevice } from "./actions";
 import { hitungUsia, usiaBadgeColor } from "@/lib/format-usia";
 import { getFieldsForType } from "@/config/device-fields";
+import { SearchableSelect } from "@/components/searchable-select";
 
 type DeviceType = { id: number; nama: string };
 type Company = { id: number; nama: string };
@@ -52,14 +53,13 @@ const STATUS = [
   "Perbaikan",
   "Tidak dipakai",
   "Hilang",
+  "Dihibahkan",
 ];
 
 function statusColor(status: string) {
   switch (status) {
     case "Aktif":
       return "bg-green-100 text-green-700";
-    case "Available":
-      return "bg-sky-100 text-sky-700";
     case "Rusak":
       return "bg-orange-100 text-orange-700";
     case "Perbaikan":
@@ -98,46 +98,87 @@ export function BarisDevice({
   detailQuery?: string;
 }) {
   const [editing, setEditing] = useState(false);
+  const [typeId, setTypeId] = useState<string>(
+    device.typeId ? String(device.typeId) : "",
+  );
+  const [status, setStatus] = useState<string>(device.status);
   const [companyId, setCompanyId] = useState<string>(
     device.companyId ? String(device.companyId) : "",
   );
-  const [typeId, setTypeId] = useState<string>(
-    device.typeId ? String(device.typeId) : "",
+  const [branchId, setBranchId] = useState<string>(
+    device.branchId ? String(device.branchId) : "",
   );
   const [userId, setUserId] = useState<string>(
     device.userId ? String(device.userId) : "",
   );
-  const [status, setStatus] = useState<string>(device.status);
 
-  useEffect(() => {
-    if (autoEditId && autoEditId === device.id) {
-      setEditing(true);
-    }
-  }, [autoEditId, device.id]);
-
-  function openEditModal() {
-    setCompanyId(device.companyId ? String(device.companyId) : "");
+  function bukaEdit() {
     setTypeId(device.typeId ? String(device.typeId) : "");
-    setUserId(device.userId ? String(device.userId) : "");
     setStatus(device.status);
+    setCompanyId(device.companyId ? String(device.companyId) : "");
+    setBranchId(device.branchId ? String(device.branchId) : "");
+    setUserId(device.userId ? String(device.userId) : "");
     setEditing(true);
   }
 
-  function handleUserChange(nextUserId: string) {
-    if (userId !== "" && nextUserId === "") {
-      setStatus("Available");
+  useEffect(() => {
+    if (autoEditId && autoEditId === device.id) {
+      bukaEdit();
     }
-    setUserId(nextUserId);
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoEditId, device.id]);
 
-  const filteredBranches = companyId
-    ? branches.filter((b) => b.companyId === Number(companyId))
-    : [];
+  const filteredBranches = useMemo(
+    () =>
+      companyId
+        ? branches.filter((b) => b.companyId === Number(companyId))
+        : [],
+    [branches, companyId],
+  );
+
+  const typeOptions = useMemo(
+    () => deviceTypes.map((t) => ({ value: String(t.id), label: t.nama })),
+    [deviceTypes],
+  );
+
+  const statusOptions = useMemo(
+    () => STATUS.map((s) => ({ value: s, label: s })),
+    [],
+  );
+
+  const companyOptions = useMemo(
+    () => companies.map((c) => ({ value: String(c.id), label: c.nama })),
+    [companies],
+  );
+
+  const branchOptions = useMemo(
+    () => filteredBranches.map((b) => ({ value: String(b.id), label: b.nama })),
+    [filteredBranches],
+  );
+
+  const userOptions = useMemo(
+    () => users.map((u) => ({ value: String(u.id), label: u.nama })),
+    [users],
+  );
 
   const selectedTypeName = deviceTypes.find(
     (t) => t.id === Number(typeId),
   )?.nama;
   const dynamicFields = getFieldsForType(selectedTypeName);
+
+  function handleCompanyChange(nextCompanyId: string) {
+    setCompanyId(nextCompanyId);
+    if (!nextCompanyId) {
+      setBranchId("");
+      return;
+    }
+    const stillValid = branches.some(
+      (b) => b.id === Number(branchId) && b.companyId === Number(nextCompanyId),
+    );
+    if (!stillValid) {
+      setBranchId("");
+    }
+  }
 
   function attrValue(key: string): string {
     const found = device.attributes.find((a) => a.key === key);
@@ -155,7 +196,6 @@ export function BarisDevice({
     <tr className="border-t border-slate-100 hover:bg-slate-50/60 transition-colors">
       <td className="px-4 py-3.5 align-top text-slate-500">{index + 1}</td>
 
-      {/* Kolom Perangkat dibatasi lebarnya & otomatis turun paragraf jika panjang */}
       <td className="w-[320px] max-w-[320px] px-4 py-3.5 align-top whitespace-normal break-words">
         <Link
           href={detailHref}
@@ -244,7 +284,7 @@ export function BarisDevice({
             <History className="w-4 h-4" />
           </Link>
           <button
-            onClick={openEditModal}
+            onClick={bukaEdit}
             title="Edit"
             aria-label="Edit"
             className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-indigo-600 hover:bg-indigo-50 transition-colors"
@@ -272,7 +312,7 @@ export function BarisDevice({
             />
 
             <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl text-left animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
-              <div className="sticky top-0 bg-white flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <div className="sticky top-0 z-10 bg-white flex items-center justify-between px-6 py-4 border-b border-slate-100">
                 <div className="flex items-center gap-3">
                   <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-indigo-100 text-indigo-600">
                     <Pencil className="w-5 h-5" />
@@ -320,19 +360,13 @@ export function BarisDevice({
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">
                       Jenis
                     </label>
-                    <select
+                    <SearchableSelect
                       name="type_id"
                       value={typeId}
-                      onChange={(e) => setTypeId(e.target.value)}
-                      className={inputClass}
-                    >
-                      <option value="">Pilih jenis…</option>
-                      {deviceTypes.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.nama}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={setTypeId}
+                      options={typeOptions}
+                      placeholder="Ketik atau pilih jenis…"
+                    />
                   </div>
                 </div>
 
@@ -397,18 +431,14 @@ export function BarisDevice({
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">
                       Status
                     </label>
-                    <select
+                    <SearchableSelect
                       name="status"
                       value={status}
-                      onChange={(e) => setStatus(e.target.value)}
-                      className={inputClass}
-                    >
-                      {STATUS.map((s) => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(val) => setStatus(val || device.status)}
+                      options={statusOptions}
+                      allowClear={false}
+                      placeholder="Pilih status…"
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">
@@ -442,57 +472,40 @@ export function BarisDevice({
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">
                       Perusahaan
                     </label>
-                    <select
+                    <SearchableSelect
                       name="company_id"
                       value={companyId}
-                      onChange={(e) => setCompanyId(e.target.value)}
-                      className={inputClass}
-                    >
-                      <option value="">Pilih…</option>
-                      {companies.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.nama}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={handleCompanyChange}
+                      options={companyOptions}
+                      placeholder="Ketik perusahaan…"
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">
                       Cabang
                     </label>
-                    <select
+                    <SearchableSelect
                       name="branch_id"
-                      defaultValue={device.branchId ?? ""}
+                      value={branchId}
+                      onChange={setBranchId}
+                      options={branchOptions}
                       disabled={!companyId}
-                      className={inputClass + " disabled:bg-slate-100"}
-                    >
-                      <option value="">
-                        {companyId ? "Pilih…" : "Pilih PT dulu"}
-                      </option>
-                      {filteredBranches.map((b) => (
-                        <option key={b.id} value={b.id}>
-                          {b.nama}
-                        </option>
-                      ))}
-                    </select>
+                      placeholder={
+                        companyId ? "Ketik cabang…" : "Pilih PT dulu"
+                      }
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">
                       Pengguna
                     </label>
-                    <select
+                    <SearchableSelect
                       name="user_id"
                       value={userId}
-                      onChange={(e) => handleUserChange(e.target.value)}
-                      className={inputClass}
-                    >
-                      <option value="">Belum ada</option>
-                      {users.map((u) => (
-                        <option key={u.id} value={u.id}>
-                          {u.nama}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={setUserId}
+                      options={userOptions}
+                      placeholder="Ketik nama pengguna…"
+                    />
                   </div>
                 </div>
 

@@ -58,6 +58,7 @@ const STATUS_OPTIONS = [
   "Perbaikan",
   "Tidak dipakai",
   "Hilang",
+  "Dihibahkan",
 ] as const;
 
 function parseNumberList(param: string | null): number[] {

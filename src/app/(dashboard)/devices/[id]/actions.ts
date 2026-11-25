@@ -25,6 +25,7 @@ function toNullableDate(value: FormDataEntryValue | null): Date | null {
 function revalidateDevicePaths(deviceId: number) {
   revalidatePath(`/devices/${deviceId}`);
   revalidatePath("/devices");
+  revalidatePath("/users");
   revalidatePath("/dashboard");
   revalidatePath("/report");
 }
@@ -42,8 +43,8 @@ export async function uploadLampiran(formData: FormData) {
 
 export async function hapusLampiran(formData: FormData) {
   const id = Number(formData.get("id"));
-  const deviceId = Number(formData.get("device_id"));
-  const fileUrl = formData.get("file_url") as string;
+  const deviceId = Number(formData.get("device_id") ?? formData.get("deviceId"));
+  const fileUrl = String(formData.get("file_url") ?? formData.get("fileUrl") ?? "");
 
   try {
     if (fileUrl.startsWith("/uploads/")) {
@@ -63,7 +64,9 @@ export async function hapusLampiran(formData: FormData) {
 
   await prisma.deviceAttachment.delete({ where: { id } });
 
-  revalidatePath(`/devices/${deviceId}`);
+  if (deviceId > 0) {
+    revalidatePath(`/devices/${deviceId}`);
+  }
 }
 
 // ==================== RIWAYAT PENGGUNA ====================

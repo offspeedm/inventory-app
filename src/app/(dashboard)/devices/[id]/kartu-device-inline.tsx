@@ -1,9 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Clock, ListChecks, MonitorSmartphone, Pencil, Save, Tag, X } from "lucide-react";
+import {
+  Clock,
+  ListChecks,
+  MonitorSmartphone,
+  Pencil,
+  Save,
+  Tag,
+  X,
+} from "lucide-react";
 import { updateDevice } from "../actions";
+import { getFieldsForType } from "@/config/device-fields";
+import { SearchableSelect } from "@/components/searchable-select";
 
 type Option = { id: number; nama: string };
 type Branch = Option & { companyId: number | null };
@@ -31,16 +41,26 @@ type DeviceData = {
   attributes: Attribute[];
 };
 
-const STATUS_OPTIONS = ["Aktif", "Rusak", "Perbaikan", "Tidak dipakai"];
+const STATUS_OPTIONS = [
+  "Aktif",
+  "Available",
+  "Rusak",
+  "Perbaikan",
+  "Tidak dipakai",
+  "Hilang",
+  "Dihibahkan",
+];
 
 function statusColor(status: string) {
   switch (status) {
     case "Aktif":
       return "bg-green-100 text-green-700";
     case "Rusak":
-      return "bg-red-100 text-red-700";
+      return "bg-orange-100 text-orange-700";
     case "Perbaikan":
       return "bg-amber-100 text-amber-700";
+    case "Hilang":
+      return "bg-red-100 text-red-700";
     default:
       return "bg-slate-100 text-slate-600";
   }
@@ -85,12 +105,84 @@ export function KartuDeviceInline({
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [companyId, setCompanyId] = useState(device.companyId ? String(device.companyId) : "");
-  const [branchId, setBranchId] = useState(device.branchId ? String(device.branchId) : "");
+  const [typeId, setTypeId] = useState(
+    device.typeId ? String(device.typeId) : "",
+  );
+  const [status, setStatus] = useState(device.status);
+  const [companyId, setCompanyId] = useState(
+    device.companyId ? String(device.companyId) : "",
+  );
+  const [branchId, setBranchId] = useState(
+    device.branchId ? String(device.branchId) : "",
+  );
+  const [userId, setUserId] = useState(
+    device.userId ? String(device.userId) : "",
+  );
 
-  const filteredBranches = companyId
-    ? branches.filter((b) => b.companyId === Number(companyId))
-    : [];
+  const filteredBranches = useMemo(
+    () =>
+      companyId
+        ? branches.filter((b) => b.companyId === Number(companyId))
+        : [],
+    [branches, companyId],
+  );
+
+  const typeOptions = useMemo(
+    () => deviceTypes.map((t) => ({ value: String(t.id), label: t.nama })),
+    [deviceTypes],
+  );
+
+  const statusOptions = useMemo(
+    () => STATUS_OPTIONS.map((s) => ({ value: s, label: s })),
+    [],
+  );
+
+  const companyOptions = useMemo(
+    () => companies.map((c) => ({ value: String(c.id), label: c.nama })),
+    [companies],
+  );
+
+  const branchOptions = useMemo(
+    () => filteredBranches.map((b) => ({ value: String(b.id), label: b.nama })),
+    [filteredBranches],
+  );
+
+  const userOptions = useMemo(
+    () => users.map((u) => ({ value: String(u.id), label: u.nama })),
+    [users],
+  );
+
+  const selectedTypeName = deviceTypes.find(
+    (t) => t.id === Number(typeId),
+  )?.nama;
+  const dynamicFields = getFieldsForType(selectedTypeName);
+
+  function handleCompanyChange(nextCompanyId: string) {
+    setCompanyId(nextCompanyId);
+    if (!nextCompanyId) {
+      setBranchId("");
+      return;
+    }
+    const stillValid = branches.some(
+      (b) => b.id === Number(branchId) && b.companyId === Number(nextCompanyId),
+    );
+    if (!stillValid) {
+      setBranchId("");
+    }
+  }
+
+  function attrValue(key: string): string {
+    return device.attributes.find((a) => a.key === key)?.value ?? "";
+  }
+
+  function mulaiEdit() {
+    setTypeId(device.typeId ? String(device.typeId) : "");
+    setStatus(device.status);
+    setCompanyId(device.companyId ? String(device.companyId) : "");
+    setBranchId(device.branchId ? String(device.branchId) : "");
+    setUserId(device.userId ? String(device.userId) : "");
+    setEditing(true);
+  }
 
   const inputClass =
     "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500";
@@ -123,49 +215,77 @@ export function KartuDeviceInline({
             <div className="min-w-0 flex-1 grid gap-3">
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-500">Nama Perangkat</label>
-                  <input name="nama" required defaultValue={device.nama} className={inputClass} />
+                  <label className="mb-1 block text-xs font-medium text-slate-500">
+                    Nama Perangkat
+                  </label>
+                  <input
+                    name="nama"
+                    required
+                    defaultValue={device.nama}
+                    className={inputClass}
+                  />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-500">Jenis</label>
-                  <select name="type_id" defaultValue={device.typeId ?? ""} className={inputClass}>
-                    <option value="">Pilih jenis</option>
-                    {deviceTypes.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.nama}
-                      </option>
-                    ))}
-                  </select>
+                  <label className="mb-1 block text-xs font-medium text-slate-500">
+                    Jenis
+                  </label>
+                  <SearchableSelect
+                    name="type_id"
+                    value={typeId}
+                    onChange={setTypeId}
+                    options={typeOptions}
+                    placeholder="Ketik atau pilih jenis…"
+                  />
                 </div>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-3">
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-500">Merk</label>
-                  <input name="merk" defaultValue={device.merk ?? ""} className={inputClass} />
+                  <label className="mb-1 block text-xs font-medium text-slate-500">
+                    Merk
+                  </label>
+                  <input
+                    name="merk"
+                    defaultValue={device.merk ?? ""}
+                    className={inputClass}
+                  />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-500">Tipe/Model</label>
-                  <input name="tipe" defaultValue={device.tipe ?? ""} className={inputClass} />
+                  <label className="mb-1 block text-xs font-medium text-slate-500">
+                    Tipe/Model
+                  </label>
+                  <input
+                    name="tipe"
+                    defaultValue={device.tipe ?? ""}
+                    className={inputClass}
+                  />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-500">No. Seri</label>
-                  <input name="serial_number" defaultValue={device.serialNumber ?? ""} className={inputClass} />
+                  <label className="mb-1 block text-xs font-medium text-slate-500">
+                    No. Seri
+                  </label>
+                  <input
+                    name="serial_number"
+                    defaultValue={device.serialNumber ?? ""}
+                    className={inputClass}
+                  />
                 </div>
               </div>
 
-              {device.attributes.length > 0 && (
+              {dynamicFields.length > 0 && (
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                   <p className="mb-2 text-xs font-semibold text-slate-500">
-                    Spesifikasi {device.type?.nama}
+                    Spesifikasi {selectedTypeName}
                   </p>
                   <div className="grid gap-3 sm:grid-cols-2">
-                    {device.attributes.map((attr) => (
-                      <div key={attr.key}>
-                        <label className="mb-1 block text-xs font-medium text-slate-500">{attr.key}</label>
+                    {dynamicFields.map((field) => (
+                      <div key={field}>
+                        <label className="mb-1 block text-xs font-medium text-slate-500">
+                          {field}
+                        </label>
                         <input
-                          name={"attr_" + attr.key}
-                          defaultValue={attr.value ?? ""}
+                          name={"attr_" + field}
+                          defaultValue={attrValue(field)}
                           className={inputClass + " bg-white"}
                         />
                       </div>
@@ -176,26 +296,40 @@ export function KartuDeviceInline({
 
               <div className="grid gap-3 sm:grid-cols-3">
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-500">Status</label>
-                  <select name="status" defaultValue={device.status} className={inputClass}>
-                    {STATUS_OPTIONS.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
+                  <label className="mb-1 block text-xs font-medium text-slate-500">
+                    Status
+                  </label>
+                  <SearchableSelect
+                    name="status"
+                    value={status}
+                    onChange={(val) => setStatus(val || device.status)}
+                    options={statusOptions}
+                    allowClear={false}
+                    placeholder="Pilih status…"
+                  />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-500">Tgl Beli</label>
-                  <input name="tgl_beli" type="date" defaultValue={toDateInput(device.tglBeli)} className={inputClass} />
+                  <label className="mb-1 block text-xs font-medium text-slate-500">
+                    Tgl Beli
+                  </label>
+                  <input
+                    name="tgl_beli"
+                    type="date"
+                    defaultValue={toDateInput(device.tglBeli)}
+                    className={inputClass}
+                  />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-500">Harga Beli</label>
+                  <label className="mb-1 block text-xs font-medium text-slate-500">
+                    Harga Beli
+                  </label>
                   <input
                     name="harga_beli"
                     type="number"
                     min="0"
-                    defaultValue={device.hargaBeli != null ? String(device.hargaBeli) : ""}
+                    defaultValue={
+                      device.hargaBeli != null ? String(device.hargaBeli) : ""
+                    }
                     className={inputClass}
                   />
                 </div>
@@ -203,56 +337,50 @@ export function KartuDeviceInline({
 
               <div className="grid gap-3 sm:grid-cols-3">
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-500">Perusahaan</label>
-                  <select
+                  <label className="mb-1 block text-xs font-medium text-slate-500">
+                    Perusahaan
+                  </label>
+                  <SearchableSelect
                     name="company_id"
                     value={companyId}
-                    onChange={(e) => {
-                      setCompanyId(e.target.value);
-                      setBranchId("");
-                    }}
-                    className={inputClass}
-                  >
-                    <option value="">Pilih perusahaan</option>
-                    {companies.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.nama}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={handleCompanyChange}
+                    options={companyOptions}
+                    placeholder="Ketik perusahaan…"
+                  />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-500">Cabang</label>
-                  <select
+                  <label className="mb-1 block text-xs font-medium text-slate-500">
+                    Cabang
+                  </label>
+                  <SearchableSelect
                     name="branch_id"
                     value={branchId}
-                    onChange={(e) => setBranchId(e.target.value)}
+                    onChange={setBranchId}
+                    options={branchOptions}
                     disabled={!companyId}
-                    className={inputClass + " disabled:bg-slate-100"}
-                  >
-                    <option value="">{companyId ? "Pilih cabang" : "Pilih perusahaan dulu"}</option>
-                    {filteredBranches.map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.nama}
-                      </option>
-                    ))}
-                  </select>
+                    placeholder={
+                      companyId ? "Ketik cabang…" : "Pilih perusahaan dulu"
+                    }
+                  />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-500">Pengguna</label>
-                  <select name="user_id" defaultValue={device.userId ?? ""} className={inputClass}>
-                    <option value="">Belum ada</option>
-                    {users.map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.nama}
-                      </option>
-                    ))}
-                  </select>
+                  <label className="mb-1 block text-xs font-medium text-slate-500">
+                    Pengguna
+                  </label>
+                  <SearchableSelect
+                    name="user_id"
+                    value={userId}
+                    onChange={setUserId}
+                    options={userOptions}
+                    placeholder="Ketik nama pengguna…"
+                  />
                 </div>
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-500">Keterangan</label>
+                <label className="mb-1 block text-xs font-medium text-slate-500">
+                  Keterangan
+                </label>
                 <textarea
                   name="keterangan"
                   rows={2}
@@ -294,13 +422,20 @@ export function KartuDeviceInline({
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-3">
             <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-xl font-bold text-slate-800">{device.nama}</h1>
+              <h1 className="text-xl font-bold text-slate-800">
+                {device.nama}
+              </h1>
               {device.kodeInventaris && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-slate-800 px-2.5 py-0.5 font-mono text-xs font-medium text-white">
                   <Tag className="h-3 w-3" /> {device.kodeInventaris}
                 </span>
               )}
-              <span className={"inline-block rounded-full px-2.5 py-0.5 text-xs font-medium " + statusColor(device.status)}>
+              <span
+                className={
+                  "inline-block rounded-full px-2.5 py-0.5 text-xs font-medium " +
+                  statusColor(device.status)
+                }
+              >
                 {device.status}
               </span>
               <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
@@ -309,7 +444,7 @@ export function KartuDeviceInline({
             </div>
             <button
               type="button"
-              onClick={() => setEditing(true)}
+              onClick={mulaiEdit}
               className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-100"
             >
               <Pencil className="h-3.5 w-3.5" /> Edit
@@ -322,15 +457,26 @@ export function KartuDeviceInline({
           </p>
 
           <div className="mt-5 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
-            <Info label="Kode Inventaris" value={device.kodeInventaris ?? "-"} mono />
+            <Info
+              label="Kode Inventaris"
+              value={device.kodeInventaris ?? "-"}
+              mono
+            />
             <Info label="Jenis" value={device.type?.nama ?? "-"} />
             <Info label="Perusahaan" value={device.company?.nama ?? "-"} />
             <Info label="Cabang" value={device.branch?.nama ?? "-"} />
             <Info label="Pengguna Saat Ini" value={device.user?.nama ?? "-"} />
-            <Info label="Tanggal Beli" value={device.tglBeli ? toDateInput(device.tglBeli) : "-"} />
+            <Info
+              label="Tanggal Beli"
+              value={device.tglBeli ? toDateInput(device.tglBeli) : "-"}
+            />
             <Info
               label="Harga Beli"
-              value={device.hargaBeli ? "Rp " + Number(device.hargaBeli).toLocaleString("id-ID") : "-"}
+              value={
+                device.hargaBeli
+                  ? "Rp " + Number(device.hargaBeli).toLocaleString("id-ID")
+                  : "-"
+              }
             />
             <Info label="Keterangan" value={device.keterangan ?? "-"} />
           </div>
@@ -345,7 +491,11 @@ export function KartuDeviceInline({
               </div>
               <div className="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
                 {device.attributes.map((attr) => (
-                  <Info key={attr.key} label={attr.key} value={attr.value ?? "-"} />
+                  <Info
+                    key={attr.key}
+                    label={attr.key}
+                    value={attr.value ?? "-"}
+                  />
                 ))}
               </div>
             </div>
@@ -356,11 +506,21 @@ export function KartuDeviceInline({
   );
 }
 
-function Info({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+function Info({
+  label,
+  value,
+  mono,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
   return (
     <div>
       <p className="text-xs text-slate-400">{label}</p>
-      <p className={"font-medium text-slate-700" + (mono ? " font-mono" : "")}>{value}</p>
+      <p className={"font-medium text-slate-700" + (mono ? " font-mono" : "")}>
+        {value}
+      </p>
     </div>
   );
 }

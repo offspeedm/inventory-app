@@ -1,6 +1,7 @@
 // src/app/api/devices/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { WHERE_USER_AKTIF } from '@/lib/status-filter';
 
 export async function GET(
   _req: NextRequest,
@@ -49,11 +50,22 @@ export async function GET(
             userTerkendala: { select: { id: true, nama: true } },
           },
         }),
-        prisma.deviceType.findMany({ orderBy: { nama: 'asc' } }),
-        prisma.company.findMany({ orderBy: { nama: 'asc' } }),
-        prisma.branch.findMany({ orderBy: { nama: 'asc' } }),
+        prisma.deviceType.findMany({
+          select: { id: true, nama: true },
+          orderBy: { nama: 'asc' },
+        }),
+        prisma.company.findMany({
+          select: { id: true, nama: true },
+          orderBy: { nama: 'asc' },
+        }),
+        prisma.branch.findMany({
+          select: { id: true, nama: true, companyId: true },
+          orderBy: { nama: 'asc' },
+        }),
         prisma.user.findMany({
-          where: { status: 'Aktif' },
+          where: {
+            OR: [WHERE_USER_AKTIF, { devices: { some: { id: deviceId } } }],
+          },
           select: { id: true, nama: true },
           orderBy: { nama: 'asc' },
         }),
@@ -69,6 +81,7 @@ export async function GET(
     return NextResponse.json({
       device: {
         ...device,
+        hargaBeli: device.hargaBeli ? Number(device.hargaBeli) : null,
         tickets,
       },
       options: {

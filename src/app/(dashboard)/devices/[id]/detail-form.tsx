@@ -1,10 +1,10 @@
-// src/app/(dashboard)/devices/[id]/detail-form.tsx
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { MonitorSmartphone, Check, Clock, ListChecks, Tag } from "lucide-react";
 import { updateDevice } from "../actions";
 import { getFieldsForType } from "@/config/device-fields";
+import { SearchableSelect } from "@/components/searchable-select";
 
 type Option = { id: number; nama: string };
 type Branch = Option & { companyId: number | null };
@@ -35,6 +35,7 @@ const STATUS_OPTIONS = [
   "Perbaikan",
   "Tidak dipakai",
   "Hilang",
+  "Dihibahkan",
 ];
 
 function toDateInputValue(value: Date | string | null): string {
@@ -46,8 +47,6 @@ function statusColor(status: string): string {
   switch (status) {
     case "Aktif":
       return "bg-green-100 text-green-700";
-    case "Available":
-      return "bg-sky-100 text-sky-700";
     case "Rusak":
       return "bg-orange-100 text-orange-700";
     case "Perbaikan":
@@ -66,7 +65,6 @@ const fieldWrap =
 const fieldLabel = "mb-0.5 block text-[11px] font-medium text-slate-400";
 const fieldInput =
   "w-full border-0 border-b border-dashed border-slate-200 bg-transparent p-0 pb-0.5 text-sm font-medium text-slate-800 focus:border-solid focus:border-indigo-400 focus:outline-none focus:ring-0";
-const fieldSelect = fieldInput + " cursor-pointer";
 const fieldTextarea = fieldInput + " resize-y";
 
 export function DetailFormDevice({
@@ -89,6 +87,7 @@ export function DetailFormDevice({
   const [typeId, setTypeId] = useState(
     device.typeId ? String(device.typeId) : "",
   );
+  const [status, setStatus] = useState(device.status);
   const [companyId, setCompanyId] = useState(
     device.companyId ? String(device.companyId) : "",
   );
@@ -98,29 +97,60 @@ export function DetailFormDevice({
   const [userId, setUserId] = useState(
     device.userId ? String(device.userId) : "",
   );
-  const [status, setStatus] = useState(device.status);
   const [saving, setSaving] = useState(false);
   const [savedTick, setSavedTick] = useState(0);
-
-  useEffect(() => {
-    setUserId(device.userId ? String(device.userId) : "");
-    setStatus(device.status);
-  }, [device.userId, device.status]);
-
-  function handleUserChange(nextUserId: string) {
-    if (userId !== "" && nextUserId === "") {
-      setStatus("Available");
-    }
-    setUserId(nextUserId);
-  }
 
   const selectedTypeName = deviceTypes.find(
     (t) => t.id === Number(typeId),
   )?.nama;
   const dynamicFields = getFieldsForType(selectedTypeName);
-  const filteredBranches = companyId
-    ? branches.filter((b) => b.companyId === Number(companyId))
-    : [];
+
+  const filteredBranches = useMemo(
+    () =>
+      companyId
+        ? branches.filter((b) => b.companyId === Number(companyId))
+        : [],
+    [branches, companyId],
+  );
+
+  const typeOptions = useMemo(
+    () => deviceTypes.map((t) => ({ value: String(t.id), label: t.nama })),
+    [deviceTypes],
+  );
+
+  const statusSelectOptions = useMemo(
+    () => STATUS_OPTIONS.map((s) => ({ value: s, label: s })),
+    [],
+  );
+
+  const userOptions = useMemo(
+    () => users.map((u) => ({ value: String(u.id), label: u.nama })),
+    [users],
+  );
+
+  const companyOptions = useMemo(
+    () => companies.map((c) => ({ value: String(c.id), label: c.nama })),
+    [companies],
+  );
+
+  const branchOptions = useMemo(
+    () => filteredBranches.map((b) => ({ value: String(b.id), label: b.nama })),
+    [filteredBranches],
+  );
+
+  function handleCompanyChange(nextCompanyId: string) {
+    setCompanyId(nextCompanyId);
+    if (!nextCompanyId) {
+      setBranchId("");
+      return;
+    }
+    const stillValid = branches.some(
+      (b) => b.id === Number(branchId) && b.companyId === Number(nextCompanyId),
+    );
+    if (!stillValid) {
+      setBranchId("");
+    }
+  }
 
   function attrValue(key: string): string {
     return device.attributes.find((a) => a.key === key)?.value ?? "";
@@ -165,10 +195,10 @@ export function DetailFormDevice({
                   <span
                     className={
                       "inline-block rounded-full px-2.5 py-0.5 text-xs font-medium " +
-                      statusColor(device.status)
+                      statusColor(status)
                     }
                   >
-                    {device.status}
+                    {status}
                   </span>
                   <span
                     className={
@@ -201,19 +231,14 @@ export function DetailFormDevice({
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className={fieldWrap}>
             <label className={fieldLabel}>Jenis</label>
-            <select
+            <SearchableSelect
               name="type_id"
               value={typeId}
-              onChange={(e) => setTypeId(e.target.value)}
-              className={fieldSelect}
-            >
-              <option value="">-</option>
-              {deviceTypes.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.nama}
-                </option>
-              ))}
-            </select>
+              onChange={setTypeId}
+              options={typeOptions}
+              variant="underline"
+              placeholder="Pilih jenis…"
+            />
           </div>
           <div className={fieldWrap}>
             <label className={fieldLabel}>Merk</label>
@@ -271,18 +296,15 @@ export function DetailFormDevice({
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className={fieldWrap}>
             <label className={fieldLabel}>Status</label>
-            <select
+            <SearchableSelect
               name="status"
               value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              className={fieldSelect}
-            >
-              {STATUS_OPTIONS.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
+              onChange={(val) => setStatus(val || device.status)}
+              options={statusSelectOptions}
+              variant="underline"
+              allowClear={false}
+              placeholder="Pilih status…"
+            />
           </div>
           <div className={fieldWrap}>
             <label className={fieldLabel}>Tgl Beli</label>
@@ -306,61 +328,40 @@ export function DetailFormDevice({
           </div>
           <div className={fieldWrap}>
             <label className={fieldLabel}>Pengguna</label>
-            <select
+            <SearchableSelect
               name="user_id"
               value={userId}
-              onChange={(e) => handleUserChange(e.target.value)}
-              className={fieldSelect}
-            >
-              <option value="">Belum ada</option>
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.nama}
-                </option>
-              ))}
-            </select>
+              onChange={setUserId}
+              options={userOptions}
+              variant="underline"
+              placeholder="Belum ada"
+            />
           </div>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
           <div className={fieldWrap}>
             <label className={fieldLabel}>Perusahaan</label>
-            <select
+            <SearchableSelect
               name="company_id"
               value={companyId}
-              onChange={(e) => {
-                setCompanyId(e.target.value);
-                setBranchId("");
-              }}
-              className={fieldSelect}
-            >
-              <option value="">-</option>
-              {companies.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.nama}
-                </option>
-              ))}
-            </select>
+              onChange={handleCompanyChange}
+              options={companyOptions}
+              variant="underline"
+              placeholder="Belum ditempatkan"
+            />
           </div>
           <div className={fieldWrap}>
             <label className={fieldLabel}>Cabang</label>
-            <select
+            <SearchableSelect
               name="branch_id"
               value={branchId}
-              onChange={(e) => setBranchId(e.target.value)}
+              onChange={setBranchId}
+              options={branchOptions}
               disabled={!companyId}
-              className={
-                fieldSelect +
-                " disabled:cursor-not-allowed disabled:text-slate-300"
-              }
-            >
-              <option value="">-</option>
-              {filteredBranches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.nama}
-                </option>
-              ))}
-            </select>
+              variant="underline"
+              placeholder={companyId ? "Pilih cabang…" : "Pilih PT dulu"}
+            />
           </div>
         </div>
 

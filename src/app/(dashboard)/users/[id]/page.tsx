@@ -117,7 +117,7 @@ export default async function UserDetailPage({
         user={{
           id: user.id,
           nama: user.nama,
-          email: user.email,
+          email: user.email ?? "",
           noTelp: user.noTelp,
           divisi: user.divisi,
           status: user.status,

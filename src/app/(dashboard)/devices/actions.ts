@@ -130,6 +130,8 @@ export async function tambahDevice(formData: FormData) {
 
   revalidatePath("/devices");
   revalidatePath(`/devices/${device.id}`);
+  revalidatePath("/users");
+  if (dataBaru.userId) revalidatePath(`/users/${dataBaru.userId}`);
   revalidatePath("/dashboard");
   revalidatePath("/report");
 }
@@ -152,7 +154,7 @@ export async function updateDevice(formData: FormData) {
 
   const existingDevice = await prisma.device.findUnique({
     where: { id },
-    select: { kodeInventaris: true },
+    select: { kodeInventaris: true, userId: true },
   });
 
   const kodeInventarisBaru =
@@ -265,6 +267,9 @@ export async function updateDevice(formData: FormData) {
 
   revalidatePath("/devices");
   revalidatePath(`/devices/${id}`);
+  revalidatePath("/users");
+  if (existingDevice?.userId) revalidatePath(`/users/${existingDevice.userId}`);
+  if (dataBaru.userId) revalidatePath(`/users/${dataBaru.userId}`);
   revalidatePath("/dashboard");
   revalidatePath("/report");
 }

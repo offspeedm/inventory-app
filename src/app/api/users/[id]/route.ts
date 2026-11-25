@@ -20,8 +20,6 @@ export async function GET(
         id: true,
         nama: true,
         email: true,
-        jabatan: true,
-        role: true,
         divisi: true,
         noTelp: true,
         status: true,
@@ -38,7 +36,7 @@ export async function GET(
             merk: true,
             tipe: true,
             status: true,
-            deviceType: { select: { nama: true } },
+            type: { select: { nama: true } },
           },
         },
         assignments: {
@@ -68,18 +66,18 @@ export async function GET(
     const tickets = await prisma.ticket.findMany({
       where: {
         OR: [
-          { pelaporId: userId },
+          { userId },
           { userTerkendalaId: userId },
           { teknisiId: userId },
         ],
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { tglLapor: 'desc' },
       select: {
         id: true,
-        nomorTiket: true,
+        noTiket: true,
         judul: true,
         status: true,
-        createdAt: true,
+        tglLapor: true,
         device: {
           select: {
             id: true,

@@ -4,6 +4,7 @@
 import { useMemo, useState } from "react";
 import { Check, Eye, EyeOff, Loader2, X } from "lucide-react";
 import { updateUser } from "../actions";
+import { SearchableSelect } from "@/components/searchable-select";
 
 type UserDetail = {
   id: number;
@@ -27,6 +28,13 @@ const DEFAULT_DIVISI = [
   "IT-CI-BD",
   "Sales",
   "Management",
+  "Messenger",
+  "Others",
+];
+
+const STATUS_SELECT_OPTIONS = [
+  { value: "Aktif", label: "Aktif" },
+  { value: "Non-Aktif", label: "Non-Aktif" },
 ];
 
 function getInitials(nama: string): string {
@@ -77,12 +85,19 @@ export function DetailFormUser({
   const divisiOptions = useMemo(() => {
     const set = new Set(DEFAULT_DIVISI);
     if (user.divisi?.trim()) set.add(user.divisi.trim());
-    return Array.from(set);
+    return Array.from(set).map((d) => ({ value: d, label: d }));
   }, [user.divisi]);
 
-  const filteredBranches = useMemo(() => {
+  const companyOptions = useMemo(
+    () => companies.map((c) => ({ value: String(c.id), label: c.nama })),
+    [companies],
+  );
+
+  const filteredBranchOptions = useMemo(() => {
     if (!companyId) return [];
-    return branches.filter((b) => b.companyId === Number(companyId));
+    return branches
+      .filter((b) => b.companyId === Number(companyId))
+      .map((b) => ({ value: String(b.id), label: b.nama }));
   }, [branches, companyId]);
 
   function handleCompanyChange(nextCompanyId: string) {
@@ -265,75 +280,67 @@ export function DetailFormUser({
           <label className="block text-xs font-medium text-slate-400">
             Divisi
           </label>
-          <select
+          <SearchableSelect
             name="divisi"
             value={divisi}
-            onChange={(e) => setDivisi(e.target.value)}
-            className="mt-1 w-full border-b border-slate-200 bg-transparent pb-1.5 text-sm text-slate-800 focus:border-indigo-500 focus:outline-none"
-          >
-            <option value="">Tanpa divisi</option>
-            {divisiOptions.map((d) => (
-              <option key={d} value={d}>
-                {d}
-              </option>
-            ))}
-          </select>
+            onChange={setDivisi}
+            options={divisiOptions}
+            allowCustom
+            variant="underline"
+            placeholder="Ketik atau pilih divisi…"
+            className="mt-1"
+          />
         </div>
 
         <div>
           <label className="block text-xs font-medium text-slate-400">
             Status
           </label>
-          <select
+          <SearchableSelect
             name="status"
             value={status}
-            onChange={(e) => setStatus(e.target.value as "Aktif" | "Non-Aktif")}
-            className="mt-1 w-full border-b border-slate-200 bg-transparent pb-1.5 text-sm text-slate-800 focus:border-indigo-500 focus:outline-none"
-          >
-            <option value="Aktif">Aktif</option>
-            <option value="Non-Aktif">Non-Aktif</option>
-          </select>
+            onChange={(val) =>
+              setStatus(val === "Non-Aktif" ? "Non-Aktif" : "Aktif")
+            }
+            options={STATUS_SELECT_OPTIONS}
+            allowClear={false}
+            variant="underline"
+            placeholder="Pilih status…"
+            className="mt-1"
+          />
         </div>
 
         <div>
           <label className="block text-xs font-medium text-slate-400">
             Perusahaan
           </label>
-          <select
+          <SearchableSelect
             name="company_id"
             value={companyId}
-            onChange={(e) => handleCompanyChange(e.target.value)}
-            className="mt-1 w-full border-b border-slate-200 bg-transparent pb-1.5 text-sm text-slate-800 focus:border-indigo-500 focus:outline-none"
-          >
-            <option value="">Belum ditempatkan</option>
-            {companies.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nama}
-              </option>
-            ))}
-          </select>
+            onChange={handleCompanyChange}
+            options={companyOptions}
+            variant="underline"
+            placeholder="Belum ditempatkan…"
+            className="mt-1"
+          />
         </div>
 
         <div>
           <label className="block text-xs font-medium text-slate-400">
             Cabang
           </label>
-          <select
+          <SearchableSelect
             name="branch_id"
             value={branchId}
             disabled={!companyId}
-            onChange={(e) => setBranchId(e.target.value)}
-            className="mt-1 w-full border-b border-slate-200 bg-transparent pb-1.5 text-sm text-slate-800 disabled:text-slate-400 focus:border-indigo-500 focus:outline-none"
-          >
-            <option value="">
-              {companyId ? "Pilih cabang..." : "Pilih PT dulu"}
-            </option>
-            {filteredBranches.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.nama}
-              </option>
-            ))}
-          </select>
+            onChange={setBranchId}
+            options={filteredBranchOptions}
+            variant="underline"
+            placeholder={
+              companyId ? "Ketik atau pilih cabang…" : "Pilih PT dulu"
+            }
+            className="mt-1"
+          />
         </div>
 
         <div className="flex flex-col items-center justify-center rounded-xl bg-slate-50 px-4 py-2.5 text-center">

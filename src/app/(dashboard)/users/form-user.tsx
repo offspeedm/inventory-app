@@ -1,11 +1,25 @@
+// src/app/(dashboard)/users/form-user.tsx
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Plus, X, UserPlus, Eye, EyeOff } from "lucide-react";
 import { tambahUser } from "./actions";
+import { SearchableSelect } from "@/components/searchable-select";
 
 type Company = { id: number; nama: string };
 type Branch = { id: number; nama: string; companyId: number | null };
+
+const DIVISI = [
+  "Others",
+  "Admin - HR",
+  "Operational",
+  "Finance - Accounting",
+  "Billing",
+  "IT-CI-BD",
+  "Messenger",
+  "Management",
+  "Sales",
+];
 
 export function FormUser({
   companies,
@@ -16,33 +30,38 @@ export function FormUser({
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   const [open, setOpen] = useState(false);
+  const [divisi, setDivisi] = useState<string>("Others");
   const [companyId, setCompanyId] = useState<string>("");
+  const [branchId, setBranchId] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
-  const filteredBranches = companyId
-    ? branches.filter((b) => b.companyId === Number(companyId))
-    : [];
+  const divisiOptions = useMemo(
+    () => DIVISI.map((s) => ({ value: s, label: s })),
+    [],
+  );
+
+  const companyOptions = useMemo(
+    () => companies.map((c) => ({ value: String(c.id), label: c.nama })),
+    [companies],
+  );
+
+  const branchOptions = useMemo(() => {
+    if (!companyId) return [];
+    return branches
+      .filter((b) => b.companyId === Number(companyId))
+      .map((b) => ({ value: String(b.id), label: b.nama }));
+  }, [branches, companyId]);
 
   const inputClass =
     "w-full border border-slate-300 rounded-lg px-3 py-2 text-sm transition-shadow focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500";
 
-  const DIVISI = [
-    "Others",
-    "Admin - HR",
-    "Operational",
-    "Finance - Accounting",
-    "Billing",
-    "IT-CI-BD",
-    "Messenger",
-    "Management",
-    "Sales",
-  ];
-
   function resetSemua() {
     formRef.current?.reset();
+    setDivisi("Others");
     setCompanyId("");
+    setBranchId("");
     setShowPassword(false);
     setErrorMsg(null);
   }
@@ -143,6 +162,7 @@ export function FormUser({
                   <input
                     name="email"
                     type="email"
+                    required
                     placeholder="nama@speedmark.co.id"
                     className={inputClass}
                   />
@@ -192,17 +212,13 @@ export function FormUser({
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">
                   Divisi
                 </label>
-                <select
+                <SearchableSelect
                   name="divisi"
-                  defaultValue="Others"
-                  className={inputClass}
-                >
-                  {DIVISI.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
+                  value={divisi}
+                  onChange={setDivisi}
+                  options={divisiOptions}
+                  placeholder="Ketik atau pilih divisi..."
+                />
               </div>
 
               <div className="grid sm:grid-cols-2 gap-3">
@@ -210,38 +226,33 @@ export function FormUser({
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">
                     Perusahaan
                   </label>
-                  <select
+                  <SearchableSelect
                     name="company_id"
                     value={companyId}
-                    onChange={(e) => setCompanyId(e.target.value)}
-                    className={inputClass}
-                  >
-                    <option value="">Pilih perusahaan…</option>
-                    {companies.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.nama}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(nextId) => {
+                      setCompanyId(nextId);
+                      setBranchId("");
+                    }}
+                    options={companyOptions}
+                    placeholder="Ketik nama perusahaan..."
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">
                     Cabang
                   </label>
-                  <select
+                  <SearchableSelect
                     name="branch_id"
+                    value={branchId}
+                    onChange={setBranchId}
                     disabled={!companyId}
-                    className={inputClass + " disabled:bg-slate-100"}
-                  >
-                    <option value="">
-                      {companyId ? "Pilih cabang…" : "Pilih perusahaan dulu"}
-                    </option>
-                    {filteredBranches.map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.nama}
-                      </option>
-                    ))}
-                  </select>
+                    options={branchOptions}
+                    placeholder={
+                      companyId
+                        ? "Ketik nama cabang..."
+                        : "Pilih perusahaan dulu"
+                    }
+                  />
                 </div>
               </div>
 

@@ -82,7 +82,11 @@ export function TabelUser({ users, companies, branches }: TabelUserProps) {
     parseStringList(searchParams.get("status")),
   );
 
-  // Otomatis terbuka jika sudah ada filter aktif di URL, default tertutup agar ringkas
+  // Pencarian cepat di dalam masing-masing kolom slicer
+  const [companyFilterQuery, setCompanyFilterQuery] = useState("");
+  const [branchFilterQuery, setBranchFilterQuery] = useState("");
+  const [divisionFilterQuery, setDivisionFilterQuery] = useState("");
+
   const [isFilterOpen, setIsFilterOpen] = useState<boolean>(() =>
     Boolean(
       searchParams.get("company") ||
@@ -122,7 +126,6 @@ export function TabelUser({ users, companies, branches }: TabelUserProps) {
     return !Number.isNaN(e) && e > 0 ? e : null;
   }, [searchParams]);
 
-  // Sinkronisasi state filter/pencarian ke URL query string
   const buildQueryString = useCallback(() => {
     const params = new URLSearchParams();
     if (search.trim()) params.set("q", search.trim());
@@ -162,7 +165,6 @@ export function TabelUser({ users, companies, branches }: TabelUserProps) {
   const rawQuery = buildQueryString();
   const detailQuery = rawQuery ? `?${rawQuery}` : "";
 
-  // Daftar divisi unik dari data user
   const divisionOptions = useMemo(() => {
     const set = new Set<string>();
     let hasEmpty = false;
@@ -189,6 +191,24 @@ export function TabelUser({ users, companies, branches }: TabelUserProps) {
       (b) => b.companyId !== null && selectedCompanies.includes(b.companyId),
     );
   }, [branches, selectedCompanies]);
+
+  const visibleCompanies = useMemo(() => {
+    const q = companyFilterQuery.trim().toLowerCase();
+    if (!q) return companies;
+    return companies.filter((c) => c.nama.toLowerCase().includes(q));
+  }, [companies, companyFilterQuery]);
+
+  const visibleBranches = useMemo(() => {
+    const q = branchFilterQuery.trim().toLowerCase();
+    if (!q) return availableBranches;
+    return availableBranches.filter((b) => b.nama.toLowerCase().includes(q));
+  }, [availableBranches, branchFilterQuery]);
+
+  const visibleDivisions = useMemo(() => {
+    const q = divisionFilterQuery.trim().toLowerCase();
+    if (!q) return divisionOptions;
+    return divisionOptions.filter((d) => d.label.toLowerCase().includes(q));
+  }, [divisionOptions, divisionFilterQuery]);
 
   function toggleNumber(list: number[], id: number): number[] {
     return list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
@@ -227,6 +247,9 @@ export function TabelUser({ users, companies, branches }: TabelUserProps) {
     setSelectedBranches([]);
     setSelectedDivisions([]);
     setSelectedStatuses([]);
+    setCompanyFilterQuery("");
+    setBranchFilterQuery("");
+    setDivisionFilterQuery("");
     setPage(1);
   }
 
@@ -335,7 +358,6 @@ export function TabelUser({ users, companies, branches }: TabelUserProps) {
     <div className="space-y-3">
       {/* ================= FILTER SLICER DROPDOWN CARD ================= */}
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
-        {/* Header Bar Filter (Klik untuk buka/tutup dropdown) */}
         <div
           role="button"
           tabIndex={0}
@@ -398,19 +420,32 @@ export function TabelUser({ users, companies, branches }: TabelUserProps) {
               <div className="mb-2 border-b border-slate-100 pb-1.5 text-center text-xs font-semibold text-slate-700">
                 Perusahaan
               </div>
-              <div className="flex flex-col gap-1.5">
-                {companies.map((c) => (
-                  <SlicerButton
-                    key={c.id}
-                    label={c.nama.replace(/^PT\.?\s*/i, "")}
-                    active={selectedCompanies.includes(c.id)}
-                    onClick={() => handleToggleCompany(c.id)}
-                  />
-                ))}
+              {companies.length > 5 && (
+                <SlicerSearchInput
+                  value={companyFilterQuery}
+                  onChange={setCompanyFilterQuery}
+                  placeholder="Ketik perusahaan…"
+                />
+              )}
+              <div className="flex max-h-48 flex-col gap-1.5 overflow-y-auto">
+                {visibleCompanies.length === 0 ? (
+                  <p className="py-3 text-center text-xs text-slate-400">
+                    Tidak ditemukan
+                  </p>
+                ) : (
+                  visibleCompanies.map((c) => (
+                    <SlicerButton
+                      key={c.id}
+                      label={c.nama.replace(/^PT\.?\s*/i, "")}
+                      active={selectedCompanies.includes(c.id)}
+                      onClick={() => handleToggleCompany(c.id)}
+                    />
+                  ))
+                )}
               </div>
             </div>
 
-            {/* Kolom 2: Cabang (3 sub-kolom, judul di tengah) */}
+            {/* Kolom 2: Cabang */}
             <div className="flex flex-col p-3 sm:col-span-2 lg:col-span-4">
               <div className="mb-2 flex items-center justify-center gap-1.5 border-b border-slate-100 pb-1.5 text-center">
                 <span className="text-xs font-semibold text-slate-700">
@@ -422,13 +457,20 @@ export function TabelUser({ users, companies, branches }: TabelUserProps) {
                   </span>
                 )}
               </div>
-              {availableBranches.length === 0 ? (
+              {availableBranches.length > 6 && (
+                <SlicerSearchInput
+                  value={branchFilterQuery}
+                  onChange={setBranchFilterQuery}
+                  placeholder="Ketik nama cabang…"
+                />
+              )}
+              {visibleBranches.length === 0 ? (
                 <p className="py-4 text-center text-xs text-slate-400">
                   Tidak ada cabang
                 </p>
               ) : (
-                <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-                  {availableBranches.map((b) => (
+                <div className="grid max-h-48 grid-cols-2 gap-1.5 overflow-y-auto sm:grid-cols-3">
+                  {visibleBranches.map((b) => (
                     <SlicerButton
                       key={b.id}
                       label={b.nama}
@@ -449,20 +491,33 @@ export function TabelUser({ users, companies, branches }: TabelUserProps) {
               <div className="mb-2 border-b border-slate-100 pb-1.5 text-center text-xs font-semibold text-slate-700">
                 Divisi
               </div>
-              <div className="flex flex-col gap-1.5">
-                {divisionOptions.map((div) => (
-                  <SlicerButton
-                    key={div.value}
-                    label={div.label}
-                    active={selectedDivisions.includes(div.value)}
-                    onClick={() => {
-                      setSelectedDivisions((prev) =>
-                        toggleString(prev, div.value),
-                      );
-                      setPage(1);
-                    }}
-                  />
-                ))}
+              {divisionOptions.length > 5 && (
+                <SlicerSearchInput
+                  value={divisionFilterQuery}
+                  onChange={setDivisionFilterQuery}
+                  placeholder="Ketik divisi…"
+                />
+              )}
+              <div className="flex max-h-48 flex-col gap-1.5 overflow-y-auto">
+                {visibleDivisions.length === 0 ? (
+                  <p className="py-3 text-center text-xs text-slate-400">
+                    Tidak ditemukan
+                  </p>
+                ) : (
+                  visibleDivisions.map((div) => (
+                    <SlicerButton
+                      key={div.value}
+                      label={div.label}
+                      active={selectedDivisions.includes(div.value)}
+                      onClick={() => {
+                        setSelectedDivisions((prev) =>
+                          toggleString(prev, div.value),
+                        );
+                        setPage(1);
+                      }}
+                    />
+                  ))
+                )}
               </div>
             </div>
 
@@ -609,6 +664,39 @@ export function TabelUser({ users, companies, branches }: TabelUserProps) {
         }}
         pageSizeOptions={[10, 25, 50, 100]}
       />
+    </div>
+  );
+}
+
+function SlicerSearchInput({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  placeholder: string;
+}) {
+  return (
+    <div className="relative mb-2">
+      <Search className="pointer-events-none absolute top-1/2 left-2 h-3 w-3 -translate-y-1/2 text-slate-400" />
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full rounded-md border border-slate-200 bg-white py-1 pr-6 pl-6 text-[11px] text-slate-700 placeholder:text-slate-400 focus:border-indigo-400 focus:outline-none"
+      />
+      {value && (
+        <button
+          type="button"
+          onClick={() => onChange("")}
+          aria-label="Hapus pencarian"
+          className="absolute top-1/2 right-1.5 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      )}
     </div>
   );
 }

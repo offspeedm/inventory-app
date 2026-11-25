@@ -195,8 +195,8 @@ export function GaleriLampiran({
                     }}
                   >
                     <input type="hidden" name="id" value={item.id} />
-                    <input type="hidden" name="deviceId" value={deviceId} />
-                    <input type="hidden" name="fileUrl" value={item.fileUrl} />
+                    <input type="hidden" name="device_Id" value={deviceId} />
+                    <input type="hidden" name="file_Url" value={item.fileUrl} />
                     <button
                       type="submit"
                       title="Hapus lampiran"

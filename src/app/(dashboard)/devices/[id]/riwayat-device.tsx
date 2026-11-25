@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { User, Building2, Pencil, Trash2, Plus, Check, X } from "lucide-react";
 import {
@@ -11,6 +12,7 @@ import {
   updateRiwayatPenempatan,
   hapusRiwayatPenempatan,
 } from "./actions";
+import { SearchableSelect } from "@/components/searchable-select";
 
 type Option = { id: number; nama: string };
 type Branch = Option & { companyId: number | null };
@@ -67,10 +69,14 @@ export function RiwayatPenggunaCard({
   const [adding, setAdding] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // State form edit/tambah
   const [userId, setUserId] = useState("");
   const [tglMulai, setTglMulai] = useState("");
   const [tglSelesai, setTglSelesai] = useState("");
+
+  const userOptions = useMemo(
+    () => users.map((u) => ({ value: String(u.id), label: u.nama })),
+    [users],
+  );
 
   function mulaiEdit(item: AssignmentItem) {
     setAdding(false);
@@ -133,19 +139,13 @@ export function RiwayatPenggunaCard({
           <label className="mb-1 block text-[11px] font-medium text-slate-600">
             Pengguna
           </label>
-          <select
+          <SearchableSelect
             name="user_id"
             value={userId}
-            onChange={(e) => setUserId(e.target.value)}
-            className={inputClass}
-          >
-            <option value="">Tidak diketahui / Kosong</option>
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.nama}
-              </option>
-            ))}
-          </select>
+            onChange={setUserId}
+            options={userOptions}
+            placeholder="Ketik nama pengguna…"
+          />
         </div>
 
         <div className="grid grid-cols-2 gap-2">
@@ -253,9 +253,18 @@ export function RiwayatPenggunaCard({
               ) : (
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-slate-700">
-                      {a.user?.nama ?? "Tidak diketahui"}
-                    </p>
+                    {a.userId ? (
+                      <Link
+                        href={`/users/${a.userId}`}
+                        className="inline-block text-sm font-medium text-slate-700 transition-colors hover:text-indigo-600 hover:underline"
+                      >
+                        {a.user?.nama ?? "Tidak diketahui"}
+                      </Link>
+                    ) : (
+                      <p className="text-sm font-medium text-slate-700">
+                        {a.user?.nama ?? "Tidak diketahui"}
+                      </p>
+                    )}
                     <p className="text-xs text-slate-400">
                       {fmtTanggal(a.tglMulai)} — {fmtTanggal(a.tglSelesai)}
                     </p>
@@ -313,9 +322,37 @@ export function RiwayatPenempatanCard({
   const [tglMulai, setTglMulai] = useState("");
   const [tglSelesai, setTglSelesai] = useState("");
 
-  const filteredBranches = companyId
-    ? branches.filter((b) => b.companyId === Number(companyId))
-    : [];
+  const filteredBranches = useMemo(
+    () =>
+      companyId
+        ? branches.filter((b) => b.companyId === Number(companyId))
+        : [],
+    [branches, companyId],
+  );
+
+  const companyOptions = useMemo(
+    () => companies.map((c) => ({ value: String(c.id), label: c.nama })),
+    [companies],
+  );
+
+  const branchOptions = useMemo(
+    () => filteredBranches.map((b) => ({ value: String(b.id), label: b.nama })),
+    [filteredBranches],
+  );
+
+  function handleCompanyChange(nextCompanyId: string) {
+    setCompanyId(nextCompanyId);
+    if (!nextCompanyId) {
+      setBranchId("");
+      return;
+    }
+    const stillValid = branches.some(
+      (b) => b.id === Number(branchId) && b.companyId === Number(nextCompanyId),
+    );
+    if (!stillValid) {
+      setBranchId("");
+    }
+  }
 
   function mulaiEdit(item: PlacementItem) {
     setAdding(false);
@@ -376,48 +413,31 @@ export function RiwayatPenempatanCard({
         {id !== undefined && <input type="hidden" name="id" value={id} />}
         <input type="hidden" name="device_id" value={deviceId} />
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <div>
             <label className="mb-1 block text-[11px] font-medium text-slate-600">
               Perusahaan
             </label>
-            <select
+            <SearchableSelect
               name="company_id"
               value={companyId}
-              onChange={(e) => {
-                setCompanyId(e.target.value);
-                setBranchId("");
-              }}
-              className={inputClass}
-            >
-              <option value="">-</option>
-              {companies.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.nama}
-                </option>
-              ))}
-            </select>
+              onChange={handleCompanyChange}
+              options={companyOptions}
+              placeholder="Ketik perusahaan…"
+            />
           </div>
           <div>
             <label className="mb-1 block text-[11px] font-medium text-slate-600">
               Cabang
             </label>
-            <select
+            <SearchableSelect
               name="branch_id"
               value={branchId}
-              onChange={(e) => setBranchId(e.target.value)}
+              onChange={setBranchId}
+              options={branchOptions}
               disabled={!companyId}
-              className={
-                inputClass + " disabled:bg-slate-100 disabled:text-slate-400"
-              }
-            >
-              <option value="">-</option>
-              {filteredBranches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.nama}
-                </option>
-              ))}
-            </select>
+              placeholder={companyId ? "Ketik cabang…" : "Pilih PT dulu"}
+            />
           </div>
         </div>
 
