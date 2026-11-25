@@ -7,6 +7,7 @@ import { getFieldsForType } from "@/config/device-fields";
 import { SearchableSelect } from "@/components/searchable-select";
 
 type Option = { id: number; nama: string };
+type DeviceTypeOption = Option & { spesifikasi?: string[] };
 type Branch = Option & { companyId: number | null };
 type Attr = { key: string; value: string | null };
 
@@ -77,7 +78,7 @@ export function DetailFormDevice({
   warnaUsia,
 }: {
   device: DeviceData;
-  deviceTypes: Option[];
+  deviceTypes: DeviceTypeOption[];
   companies: Option[];
   branches: Branch[];
   users: Option[];
@@ -100,10 +101,12 @@ export function DetailFormDevice({
   const [saving, setSaving] = useState(false);
   const [savedTick, setSavedTick] = useState(0);
 
-  const selectedTypeName = deviceTypes.find(
-    (t) => t.id === Number(typeId),
-  )?.nama;
-  const dynamicFields = getFieldsForType(selectedTypeName);
+  const selectedType = deviceTypes.find((t) => t.id === Number(typeId));
+  const selectedTypeName = selectedType?.nama;
+  const dynamicFields = getFieldsForType(
+    selectedTypeName,
+    selectedType?.spesifikasi,
+  );
 
   const filteredBranches = useMemo(
     () =>

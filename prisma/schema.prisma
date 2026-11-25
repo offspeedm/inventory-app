@@ -67,6 +67,7 @@ model DeviceType {
   id        Int      @id @default(autoincrement())
   nama      String
   kode      String?
+  spesifikasi String[] @default([])
   createdAt DateTime @default(now()) @map("created_at")
   devices   Device[]
 

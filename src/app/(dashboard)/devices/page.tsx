@@ -10,7 +10,7 @@ export default async function DevicesPage() {
   const [deviceTypes, companies, branches, users, devicesRaw] =
     await Promise.all([
       prisma.deviceType.findMany({
-        select: { id: true, nama: true },
+        select: { id: true, nama: true, spesifikasi: true },
         orderBy: { nama: "asc" },
       }),
       prisma.company.findMany({

@@ -1,5 +1,5 @@
-// Konfigurasi field dinamis per jenis perangkat.
-// Kunci = nama jenis (harus sama persis dengan data di tabel device_types).
+// src/config/device-fields.ts
+// Konfigurasi default field dinamis per jenis perangkat (fallback jika kolom spesifikasi di DB masih kosong).
 
 export const deviceFields: Record<string, string[]> = {
   Laptop: ["RAM", "CPU", "Storage"],
@@ -11,7 +11,37 @@ export const deviceFields: Record<string, string[]> = {
   "Perangkat Lainnya": ["Keterangan Spesifikasi"],
 };
 
-export function getFieldsForType(typeName: string | null | undefined): string[] {
+export function parseSpesifikasiInput(raw: string): string[] {
+  const seen = new Set<string>();
+  const hasil: string[] = [];
+
+  for (const part of raw.split(",")) {
+    const clean = part.trim();
+    if (!clean) continue;
+    const key = clean.toLowerCase();
+    if (!seen.has(key)) {
+      seen.add(key);
+      hasil.push(clean);
+    }
+  }
+
+  return hasil;
+}
+
+export function getFieldsForType(
+  typeName: string | null | undefined,
+  customFields?: string[] | null
+): string[] {
+  if (customFields && customFields.length > 0) {
+    return customFields;
+  }
+
   if (!typeName) return [];
-  return deviceFields[typeName] ?? [];
+
+  const normalized = typeName.trim().toLowerCase();
+  const matchedKey = Object.keys(deviceFields).find(
+    (key) => key.toLowerCase() === normalized
+  );
+
+  return matchedKey ? deviceFields[matchedKey] : [];
 }

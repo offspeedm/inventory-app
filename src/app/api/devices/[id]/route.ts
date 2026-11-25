@@ -51,7 +51,7 @@ export async function GET(
           },
         }),
         prisma.deviceType.findMany({
-          select: { id: true, nama: true },
+          select: { id: true, nama: true, spesifikasi: true },
           orderBy: { nama: 'asc' },
         }),
         prisma.company.findMany({

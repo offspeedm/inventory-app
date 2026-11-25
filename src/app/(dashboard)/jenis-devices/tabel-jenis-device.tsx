@@ -8,11 +8,13 @@ import {
   updateJenisDevice,
   hapusJenisDevice,
 } from "./actions";
+import { parseSpesifikasiInput } from "@/config/device-fields";
 
 export type JenisDeviceRow = {
   id: number;
   nama: string;
   kode: string | null;
+  spesifikasi: string[];
   jumlahPerangkatAktif: number;
 };
 
@@ -27,6 +29,7 @@ export function TabelJenisDevice({ items }: { items: JenisDeviceRow[] }) {
   // State form tambah baru
   const [namaBaru, setNamaBaru] = useState("");
   const [kodeBaru, setKodeBaru] = useState("");
+  const [spekBaru, setSpekBaru] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   // State pencarian
@@ -36,11 +39,17 @@ export function TabelJenisDevice({ items }: { items: JenisDeviceRow[] }) {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editNama, setEditNama] = useState("");
   const [editKode, setEditKode] = useState("");
+  const [editSpek, setEditSpek] = useState("");
   const [savingId, setSavingId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
   // State pesan error inline
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const previewSpekBaru = useMemo(
+    () => parseSpesifikasiInput(spekBaru),
+    [spekBaru],
+  );
 
   const filteredItems = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -48,7 +57,8 @@ export function TabelJenisDevice({ items }: { items: JenisDeviceRow[] }) {
     return items.filter(
       (item) =>
         item.nama.toLowerCase().includes(q) ||
-        (item.kode ?? "").toLowerCase().includes(q),
+        (item.kode ?? "").toLowerCase().includes(q) ||
+        item.spesifikasi.some((s) => s.toLowerCase().includes(q)),
     );
   }, [items, search]);
 
@@ -60,6 +70,7 @@ export function TabelJenisDevice({ items }: { items: JenisDeviceRow[] }) {
     const res = await tambahJenisDevice({
       nama: namaBaru,
       kode: kodeBaru,
+      spesifikasi: parseSpesifikasiInput(spekBaru),
     });
 
     setSubmitting(false);
@@ -70,6 +81,7 @@ export function TabelJenisDevice({ items }: { items: JenisDeviceRow[] }) {
 
     setNamaBaru("");
     setKodeBaru("");
+    setSpekBaru("");
   }
 
   function mulaiEdit(item: JenisDeviceRow) {
@@ -77,12 +89,14 @@ export function TabelJenisDevice({ items }: { items: JenisDeviceRow[] }) {
     setEditingId(item.id);
     setEditNama(item.nama);
     setEditKode(item.kode ?? "");
+    setEditSpek(item.spesifikasi.join(", "));
   }
 
   function batalEdit() {
     setEditingId(null);
     setEditNama("");
     setEditKode("");
+    setEditSpek("");
   }
 
   async function handleSimpanEdit(id: number) {
@@ -92,6 +106,7 @@ export function TabelJenisDevice({ items }: { items: JenisDeviceRow[] }) {
     const res = await updateJenisDevice(id, {
       nama: editNama,
       kode: editKode,
+      spesifikasi: parseSpesifikasiInput(editSpek),
     });
 
     setSavingId(null);
@@ -144,7 +159,7 @@ export function TabelJenisDevice({ items }: { items: JenisDeviceRow[] }) {
         </h2>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-12">
-          <div className="sm:col-span-6">
+          <div className="sm:col-span-4">
             <label className="mb-1 block text-xs font-medium text-slate-600">
               Nama Jenis Perangkat *
             </label>
@@ -153,14 +168,14 @@ export function TabelJenisDevice({ items }: { items: JenisDeviceRow[] }) {
               required
               value={namaBaru}
               onChange={(e) => setNamaBaru(e.target.value)}
-              placeholder="Contoh: Laptop, Printer, Switch, CCTV"
+              placeholder="Contoh: Switch, UPS, Scanner"
               className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none"
             />
           </div>
 
-          <div className="sm:col-span-3">
+          <div className="sm:col-span-2">
             <label className="mb-1 block text-xs font-medium text-slate-600">
-              Kode Prefix Inventaris
+              Kode Prefix
             </label>
             <input
               type="text"
@@ -168,15 +183,27 @@ export function TabelJenisDevice({ items }: { items: JenisDeviceRow[] }) {
               value={kodeBaru}
               onChange={(e) => setKodeBaru(e.target.value.toUpperCase())}
               placeholder={
-                namaBaru
-                  ? `Otomatis: ${defaultPrefix(namaBaru)}`
-                  : "Contoh: NTB"
+                namaBaru ? `Auto: ${defaultPrefix(namaBaru)}` : "Contoh: SWT"
               }
               className="w-full rounded-xl border border-slate-300 px-3.5 py-2 font-mono text-sm uppercase text-slate-800 placeholder:font-sans placeholder:normal-case placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none"
             />
           </div>
 
-          <div className="flex items-end sm:col-span-3">
+          <div className="sm:col-span-4">
+            <label className="mb-1 block text-xs font-medium text-slate-600">
+              Kolom Spesifikasi{" "}
+              <span className="font-normal text-slate-400">(pisah koma)</span>
+            </label>
+            <input
+              type="text"
+              value={spekBaru}
+              onChange={(e) => setSpekBaru(e.target.value)}
+              placeholder="Contoh: Jumlah Port, Kecepatan, Tipe"
+              className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none"
+            />
+          </div>
+
+          <div className="flex items-end sm:col-span-2">
             <button
               type="submit"
               disabled={submitting}
@@ -187,14 +214,30 @@ export function TabelJenisDevice({ items }: { items: JenisDeviceRow[] }) {
               ) : (
                 <Plus className="h-4 w-4" />
               )}
-              {submitting ? "Menyimpan..." : "Tambah Jenis"}
+              {submitting ? "Menyimpan..." : "Tambah"}
             </button>
           </div>
         </div>
+
+        {previewSpekBaru.length > 0 && (
+          <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+            <span className="text-xs text-slate-500">Preview kolom input:</span>
+            {previewSpekBaru.map((sp) => (
+              <span
+                key={sp}
+                className="inline-flex items-center rounded-md bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700 ring-1 ring-inset ring-indigo-200"
+              >
+                {sp}
+              </span>
+            ))}
+          </div>
+        )}
+
         <p className="mt-2 text-xs text-slate-400">
-          Kode prefix dipakai untuk generator nomor inventaris otomatis (misal:{" "}
+          Kode prefix dipakai untuk nomor inventaris otomatis (misal:{" "}
           <span className="font-mono text-slate-600">NTB</span>/SLI/2026/001).
-          Jika dikosongkan, sistem otomatis memakai 3 huruf pertama nama jenis.
+          Kolom spesifikasi otomatis muncul saat menambah atau mengedit
+          perangkat dengan jenis ini.
         </p>
       </form>
 
@@ -205,7 +248,7 @@ export function TabelJenisDevice({ items }: { items: JenisDeviceRow[] }) {
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Cari nama jenis perangkat atau kode prefix..."
+          placeholder="Cari nama jenis perangkat, kode prefix, atau kolom spesifikasi..."
           className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pr-9 pl-10 text-sm text-slate-700 shadow-xs placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none"
         />
         {search && (
@@ -222,13 +265,14 @@ export function TabelJenisDevice({ items }: { items: JenisDeviceRow[] }) {
       {/* Tabel Daftar Jenis Perangkat */}
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[600px] text-sm">
+          <table className="w-full min-w-[720px] text-sm">
             <thead className="border-b border-slate-200 bg-slate-50/80 text-left text-xs font-semibold text-slate-600">
               <tr>
                 <th className="w-14 px-4 py-3">No</th>
-                <th className="px-4 py-3">Nama Jenis Perangkat</th>
-                <th className="w-48 px-4 py-3">Kode Prefix</th>
-                <th className="w-44 px-4 py-3 text-center">Perangkat Aktif</th>
+                <th className="w-52 px-4 py-3">Nama Jenis Perangkat</th>
+                <th className="w-36 px-4 py-3">Kode Prefix</th>
+                <th className="px-4 py-3">Kolom Spesifikasi</th>
+                <th className="w-36 px-4 py-3 text-center">Perangkat Aktif</th>
                 <th className="w-32 px-4 py-3 text-right">Aksi</th>
               </tr>
             </thead>
@@ -236,7 +280,7 @@ export function TabelJenisDevice({ items }: { items: JenisDeviceRow[] }) {
               {filteredItems.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={6}
                     className="px-4 py-10 text-center text-sm text-slate-400"
                   >
                     {search
@@ -300,8 +344,8 @@ export function TabelJenisDevice({ items }: { items: JenisDeviceRow[] }) {
                                 batalEdit();
                               }
                             }}
-                            placeholder={`Otomatis: ${defaultPrefix(editNama || item.nama)}`}
-                            className="w-36 rounded-lg border border-indigo-400 px-2.5 py-1.5 font-mono text-xs uppercase text-slate-800 placeholder:font-sans placeholder:normal-case placeholder:text-slate-400 focus:outline-none"
+                            placeholder={`Auto: ${defaultPrefix(editNama || item.nama)}`}
+                            className="w-28 rounded-lg border border-indigo-400 px-2.5 py-1.5 font-mono text-xs uppercase text-slate-800 placeholder:font-sans placeholder:normal-case placeholder:text-slate-400 focus:outline-none"
                           />
                         ) : item.kode ? (
                           <span className="inline-flex rounded-md bg-indigo-50 px-2.5 py-0.5 font-mono text-xs font-semibold text-indigo-700">
@@ -310,6 +354,42 @@ export function TabelJenisDevice({ items }: { items: JenisDeviceRow[] }) {
                         ) : (
                           <span className="inline-flex rounded-md bg-slate-100 px-2.5 py-0.5 font-mono text-xs text-slate-500">
                             {defaultPrefix(item.nama)} (auto)
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Kolom Spesifikasi */}
+                      <td className="px-4 py-3">
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            value={editSpek}
+                            onChange={(e) => setEditSpek(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                handleSimpanEdit(item.id);
+                              } else if (e.key === "Escape") {
+                                batalEdit();
+                              }
+                            }}
+                            placeholder="Pisahkan dengan koma, mis: RAM, CPU, Storage"
+                            className="w-full rounded-lg border border-indigo-400 px-2.5 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none"
+                          />
+                        ) : item.spesifikasi.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {item.spesifikasi.map((sp) => (
+                              <span
+                                key={sp}
+                                className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700"
+                              >
+                                {sp}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-400">
+                            Tidak ada spesifikasi khusus
                           </span>
                         )}
                       </td>

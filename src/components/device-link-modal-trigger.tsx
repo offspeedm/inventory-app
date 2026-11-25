@@ -18,6 +18,7 @@ import { getFieldsForType } from "@/config/device-fields";
 import { SearchableSelect } from "@/components/searchable-select";
 
 type Option = { id: number; nama: string };
+type DeviceTypeOption = Option & { spesifikasi?: string[] };
 type Branch = Option & { companyId: number | null };
 
 type DeviceModalData = {
@@ -56,7 +57,7 @@ type DeviceModalData = {
 };
 
 type MasterOptions = {
-  deviceTypes?: Option[];
+  deviceTypes?: DeviceTypeOption[];
   companies?: Option[];
   branches?: Branch[];
   users?: Option[];
@@ -127,7 +128,7 @@ export function DeviceLinkModalTrigger({
   const [reloadKey, setReloadKey] = useState(0);
 
   const [device, setDevice] = useState<DeviceModalData | null>(null);
-  const [deviceTypes, setDeviceTypes] = useState<Option[]>([]);
+  const [deviceTypes, setDeviceTypes] = useState<DeviceTypeOption[]>([]);
   const [companies, setCompanies] = useState<Option[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [users, setUsers] = useState<Option[]>([]);
@@ -234,10 +235,12 @@ export function DeviceLinkModalTrigger({
     [filteredBranches],
   );
 
-  const selectedTypeName =
-    deviceTypes.find((t) => t.id === Number(typeId))?.nama ??
-    device?.type?.nama;
-  const dynamicFields = getFieldsForType(selectedTypeName);
+  const selectedType = deviceTypes.find((t) => t.id === Number(typeId));
+  const selectedTypeName = selectedType?.nama ?? device?.type?.nama;
+  const dynamicFields = getFieldsForType(
+    selectedTypeName,
+    selectedType?.spesifikasi,
+  );
 
   function handleCompanyChange(nextCompanyId: string) {
     setCompanyId(nextCompanyId);
@@ -297,7 +300,7 @@ export function DeviceLinkModalTrigger({
             className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Header Modal: Bersih tanpa tombol aksi ganda */}
+            {/* Header Modal */}
             <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/70 px-6 py-4">
               <div className="flex min-w-0 items-center gap-3">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">

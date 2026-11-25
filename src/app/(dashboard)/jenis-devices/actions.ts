@@ -11,16 +11,37 @@ export type ActionResult =
 function revalidateAll() {
   revalidatePath("/jenis-devices");
   revalidatePath("/devices");
+  revalidatePath("/import");
   revalidatePath("/dashboard");
   revalidatePath("/report");
+}
+
+function bersihkanSpesifikasi(list?: string[]): string[] {
+  if (!Array.isArray(list)) return [];
+  const seen = new Set<string>();
+  const hasil: string[] = [];
+
+  for (const item of list) {
+    const clean = String(item ?? "").trim();
+    if (!clean) continue;
+    const key = clean.toLowerCase();
+    if (!seen.has(key)) {
+      seen.add(key);
+      hasil.push(clean);
+    }
+  }
+
+  return hasil;
 }
 
 export async function tambahJenisDevice(data: {
   nama: string;
   kode?: string;
+  spesifikasi?: string[];
 }): Promise<ActionResult> {
   const nama = data.nama.trim();
   const kodeRaw = (data.kode ?? "").trim().toUpperCase();
+  const spesifikasi = bersihkanSpesifikasi(data.spesifikasi);
 
   if (!nama) {
     return { ok: false, error: "Nama jenis perangkat wajib diisi." };
@@ -46,6 +67,7 @@ export async function tambahJenisDevice(data: {
       data: {
         nama,
         kode: kodeRaw || null,
+        spesifikasi,
       },
     });
 
@@ -59,10 +81,11 @@ export async function tambahJenisDevice(data: {
 
 export async function updateJenisDevice(
   id: number,
-  data: { nama: string; kode?: string }
+  data: { nama: string; kode?: string; spesifikasi?: string[] }
 ): Promise<ActionResult> {
   const nama = data.nama.trim();
   const kodeRaw = (data.kode ?? "").trim().toUpperCase();
+  const spesifikasi = bersihkanSpesifikasi(data.spesifikasi);
 
   if (!nama) {
     return { ok: false, error: "Nama jenis perangkat wajib diisi." };
@@ -92,6 +115,7 @@ export async function updateJenisDevice(
       data: {
         nama,
         kode: kodeRaw || null,
+        spesifikasi,
       },
     });
 

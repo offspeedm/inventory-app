@@ -18,7 +18,7 @@ import { hitungUsia, usiaBadgeColor } from "@/lib/format-usia";
 import { getFieldsForType } from "@/config/device-fields";
 import { SearchableSelect } from "@/components/searchable-select";
 
-type DeviceType = { id: number; nama: string };
+type DeviceType = { id: number; nama: string; spesifikasi?: string[] };
 type Company = { id: number; nama: string };
 type Branch = { id: number; nama: string; companyId: number | null };
 type UserOpt = { id: number; nama: string };
@@ -161,10 +161,12 @@ export function BarisDevice({
     [users],
   );
 
-  const selectedTypeName = deviceTypes.find(
-    (t) => t.id === Number(typeId),
-  )?.nama;
-  const dynamicFields = getFieldsForType(selectedTypeName);
+  const selectedType = deviceTypes.find((t) => t.id === Number(typeId));
+  const selectedTypeName = selectedType?.nama;
+  const dynamicFields = getFieldsForType(
+    selectedTypeName,
+    selectedType?.spesifikasi,
+  );
 
   function handleCompanyChange(nextCompanyId: string) {
     setCompanyId(nextCompanyId);

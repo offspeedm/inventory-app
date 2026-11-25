@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { Tags } from "lucide-react";
 import { TabelJenisDevice } from "./tabel-jenis-device";
 import { WHERE_DEVICE_AKTIF } from "@/lib/status-filter";
+import { getFieldsForType } from "@/config/device-fields";
 
 export default async function JenisDevicesPage() {
   const deviceTypes = await prisma.deviceType.findMany({
@@ -20,6 +21,8 @@ export default async function JenisDevicesPage() {
     id: dt.id,
     nama: dt.nama,
     kode: dt.kode,
+    spesifikasi:
+      dt.spesifikasi.length > 0 ? dt.spesifikasi : getFieldsForType(dt.nama),
     jumlahPerangkatAktif: dt._count.devices,
   }));
 

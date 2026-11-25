@@ -42,7 +42,7 @@ export type DeviceItem = {
 
 type TabelDeviceProps = {
   devices: DeviceItem[];
-  deviceTypes: { id: number; nama: string }[];
+  deviceTypes: { id: number; nama: string; spesifikasi?: string[] }[];
   companies: { id: number; nama: string }[];
   branches: { id: number; nama: string; companyId: number | null }[];
   users: { id: number; nama: string }[];
