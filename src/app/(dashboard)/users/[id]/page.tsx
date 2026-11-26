@@ -203,9 +203,7 @@ export default async function UserDetailPage({
                   >
                     {item.device.nama}
                   </DeviceLinkModalTrigger>
-                  <p className="text-xs font-mono text-slate-400">
-                    {item.device.kodeInventaris ?? "Tanpa kode inventaris"}
-                  </p>
+
                   <p className="mt-1 text-xs text-slate-500">
                     {formatTanggal(item.tglMulai)} sampai{" "}
                     {formatTanggal(item.tglSelesai)}

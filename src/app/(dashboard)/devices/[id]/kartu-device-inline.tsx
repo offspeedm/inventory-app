@@ -8,7 +8,6 @@ import {
   MonitorSmartphone,
   Pencil,
   Save,
-  Tag,
   X,
 } from "lucide-react";
 import { updateDevice } from "../actions";
@@ -457,11 +456,6 @@ export function KartuDeviceInline({
           </p>
 
           <div className="mt-5 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
-            <Info
-              label="Kode Inventaris"
-              value={device.kodeInventaris ?? "-"}
-              mono
-            />
             <Info label="Jenis" value={device.type?.nama ?? "-"} />
             <Info label="Perusahaan" value={device.company?.nama ?? "-"} />
             <Info label="Cabang" value={device.branch?.nama ?? "-"} />

@@ -70,7 +70,7 @@ export default async function DashboardPage() {
     prisma.device.findMany({
       where: WHERE_DEVICE_AKTIF,
       take: 5,
-      orderBy: { id: "desc" },
+      orderBy: [{ tglBeli: { sort: "desc", nulls: "last" } }, { id: "desc" }],
       include: {
         type: { select: { nama: true } },
         company: { select: { nama: true } },
@@ -189,6 +189,7 @@ export default async function DashboardPage() {
     nama: d.nama,
     kodeInventaris: d.kodeInventaris,
     status: d.status,
+    tglBeli: d.tglBeli,
     typeNama: d.type?.nama ?? null,
     companyNama: d.company?.nama ?? null,
     branchNama: d.branch?.nama ?? null,

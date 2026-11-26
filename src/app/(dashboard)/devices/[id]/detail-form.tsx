@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, type FormEvent } from "react";
-import { MonitorSmartphone, Check, Clock, ListChecks, Tag } from "lucide-react";
+import { MonitorSmartphone, Check, Clock, ListChecks } from "lucide-react";
 import { updateDevice } from "../actions";
 import { getFieldsForType } from "@/config/device-fields";
 import { SearchableSelect } from "@/components/searchable-select";
@@ -190,11 +190,6 @@ export function DetailFormDevice({
                   />
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
-                  {device.kodeInventaris && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-slate-800 px-2.5 py-0.5 font-mono text-xs font-medium text-white">
-                      <Tag className="h-3 w-3" /> {device.kodeInventaris}
-                    </span>
-                  )}
                   <span
                     className={
                       "inline-block rounded-full px-2.5 py-0.5 text-xs font-medium " +

@@ -11,7 +11,7 @@ import {
   History,
   Paperclip,
   Clock,
-  Tag,
+  // Tag,
 } from "lucide-react";
 import { updateDevice, hapusDevice } from "./actions";
 import { hitungUsia, usiaBadgeColor } from "@/lib/format-usia";
@@ -215,11 +215,7 @@ export function BarisDevice({
                 </span>
               )}
             </p>
-            {device.kodeInventaris && (
-              <p className="text-[11px] font-mono text-indigo-500 flex items-center gap-1 mt-0.5 mb-0.5 break-all">
-                <Tag className="w-3 h-3 shrink-0" /> {device.kodeInventaris}
-              </p>
-            )}
+
             <p className="text-xs text-slate-400 leading-relaxed break-words">
               {[device.merk, device.tipe].filter(Boolean).join(" · ") || "—"}
               {device.serialNumber ? ` · SN: ${device.serialNumber}` : ""}

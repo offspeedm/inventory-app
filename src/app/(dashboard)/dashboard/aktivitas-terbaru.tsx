@@ -8,6 +8,7 @@ type DevicesTerbaru = {
   nama: string;
   kodeInventaris: string | null;
   status: string;
+  tglBeli: Date | null;
   typeNama: string | null;
   companyNama: string | null;
   branchNama: string | null;
@@ -49,6 +50,14 @@ function fmtTanggalSingkat(d: Date): string {
   });
 }
 
+function fmtTanggalBeli(d: Date): string {
+  return new Date(d).toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 export function AktivitasTerbaru({
   devicesTerbaru,
   tiketTerbaru,
@@ -70,7 +79,7 @@ export function AktivitasTerbaru({
                 Perangkat Terbaru
               </h3>
               <p className="text-xs text-slate-400">
-                5 perangkat aktif terakhir ditambahkan
+                5 perangkat aktif berdasarkan tanggal beli terbaru
               </p>
             </div>
           </div>
@@ -92,7 +101,11 @@ export function AktivitasTerbaru({
               const lokasi = [d.companyNama, d.branchNama]
                 .filter(Boolean)
                 .join(" · ");
-              const meta = [d.kodeInventaris, d.typeNama, d.userNama]
+              const meta = [
+                d.typeNama,
+                d.userNama,
+                d.tglBeli ? fmtTanggalBeli(d.tglBeli) : null,
+              ]
                 .filter(Boolean)
                 .join(" · ");
 

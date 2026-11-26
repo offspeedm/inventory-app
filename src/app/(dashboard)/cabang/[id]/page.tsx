@@ -44,7 +44,10 @@ export default async function CabangDetailPage({
         },
       },
     }),
-    prisma.company.findMany({ select: { id: true, nama: true }, orderBy: { nama: "asc" } }),
+    prisma.company.findMany({
+      select: { id: true, nama: true },
+      orderBy: { nama: "asc" },
+    }),
   ]);
 
   if (!branch) notFound();
@@ -69,7 +72,9 @@ export default async function CabangDetailPage({
         companies={companies}
         jumlahUser={branch.users.length}
         jumlahDevice={branch.devices.length}
-        jumlahTiketAktif={branch.tickets.filter((t) => t.status !== "Selesai").length}
+        jumlahTiketAktif={
+          branch.tickets.filter((t) => t.status !== "Selesai").length
+        }
       />
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -93,7 +98,9 @@ export default async function CabangDetailPage({
                     <span className="font-medium text-slate-700 group-hover:text-indigo-600">
                       {u.nama}
                     </span>
-                    <span className="text-xs text-slate-400">{u.divisi ?? "-"}</span>
+                    <span className="text-xs text-slate-400">
+                      {u.divisi ?? "-"}
+                    </span>
                   </Link>
                 </li>
               ))}
@@ -122,11 +129,6 @@ export default async function CabangDetailPage({
                       <span className="block truncate font-medium text-slate-700 group-hover:text-indigo-600">
                         {d.nama}
                       </span>
-                      {d.kodeInventaris && (
-                        <span className="block font-mono text-xs text-slate-400">
-                          {d.kodeInventaris}
-                        </span>
-                      )}
                     </span>
                     <span className="ml-2 shrink-0 text-xs text-slate-400">
                       {d.type?.nama ?? "-"}
@@ -152,7 +154,10 @@ export default async function CabangDetailPage({
               <ul className="max-h-80 divide-y divide-slate-100 overflow-y-auto">
                 {branch.tickets.map((t) => (
                   <li key={t.id} className="py-2.5">
-                    <Link href={`/troubleshooting/${t.id}`} className="group block">
+                    <Link
+                      href={`/troubleshooting/${t.id}`}
+                      className="group block"
+                    >
                       <div className="flex items-center justify-between gap-2">
                         <span className="truncate text-sm font-medium text-slate-700 group-hover:text-indigo-600">
                           {t.judul}
@@ -207,11 +212,17 @@ function Seksi({
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="mb-3 flex items-center gap-2">
-        <span className={"inline-flex h-8 w-8 items-center justify-center rounded-lg " + accent}>
+        <span
+          className={
+            "inline-flex h-8 w-8 items-center justify-center rounded-lg " +
+            accent
+          }
+        >
           <Icon className="h-4 w-4" />
         </span>
         <h2 className="font-semibold text-slate-800">
-          {title} <span className="text-sm font-normal text-slate-400">({count})</span>
+          {title}{" "}
+          <span className="text-sm font-normal text-slate-400">({count})</span>
         </h2>
       </div>
       {children}

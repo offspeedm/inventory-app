@@ -286,11 +286,7 @@ export default function ModalDetailUser({
                               {dev.nama}
                               <ExternalLink className="h-3 w-3" />
                             </Link>
-                            {dev.kodeInventaris && (
-                              <p className="text-xs text-slate-500">
-                                {dev.kodeInventaris}
-                              </p>
-                            )}
+
                             <p className="text-xs text-slate-400">
                               {[dev.merk, dev.tipe]
                                 .filter(Boolean)
@@ -339,11 +335,7 @@ export default function ModalDetailUser({
                             {item.device.nama}
                             <ExternalLink className="h-3 w-3" />
                           </Link>
-                          {item.device.kodeInventaris && (
-                            <p className="text-xs text-slate-500">
-                              {item.device.kodeInventaris}
-                            </p>
-                          )}
+
                           <p className="mt-0.5 text-xs text-slate-400">
                             {formatTanggal(item.tglMulai)} sampai{" "}
                             {formatTanggal(item.tglSelesai)}

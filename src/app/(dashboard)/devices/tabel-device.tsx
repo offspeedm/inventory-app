@@ -245,7 +245,6 @@ export function TabelDevice({
     return devices.filter((d) => {
       if (q) {
         const haystack = [
-          d.kodeInventaris,
           d.nama,
           d.merk,
           d.tipe,
@@ -529,7 +528,7 @@ export function TabelDevice({
             setSearch(e.target.value);
             setPage(1);
           }}
-          placeholder="Cari kode inventaris, nama, merk, serial..."
+          placeholder="Cari nama, merk, serial..."
           className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pr-9 pl-10 text-sm text-slate-700 shadow-xs placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none"
         />
         {search && (

@@ -78,13 +78,30 @@ export default async function PerusahaanDetailPage({
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5">
-              <RingkasanKecil icon={Network} label="Cabang" value={company.branches.length} color="text-emerald-600 bg-emerald-50" />
-              <RingkasanKecil icon={Users} label="User" value={company.users.length} color="text-amber-600 bg-amber-50" />
-              <RingkasanKecil icon={MonitorSmartphone} label="Devices" value={company.devices.length} color="text-indigo-600 bg-indigo-50" />
+              <RingkasanKecil
+                icon={Network}
+                label="Cabang"
+                value={company.branches.length}
+                color="text-emerald-600 bg-emerald-50"
+              />
+              <RingkasanKecil
+                icon={Users}
+                label="User"
+                value={company.users.length}
+                color="text-amber-600 bg-amber-50"
+              />
+              <RingkasanKecil
+                icon={MonitorSmartphone}
+                label="Devices"
+                value={company.devices.length}
+                color="text-indigo-600 bg-indigo-50"
+              />
               <RingkasanKecil
                 icon={Wrench}
                 label="Tiket Aktif"
-                value={company.tickets.filter((t) => t.status !== "Selesai").length}
+                value={
+                  company.tickets.filter((t) => t.status !== "Selesai").length
+                }
                 color="text-rose-600 bg-rose-50"
               />
             </div>
@@ -94,15 +111,25 @@ export default async function PerusahaanDetailPage({
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Cabang Terdaftar — kini dibatasi tinggi + scroll internal */}
-        <Seksi title="Cabang Terdaftar" icon={Network} accent="text-emerald-600 bg-emerald-50" count={company.branches.length}>
+        <Seksi
+          title="Cabang Terdaftar"
+          icon={Network}
+          accent="text-emerald-600 bg-emerald-50"
+          count={company.branches.length}
+        >
           {company.branches.length === 0 ? (
             <Kosong text="Belum ada cabang terdaftar." />
           ) : (
             <ul className="divide-y divide-slate-100 max-h-80 overflow-y-auto pr-1">
               {company.branches.map((b) => (
-                <li key={b.id} className="py-2.5 flex items-center justify-between text-sm">
+                <li
+                  key={b.id}
+                  className="py-2.5 flex items-center justify-between text-sm"
+                >
                   <span className="font-medium text-slate-700">{b.nama}</span>
-                  <span className="text-slate-400 text-xs">{b.kota ?? "-"}</span>
+                  <span className="text-slate-400 text-xs">
+                    {b.kota ?? "-"}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -110,7 +137,12 @@ export default async function PerusahaanDetailPage({
         </Seksi>
 
         {/* User Terdaftar — kini dibatasi tinggi + scroll internal (perbaikan utama) */}
-        <Seksi title="User Terdaftar" icon={Users} accent="text-amber-600 bg-amber-50" count={company.users.length}>
+        <Seksi
+          title="User Terdaftar"
+          icon={Users}
+          accent="text-amber-600 bg-amber-50"
+          count={company.users.length}
+        >
           {company.users.length === 0 ? (
             <Kosong text="Belum ada user terdaftar." />
           ) : (
@@ -124,7 +156,9 @@ export default async function PerusahaanDetailPage({
                     <span className="font-medium text-slate-700 group-hover:text-indigo-600 truncate">
                       {u.nama}
                     </span>
-                    <span className="text-slate-400 text-xs shrink-0 ml-2">{u.divisi ?? "-"}</span>
+                    <span className="text-slate-400 text-xs shrink-0 ml-2">
+                      {u.divisi ?? "-"}
+                    </span>
                   </Link>
                 </li>
               ))}
@@ -133,7 +167,12 @@ export default async function PerusahaanDetailPage({
         </Seksi>
 
         {/* Devices Terdaftar */}
-        <Seksi title="Devices Terdaftar" icon={MonitorSmartphone} accent="text-indigo-600 bg-indigo-50" count={company.devices.length}>
+        <Seksi
+          title="Devices Terdaftar"
+          icon={MonitorSmartphone}
+          accent="text-indigo-600 bg-indigo-50"
+          count={company.devices.length}
+        >
           {company.devices.length === 0 ? (
             <Kosong text="Belum ada perangkat terdaftar." />
           ) : (
@@ -148,11 +187,6 @@ export default async function PerusahaanDetailPage({
                       <span className="block font-medium text-slate-700 group-hover:text-indigo-600 truncate">
                         {d.nama}
                       </span>
-                      {d.kodeInventaris && (
-                        <span className="block text-xs font-mono text-slate-400">
-                          {d.kodeInventaris}
-                        </span>
-                      )}
                     </span>
                     <span className="text-slate-400 text-xs shrink-0 ml-2">
                       {d.type?.nama ?? "-"}
@@ -165,25 +199,45 @@ export default async function PerusahaanDetailPage({
         </Seksi>
 
         {/* Riwayat Troubleshooting */}
-        <Seksi title="Riwayat Troubleshooting" icon={Wrench} accent="text-rose-600 bg-rose-50" count={company.tickets.length}>
+        <Seksi
+          title="Riwayat Troubleshooting"
+          icon={Wrench}
+          accent="text-rose-600 bg-rose-50"
+          count={company.tickets.length}
+        >
           {company.tickets.length === 0 ? (
             <Kosong text="Belum ada tiket troubleshooting." />
           ) : (
             <ul className="divide-y divide-slate-100 max-h-80 overflow-y-auto pr-1">
               {company.tickets.map((t) => (
                 <li key={t.id} className="py-2.5">
-                  <Link href={`/troubleshooting/${t.id}`} className="block group">
+                  <Link
+                    href={`/troubleshooting/${t.id}`}
+                    className="block group"
+                  >
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-medium text-slate-700 group-hover:text-indigo-600 truncate text-sm">
                         {t.judul}
                       </span>
-                      <span className="text-xs text-slate-400 shrink-0">{fmtTanggal(t.tglLapor)}</span>
+                      <span className="text-xs text-slate-400 shrink-0">
+                        {fmtTanggal(t.tglLapor)}
+                      </span>
                     </div>
                     <div className="flex gap-1.5 mt-1">
-                      <span className={"inline-block rounded-full px-2 py-0.5 text-[10px] font-medium " + statusColor(t.status)}>
+                      <span
+                        className={
+                          "inline-block rounded-full px-2 py-0.5 text-[10px] font-medium " +
+                          statusColor(t.status)
+                        }
+                      >
                         {t.status}
                       </span>
-                      <span className={"inline-block rounded-full px-2 py-0.5 text-[10px] font-medium " + urgencyColor(t.prioritas)}>
+                      <span
+                        className={
+                          "inline-block rounded-full px-2 py-0.5 text-[10px] font-medium " +
+                          urgencyColor(t.prioritas)
+                        }
+                      >
                         {t.prioritas}
                       </span>
                     </div>
@@ -211,7 +265,9 @@ function RingkasanKecil({
 }) {
   return (
     <div className="rounded-lg bg-slate-50 p-3 text-center">
-      <span className={`inline-flex items-center justify-center w-7 h-7 rounded-lg mb-1 ${color}`}>
+      <span
+        className={`inline-flex items-center justify-center w-7 h-7 rounded-lg mb-1 ${color}`}
+      >
         <Icon className="w-3.5 h-3.5" />
       </span>
       <p className="text-lg font-bold text-slate-800 leading-none">{value}</p>
@@ -236,11 +292,17 @@ function Seksi({
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
       <div className="flex items-center gap-2 mb-3">
-        <span className={"inline-flex items-center justify-center w-8 h-8 rounded-lg " + accent}>
+        <span
+          className={
+            "inline-flex items-center justify-center w-8 h-8 rounded-lg " +
+            accent
+          }
+        >
           <Icon className="w-4 h-4" />
         </span>
         <h2 className="font-semibold text-slate-800">
-          {title} <span className="text-slate-400 font-normal text-sm">({count})</span>
+          {title}{" "}
+          <span className="text-slate-400 font-normal text-sm">({count})</span>
         </h2>
       </div>
       {children}

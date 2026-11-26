@@ -25,7 +25,6 @@ type Branch = Option & { companyId: number | null };
 type DeviceModalData = {
   id: number;
   nama: string;
-  kodeInventaris: string | null;
   merk: string | null;
   tipe: string | null;
   serialNumber: string | null;
@@ -348,13 +347,6 @@ export function DeviceLinkModalTrigger({
                         ? `Edit Perangkat${device ? ` · ${device.nama}` : ""}`
                         : (device?.nama ?? "Detail Perangkat")}
                     </h2>
-                    {device && (
-                      <p className="truncate text-xs text-slate-500">
-                        {[device.kodeInventaris, device.type?.nama]
-                          .filter(Boolean)
-                          .join(" · ") || "Inventaris Perangkat"}
-                      </p>
-                    )}
                   </div>
                 </div>
 
@@ -397,28 +389,16 @@ export function DeviceLinkModalTrigger({
                   <form onSubmit={handleSubmitEdit} className="space-y-4">
                     <input type="hidden" name="id" value={device.id} />
 
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <div>
-                        <label className="mb-1 block text-xs font-medium text-slate-600">
-                          Nama Perangkat
-                        </label>
-                        <input
-                          name="nama"
-                          required
-                          defaultValue={device.nama}
-                          className={inputClass}
-                        />
-                      </div>
-                      <div>
-                        <label className="mb-1 block text-xs font-medium text-slate-600">
-                          Kode Inventaris
-                        </label>
-                        <input
-                          disabled
-                          value={device.kodeInventaris ?? "Otomatis"}
-                          className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-sm text-slate-500"
-                        />
-                      </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-slate-600">
+                        Nama Perangkat
+                      </label>
+                      <input
+                        name="nama"
+                        required
+                        defaultValue={device.nama}
+                        className={inputClass}
+                      />
                     </div>
 
                     <div className="grid gap-3 sm:grid-cols-3">
@@ -612,14 +592,6 @@ export function DeviceLinkModalTrigger({
                     <div className="grid grid-cols-1 gap-4 rounded-xl border border-slate-200/80 bg-slate-50/40 p-4 sm:grid-cols-3">
                       <div>
                         <span className="text-xs text-slate-400">
-                          Kode Inventaris
-                        </span>
-                        <p className="mt-0.5 font-mono text-sm font-semibold text-slate-800">
-                          {device.kodeInventaris || "-"}
-                        </p>
-                      </div>
-                      <div>
-                        <span className="text-xs text-slate-400">
                           Jenis Perangkat
                         </span>
                         <p className="mt-0.5 text-sm font-semibold text-slate-800">
@@ -636,7 +608,6 @@ export function DeviceLinkModalTrigger({
                           </span>
                         </div>
                       </div>
-
                       <div>
                         <span className="text-xs text-slate-400">
                           Merk & Tipe
@@ -647,6 +618,7 @@ export function DeviceLinkModalTrigger({
                             .join(" · ") || "-"}
                         </p>
                       </div>
+
                       <div>
                         <span className="text-xs text-slate-400">
                           Serial Number
@@ -663,7 +635,6 @@ export function DeviceLinkModalTrigger({
                           {fmtTanggal(device.tglBeli)}
                         </p>
                       </div>
-
                       <div>
                         <span className="text-xs text-slate-400">
                           Pemegang Saat Ini
@@ -672,6 +643,7 @@ export function DeviceLinkModalTrigger({
                           {device.user?.nama || "-"}
                         </p>
                       </div>
+
                       <div>
                         <span className="text-xs text-slate-400">
                           Perusahaan
