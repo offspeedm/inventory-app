@@ -15,6 +15,19 @@ import { deviceFields } from "@/config/device-fields";
 
 type Tab = "user" | "device";
 
+type UserTemplateReferensi = {
+  daftarPerusahaan: string[];
+  cabangPerPerusahaan: Record<string, string[]>;
+  daftarDivisi: string[];
+};
+
+type DeviceTemplateReferensi = {
+  jenisSpesifikasiMap: Record<string, string[]>;
+  daftarPerusahaan: string[];
+  cabangPerPerusahaan: Record<string, string[]>;
+  daftarPengguna: string[];
+};
+
 const BIRU_HEADER = "FF2563EB";
 const ABU_CONTOH_FILL = "FFF8FAFC";
 const ABU_CONTOH_FONT = "FF94A3B8";
@@ -22,7 +35,18 @@ const BORDER_ABU = "FFD1D5DB";
 
 const JUMLAH_SLOT_SPESIFIKASI = 4;
 const STATUS_LIST = ["Aktif", "Rusak", "Perbaikan", "Tidak dipakai"];
-const ROWS_VALIDASI = 200;
+const DEFAULT_DIVISI_LIST = [
+  "Operational",
+  "Finance - Accounting",
+  "Admin - HR",
+  "Billing",
+  "IT-CI-BD",
+  "Sales",
+  "Management",
+  "Messenger",
+  "Others",
+];
+const ROWS_VALIDASI = 999;
 
 type KolomTemplate = { header: string; width: number };
 
@@ -31,7 +55,7 @@ const USER_KOLOM: KolomTemplate[] = [
   { header: "Nama Lengkap", width: 24 },
   { header: "Email", width: 28 },
   { header: "No. Telepon", width: 16 },
-  { header: "Divisi", width: 14 },
+  { header: "Divisi", width: 22 },
   { header: "Perusahaan", width: 36 },
   { header: "Cabang", width: 16 },
 ];
@@ -40,11 +64,11 @@ const USER_CONTOH = [
     "Budi Santoso",
     "budi@perusahaan.com",
     "081234567890",
-    "IT",
+    "IT-CI-BD",
     "PT. Speedmark Logistics Indonesia",
     "Jakarta",
   ],
-  ["Siti Aminah", "", "081298765432", "Finance", "", ""],
+  ["Siti Aminah", "", "081298765432", "Finance - Accounting", "", ""],
 ];
 
 // ===== Sheet "Data" — Device =====
@@ -81,7 +105,7 @@ const DEVICE_KOLOM: KolomTemplate[] = [
 
 const DEVICE_CONTOH = [
   [
-    "Laptop Kasir 01",
+    "Laptop Sample",
     "Laptop",
     "Lenovo",
     "ThinkPad E14",
@@ -89,10 +113,10 @@ const DEVICE_CONTOH = [
     "Aktif",
     "2024-01-15",
     "12000000",
-    "PT. Speedmark Logistics Indonesia",
+    "PT. Speedmark Logistik Indonesia",
     "Jakarta",
     "2024-01-15",
-    "Budi Santoso",
+    "Chairul Imam",
     "2026-03-01",
     "",
     "RAM",
@@ -105,7 +129,7 @@ const DEVICE_CONTOH = [
     "",
   ],
   [
-    "CCTV Lobi Utama",
+    "CCTV Lobi",
     "CCTV",
     "Hikvision",
     "DS-2CE16",
@@ -255,43 +279,275 @@ function tambahSheetDaftarSpesifikasi(
   return daftarJenis;
 }
 
+/**
+ * Membangun relasi Perusahaan -> Cabang di Excel menggunakan 2 sheet tersembunyi:
+ * 1. "CabangPT": tiap kolom berisi daftar cabang milik 1 PT dan didaftarkan sebagai
+ *    Named Range aman (`CABANG_PT_1`, `CABANG_PT_2`, ...).
+ * 2. "MapPT" (Named Range `Map_PT_Cabang`): tabel 2 kolom [Nama PT, Kode Range]
+ *    yang dibaca oleh `INDIRECT(VLOOKUP($E2,Map_PT_Cabang,2,FALSE))`.
+ *
+ * Cara ini menghindari `IF` dan `SUBSTITUTE` berantai di dalam Data Validation
+ * sehingga berfungsi untuk semua format nama PT (titik, spasi, simbol, dll).
+ */
+function tambahSheetRelasiCabang(
+  workbook: ExcelJS.Workbook,
+  cabangPerPerusahaan: Record<string, string[]>,
+): boolean {
+  const daftarPt = Object.keys(cabangPerPerusahaan);
+  if (daftarPt.length === 0) return false;
+
+  const sheetCabang = workbook.addWorksheet("CabangPT", { state: "hidden" });
+  const sheetMap = workbook.addWorksheet("MapPT", { state: "hidden" });
+
+  sheetMap.getCell(1, 1).value = "Perusahaan";
+  sheetMap.getCell(1, 2).value = "RangeKey";
+
+  daftarPt.forEach((namaPt, idx) => {
+    const kolom = idx + 1;
+    const rangeKey = `CABANG_PT_${kolom}`;
+    const daftarCabang = cabangPerPerusahaan[namaPt] ?? [];
+
+    // Kolom pada sheet CabangPT
+    sheetCabang.getCell(1, kolom).value = namaPt;
+    daftarCabang.forEach((cabang, i) => {
+      sheetCabang.getCell(2 + i, kolom).value = cabang;
+    });
+
+    const huruf = kolomHuruf(kolom);
+    const barisTerakhir = 1 + Math.max(daftarCabang.length, 1);
+    workbook.definedNames.add(
+      `CabangPT!$${huruf}$2:$${huruf}$${barisTerakhir}`,
+      rangeKey,
+    );
+
+    // Baris pemetaan pada sheet MapPT
+    sheetMap.getCell(2 + idx, 1).value = namaPt;
+    sheetMap.getCell(2 + idx, 2).value = rangeKey;
+  });
+
+  workbook.definedNames.add(
+    `MapPT!$A$2:$B$${daftarPt.length + 1}`,
+    "Map_PT_Cabang",
+  );
+
+  return true;
+}
+
+/**
+ * Menyimpan daftar master (Jenis, Perusahaan, Divisi, Pengguna) ke sheet
+ * tersembunyi "Referensi" dan mendaftarkan masing-masing sebagai Named Range.
+ */
+function tambahSheetReferensiMaster(
+  workbook: ExcelJS.Workbook,
+  data: {
+    jenis?: string[];
+    perusahaan?: string[];
+    divisi?: string[];
+    pengguna?: string[];
+  },
+): {
+  rangeJenis: string | null;
+  rangePerusahaan: string | null;
+  formulaDivisi: string | null;
+  rangePengguna: string | null;
+} {
+  const sheet = workbook.addWorksheet("Referensi", { state: "hidden" });
+  let nextCol = 1;
+
+  const daftarkanRange = (
+    header: string,
+    definedName: string,
+    items?: string[],
+  ): string | null => {
+    if (!items || items.length === 0) return null;
+
+    const colIndex = nextCol++;
+    sheet.getCell(1, colIndex).value = header;
+
+    items.forEach((val, idx) => {
+      sheet.getCell(2 + idx, colIndex).value = val;
+    });
+
+    const colLetter = kolomHuruf(colIndex);
+    const refRange = `Referensi!$${colLetter}$2:$${colLetter}$${items.length + 1}`;
+    workbook.definedNames.add(refRange, definedName);
+
+    return definedName;
+  };
+
+  // Untuk Divisi: gunakan inline string list jika <= 240 karakter (pasti muncul di semua versi Excel)
+  let formulaDivisi: string | null = null;
+  if (data.divisi && data.divisi.length > 0) {
+    const inline = data.divisi.join(",");
+    if (inline.length <= 240) {
+      formulaDivisi = `"${inline}"`;
+    } else {
+      formulaDivisi = daftarkanRange("Divisi", "Ref_Divisi", data.divisi);
+    }
+  }
+
+  return {
+    rangeJenis: daftarkanRange("Jenis", "Ref_Jenis", data.jenis),
+    rangePerusahaan: daftarkanRange(
+      "Perusahaan",
+      "Ref_Perusahaan",
+      data.perusahaan,
+    ),
+    formulaDivisi,
+    rangePengguna: daftarkanRange("Pengguna", "Ref_Pengguna", data.pengguna),
+  };
+}
+
+function terapkanValidasiList(
+  sheet: ExcelJS.Worksheet,
+  kolomHeaderList: KolomTemplate[],
+  namaHeader: string,
+  formula: string | null,
+  warningTitle: string,
+  warningMsg: string,
+) {
+  if (!formula) return;
+  const idx = kolomHeaderList.findIndex((k) => k.header === namaHeader) + 1;
+  if (idx <= 0) return;
+
+  const huruf = kolomHuruf(idx);
+  for (let baris = 2; baris <= 1 + ROWS_VALIDASI; baris++) {
+    sheet.getCell(`${huruf}${baris}`).dataValidation = {
+      type: "list",
+      allowBlank: true,
+      formulae: [formula],
+      showErrorMessage: true,
+      errorStyle: "warning",
+      errorTitle: warningTitle,
+      error: warningMsg,
+    };
+  }
+}
+
+/**
+ * Memasang dropdown Cabang yang menyesuaikan otomatis ke kolom Perusahaan
+ * pada baris yang sama menggunakan `INDIRECT(VLOOKUP($PT,Map_PT_Cabang,2,FALSE))`.
+ */
+function terapkanValidasiCabangDependen(
+  sheet: ExcelJS.Worksheet,
+  kolomHeaderList: KolomTemplate[],
+  adaRelasiCabang: boolean,
+) {
+  if (!adaRelasiCabang) return;
+
+  const idxPerusahaan =
+    kolomHeaderList.findIndex((k) => k.header === "Perusahaan") + 1;
+  const idxCabang = kolomHeaderList.findIndex((k) => k.header === "Cabang") + 1;
+  if (idxPerusahaan <= 0 || idxCabang <= 0) return;
+
+  const kolomPerusahaan = kolomHuruf(idxPerusahaan);
+  const kolomCabang = kolomHuruf(idxCabang);
+
+  for (let baris = 2; baris <= 1 + ROWS_VALIDASI; baris++) {
+    sheet.getCell(`${kolomCabang}${baris}`).dataValidation = {
+      type: "list",
+      allowBlank: true,
+      formulae: [
+        `INDIRECT(VLOOKUP($${kolomPerusahaan}${baris},Map_PT_Cabang,2,FALSE))`,
+      ],
+      showErrorMessage: true,
+      errorStyle: "warning",
+      errorTitle: "Cabang tidak sesuai",
+      error:
+        "Pilih Perusahaan terlebih dahulu atau pastikan Cabang sesuai dengan Perusahaan tersebut.",
+    };
+  }
+}
+
+function tambahDropdownUser(
+  sheetData: ExcelJS.Worksheet,
+  ranges: {
+    formulaDivisi: string | null;
+    rangePerusahaan: string | null;
+  },
+  adaRelasiCabang: boolean,
+) {
+  terapkanValidasiList(
+    sheetData,
+    USER_KOLOM,
+    "Divisi",
+    ranges.formulaDivisi,
+    "Divisi tidak dikenali",
+    "Divisi ini tidak ada di daftar standar. Anda tetap bisa melanjutkan bila memang sengaja.",
+  );
+
+  terapkanValidasiList(
+    sheetData,
+    USER_KOLOM,
+    "Perusahaan",
+    ranges.rangePerusahaan,
+    "Perusahaan tidak dikenali",
+    "Perusahaan ini tidak ada di daftar database. Pastikan penulisannya sesuai.",
+  );
+
+  terapkanValidasiCabangDependen(sheetData, USER_KOLOM, adaRelasiCabang);
+}
+
 function tambahDropdownDevice(
   sheetData: ExcelJS.Worksheet,
-  daftarJenis: string[],
+  sheetRiwayatPengguna: ExcelJS.Worksheet,
+  sheetRiwayatPenempatan: ExcelJS.Worksheet,
+  ranges: {
+    rangeJenis: string | null;
+    rangePerusahaan: string | null;
+    rangePengguna: string | null;
+  },
+  adaRelasiCabang: boolean,
 ) {
   const idxJenis =
     DEVICE_KOLOM_DASAR.findIndex((k) => k.header === "Jenis") + 1;
-  const idxStatus =
-    DEVICE_KOLOM_DASAR.findIndex((k) => k.header === "Status") + 1;
   const kolomJenis = kolomHuruf(idxJenis);
-  const kolomStatus = kolomHuruf(idxStatus);
-
-  const formulaJenis = `"${daftarJenis.join(",")}"`;
   const formulaStatus = `"${STATUS_LIST.join(",")}"`;
 
+  terapkanValidasiList(
+    sheetData,
+    DEVICE_KOLOM_DASAR,
+    "Jenis",
+    ranges.rangeJenis,
+    "Jenis tidak dikenali",
+    "Jenis ini tidak ada di daftar. Anda tetap bisa melanjutkan bila memang sengaja.",
+  );
+
+  terapkanValidasiList(
+    sheetData,
+    DEVICE_KOLOM_DASAR,
+    "Status",
+    formulaStatus,
+    "Status tidak dikenali",
+    "Status ini tidak ada di daftar. Kosongkan bila ingin memakai status Aktif (default).",
+  );
+
+  terapkanValidasiList(
+    sheetData,
+    DEVICE_KOLOM_DASAR,
+    "Perusahaan",
+    ranges.rangePerusahaan,
+    "Perusahaan tidak dikenali",
+    "Perusahaan ini tidak ada di daftar database. Pastikan penulisannya sesuai.",
+  );
+
+  terapkanValidasiCabangDependen(
+    sheetData,
+    DEVICE_KOLOM_DASAR,
+    adaRelasiCabang,
+  );
+
+  terapkanValidasiList(
+    sheetData,
+    DEVICE_KOLOM_DASAR,
+    "Pengguna",
+    ranges.rangePengguna,
+    "Pengguna tidak dikenali",
+    "Pengguna ini tidak ada di daftar user aktif. Pastikan penulisannya sesuai.",
+  );
+
+  // Dropdown Spesifikasi (Nama) mengikuti Jenis pada baris yang sama
   for (let baris = 2; baris <= 1 + ROWS_VALIDASI; baris++) {
-    sheetData.getCell(`${kolomJenis}${baris}`).dataValidation = {
-      type: "list",
-      allowBlank: true,
-      formulae: [formulaJenis],
-      showErrorMessage: true,
-      errorStyle: "warning",
-      errorTitle: "Jenis tidak dikenali",
-      error:
-        "Jenis ini tidak ada di daftar. Anda tetap bisa melanjutkan bila memang sengaja.",
-    };
-
-    sheetData.getCell(`${kolomStatus}${baris}`).dataValidation = {
-      type: "list",
-      allowBlank: true,
-      formulae: [formulaStatus],
-      showErrorMessage: true,
-      errorStyle: "warning",
-      errorTitle: "Status tidak dikenali",
-      error:
-        "Status ini tidak ada di daftar. Kosongkan bila ingin memakai status Aktif (default).",
-    };
-
     for (let slot = 1; slot <= JUMLAH_SLOT_SPESIFIKASI; slot++) {
       const idxNama = DEVICE_KOLOM_DASAR.length + (slot - 1) * 2 + 1;
       const kolomNama = kolomHuruf(idxNama);
@@ -303,6 +559,31 @@ function tambahDropdownDevice(
       };
     }
   }
+
+  // Dropdown pendukung pada sheet Riwayat Pengguna & Riwayat Penempatan
+  terapkanValidasiList(
+    sheetRiwayatPengguna,
+    RIWAYAT_PENGGUNA_KOLOM,
+    "Nama User",
+    ranges.rangePengguna,
+    "User tidak dikenali",
+    "User ini tidak ada di daftar user aktif.",
+  );
+
+  terapkanValidasiList(
+    sheetRiwayatPenempatan,
+    RIWAYAT_PENEMPATAN_KOLOM,
+    "Perusahaan",
+    ranges.rangePerusahaan,
+    "Perusahaan tidak dikenali",
+    "Perusahaan ini tidak ada di daftar database.",
+  );
+
+  terapkanValidasiCabangDependen(
+    sheetRiwayatPenempatan,
+    RIWAYAT_PENEMPATAN_KOLOM,
+    adaRelasiCabang,
+  );
 }
 
 async function unduhWorkbook(workbook: ExcelJS.Workbook, fileName: string) {
@@ -320,30 +601,62 @@ async function unduhWorkbook(workbook: ExcelJS.Workbook, fileName: string) {
   URL.revokeObjectURL(url);
 }
 
-async function unduhTemplateUser() {
+async function unduhTemplateUser(ref: UserTemplateReferensi) {
   const workbook = new ExcelJS.Workbook();
-  tambahSheet(workbook, "Data", USER_KOLOM, USER_CONTOH);
+  const sheetData = tambahSheet(workbook, "Data", USER_KOLOM, USER_CONTOH);
+
+  const adaRelasiCabang = tambahSheetRelasiCabang(
+    workbook,
+    ref.cabangPerPerusahaan,
+  );
+  const ranges = tambahSheetReferensiMaster(workbook, {
+    perusahaan: ref.daftarPerusahaan,
+    divisi:
+      ref.daftarDivisi.length > 0 ? ref.daftarDivisi : DEFAULT_DIVISI_LIST,
+  });
+
+  tambahDropdownUser(sheetData, ranges, adaRelasiCabang);
+
   await unduhWorkbook(workbook, "template-import-user.xlsx");
 }
 
-async function unduhTemplateDevice(spekMap: Record<string, string[]>) {
+async function unduhTemplateDevice(ref: DeviceTemplateReferensi) {
   const workbook = new ExcelJS.Workbook();
   const sheetData = tambahSheet(workbook, "Data", DEVICE_KOLOM, DEVICE_CONTOH);
-  tambahSheet(
+  const sheetRiwayatPengguna = tambahSheet(
     workbook,
     "Riwayat Pengguna",
     RIWAYAT_PENGGUNA_KOLOM,
     RIWAYAT_PENGGUNA_CONTOH,
   );
-  tambahSheet(
+  const sheetRiwayatPenempatan = tambahSheet(
     workbook,
     "Riwayat Penempatan",
     RIWAYAT_PENEMPATAN_KOLOM,
     RIWAYAT_PENEMPATAN_CONTOH,
   );
 
-  const daftarJenis = tambahSheetDaftarSpesifikasi(workbook, spekMap);
-  tambahDropdownDevice(sheetData, daftarJenis);
+  const daftarJenis = tambahSheetDaftarSpesifikasi(
+    workbook,
+    ref.jenisSpesifikasiMap,
+  );
+  const adaRelasiCabang = tambahSheetRelasiCabang(
+    workbook,
+    ref.cabangPerPerusahaan,
+  );
+  const ranges = tambahSheetReferensiMaster(workbook, {
+    jenis: daftarJenis,
+    perusahaan: ref.daftarPerusahaan,
+    pengguna: ref.daftarPengguna,
+  });
+
+  tambahDropdownDevice(
+    sheetData,
+    sheetRiwayatPengguna,
+    sheetRiwayatPenempatan,
+    ranges,
+    adaRelasiCabang,
+  );
 
   await unduhWorkbook(workbook, "template-import-devices.xlsx");
 }
@@ -418,8 +731,20 @@ function bacaSheetRows(
 
 export function ImportDataView({
   jenisSpesifikasiMap = {},
+  daftarPerusahaan = [],
+  cabangPerPerusahaan = {},
+  daftarDivisi = DEFAULT_DIVISI_LIST,
+  daftarPengguna = [],
+  userDropdownDibatalkan = false,
+  batasMaksimalUser = 1000,
 }: {
   jenisSpesifikasiMap?: Record<string, string[]>;
+  daftarPerusahaan?: string[];
+  cabangPerPerusahaan?: Record<string, string[]>;
+  daftarDivisi?: string[];
+  daftarPengguna?: string[];
+  userDropdownDibatalkan?: boolean;
+  batasMaksimalUser?: number;
 }) {
   const [tab, setTab] = useState<Tab>("user");
   const [file, setFile] = useState<File | null>(null);
@@ -572,7 +897,12 @@ export function ImportDataView({
           <p className="mb-3 text-sm text-slate-500">
             Unduh template Excel, isi data user pada sheet{" "}
             <span className="font-medium text-slate-700">Data</span>, lalu
-            hapus/timpa baris contoh (berwarna abu-abu) sebelum diunggah.
+            hapus/timpa baris contoh (berwarna abu-abu) sebelum diunggah. Kolom{" "}
+            <span className="font-medium text-slate-700">Divisi</span>,{" "}
+            <span className="font-medium text-slate-700">Perusahaan</span>, dan{" "}
+            <span className="font-medium text-slate-700">Cabang</span> sudah
+            berbentuk dropdown (pilihan Cabang otomatis mengikuti Perusahaan
+            yang dipilih pada baris yang sama).
           </p>
         ) : (
           <div className="mb-3 space-y-2 text-sm text-slate-500">
@@ -591,26 +921,50 @@ export function ImportDataView({
               perangkat memang belum pernah berpindah.
             </p>
             <p>
-              Kolom <span className="font-medium text-slate-700">Jenis</span>{" "}
-              dan <span className="font-medium text-slate-700">Status</span>{" "}
-              sudah berbentuk dropdown. Kolom{" "}
+              Kolom <span className="font-medium text-slate-700">Jenis</span>,{" "}
+              <span className="font-medium text-slate-700">Status</span>,{" "}
+              <span className="font-medium text-slate-700">Perusahaan</span>,{" "}
+              <span className="font-medium text-slate-700">Cabang</span>
+              {!userDropdownDibatalkan && (
+                <>
+                  , dan{" "}
+                  <span className="font-medium text-slate-700">Pengguna</span>
+                </>
+              )}{" "}
+              sudah berbentuk dropdown dari database. Kolom{" "}
+              <span className="font-medium text-slate-700">Cabang</span>{" "}
+              otomatis menyesuaikan Perusahaan pada baris yang sama, dan{" "}
               <span className="font-medium text-slate-700">
                 Spesifikasi (Nama)
               </span>{" "}
-              juga dropdown yang{" "}
-              <span className="italic">otomatis menyesuaikan</span> daftar
-              pilihannya mengikuti Jenis yang dipilih pada baris yang sama —
-              pilih Jenis terlebih dahulu, baru pilih Spesifikasi. Dropdown
-              tersedia untuk 200 baris pertama.
+              otomatis menyesuaikan Jenis pada baris yang sama. Dropdown
+              tersedia untuk 999 baris pertama.
             </p>
+            {userDropdownDibatalkan && (
+              <p className="text-xs text-amber-700">
+                Catatan: Dropdown kolom Pengguna dibatalkan otomatis karena
+                jumlah user aktif melebihi {batasMaksimalUser} data agar
+                aplikasi dan file Excel tetap ringan. Silakan ketik nama
+                pengguna secara manual sesuai data terdaftar.
+              </p>
+            )}
           </div>
         )}
         <button
           type="button"
           onClick={() =>
             isUser
-              ? unduhTemplateUser()
-              : unduhTemplateDevice(jenisSpesifikasiMap)
+              ? unduhTemplateUser({
+                  daftarPerusahaan,
+                  cabangPerPerusahaan,
+                  daftarDivisi,
+                })
+              : unduhTemplateDevice({
+                  jenisSpesifikasiMap,
+                  daftarPerusahaan,
+                  cabangPerPerusahaan,
+                  daftarPengguna,
+                })
           }
           className="inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100"
         >
@@ -635,16 +989,19 @@ export function ImportDataView({
               opsional, harus unik
             </li>
             <li>
-              <span className="font-medium text-slate-700">
-                No. Telepon, Divisi
-              </span>{" "}
-              — opsional, bebas
+              <span className="font-medium text-slate-700">No. Telepon</span> —
+              opsional, bebas
+            </li>
+            <li>
+              <span className="font-medium text-slate-700">Divisi</span> —
+              opsional, sudah berbentuk dropdown
             </li>
             <li>
               <span className="font-medium text-slate-700">
                 Perusahaan, Cabang
               </span>{" "}
-              — opsional, harus sama persis dengan data terdaftar
+              — opsional, dropdown dari database; pilih Perusahaan terlebih
+              dahulu agar pilihan Cabang menyesuaikan
             </li>
           </ul>
         ) : (
@@ -687,9 +1044,12 @@ export function ImportDataView({
                   <span className="font-medium text-slate-700">
                     Perusahaan, Cabang, Pengguna
                   </span>{" "}
-                  — opsional, ini adalah kondisi{" "}
-                  <span className="italic">saat ini</span>, harus sama persis
-                  dengan data terdaftar
+                  — opsional, kondisi <span className="italic">saat ini</span>;
+                  pilih Perusahaan terlebih dahulu agar pilihan Cabang otomatis
+                  menyesuaikan
+                  {userDropdownDibatalkan
+                    ? ", sedangkan Pengguna diisi manual sesuai nama terdaftar"
+                    : ""}
                 </li>
                 <li>
                   <span className="font-medium text-slate-700">
@@ -762,7 +1122,7 @@ export function ImportDataView({
                   <span className="font-medium text-slate-700">Perusahaan</span>{" "}
                   — wajib diisi;{" "}
                   <span className="font-medium text-slate-700">Cabang</span>{" "}
-                  opsional
+                  opsional (dropdown menyesuaikan Perusahaan)
                 </li>
                 <li>
                   <span className="font-medium text-slate-700">

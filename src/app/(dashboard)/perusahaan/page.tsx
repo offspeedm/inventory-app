@@ -6,7 +6,7 @@ import { TabelPerusahaan } from "./tabel-perusahaan";
 import { WHERE_DEVICE_AKTIF, WHERE_USER_AKTIF } from "@/lib/status-filter";
 
 export default async function PerusahaanPage() {
-  const companies = await prisma.company.findMany({
+  const companiesRaw = await prisma.company.findMany({
     orderBy: { nama: "asc" },
     include: {
       _count: {
@@ -14,11 +14,21 @@ export default async function PerusahaanPage() {
           branches: true,
           devices: { where: WHERE_DEVICE_AKTIF },
           users: { where: WHERE_USER_AKTIF },
-          tickets: true,
         },
       },
     },
   });
+
+  const companies = companiesRaw.map((c) => ({
+    id: c.id,
+    nama: c.nama,
+    inisial: c.inisial,
+    alamat: c.alamat,
+    noTelp: c.noTelp,
+    cabang: c._count.branches,
+    user: c._count.users,
+    device: c._count.devices,
+  }));
 
   return (
     <div>

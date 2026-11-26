@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -113,10 +114,14 @@ function statusBadgeColor(status: string): string {
 export function DeviceLinkModalTrigger({
   deviceId,
   className,
+  title,
+  onSaved,
   children,
 }: {
   deviceId: number;
   className?: string;
+  title?: string;
+  onSaved?: () => void;
   children: React.ReactNode;
 }) {
   const router = useRouter();
@@ -174,6 +179,26 @@ export function DeviceLinkModalTrigger({
       active = false;
     };
   }, [open, deviceId, reloadKey]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      if (editing) {
+        setEditing(false);
+      } else {
+        setOpen(false);
+        setEditing(false);
+        setErrorMsg(null);
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
+  }, [open, editing]);
 
   function masukModeEdit() {
     if (!device) return;
@@ -272,6 +297,7 @@ export function DeviceLinkModalTrigger({
       setLoading(true);
       setErrorMsg(null);
       setReloadKey((k) => k + 1);
+      onSaved?.();
       router.refresh();
     } catch (err) {
       setErrorMsg(
@@ -287,516 +313,532 @@ export function DeviceLinkModalTrigger({
 
   return (
     <>
-      <button type="button" onClick={bukaModal} className={className}>
+      <button
+        type="button"
+        onClick={bukaModal}
+        title={title}
+        className={className}
+      >
         {children}
       </button>
 
-      {open && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-xs"
-          onClick={tutupModal}
-        >
+      {open &&
+        typeof document !== "undefined" &&
+        createPortal(
           <div
-            className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-xs"
+            onClick={(e) => {
+              e.stopPropagation();
+              tutupModal();
+            }}
           >
-            {/* Header Modal */}
-            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/70 px-6 py-4">
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-                  <MonitorSmartphone className="h-5 w-5" />
-                </div>
-                <div className="min-w-0">
-                  <h2 className="truncate text-base font-bold text-slate-900">
-                    {editing
-                      ? `Edit Perangkat${device ? ` · ${device.nama}` : ""}`
-                      : (device?.nama ?? "Detail Perangkat")}
-                  </h2>
-                  {device && (
-                    <p className="truncate text-xs text-slate-500">
-                      {[device.kodeInventaris, device.type?.nama]
-                        .filter(Boolean)
-                        .join(" · ") || "Inventaris Perangkat"}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex shrink-0 items-center gap-2">
-                {editing && (
-                  <button
-                    type="button"
-                    onClick={() => setEditing(false)}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
-                  >
-                    <ArrowLeft className="h-3.5 w-3.5" />
-                    Kembali ke Detail
-                  </button>
-                )}
-
-                <button
-                  type="button"
-                  onClick={tutupModal}
-                  aria-label="Tutup modal"
-                  className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-200/70 hover:text-slate-700"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-            </div>
-
-            {/* Body Modal */}
-            <div className="flex-1 overflow-y-auto p-6">
-              {loading ? (
-                <div className="flex items-center justify-center gap-2 py-12 text-sm text-slate-500">
-                  <Loader2 className="h-5 w-5 animate-spin text-indigo-600" />
-                  Memuat detail perangkat...
-                </div>
-              ) : errorMsg ? (
-                <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                  {errorMsg}
-                </div>
-              ) : !device ? null : editing ? (
-                /* ================= MODE EDIT (DENGAN SEARCHABLE SELECT) ================= */
-                <form onSubmit={handleSubmitEdit} className="space-y-4">
-                  <input type="hidden" name="id" value={device.id} />
-
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-slate-600">
-                        Nama Perangkat
-                      </label>
-                      <input
-                        name="nama"
-                        required
-                        defaultValue={device.nama}
-                        className={inputClass}
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-slate-600">
-                        Kode Inventaris
-                      </label>
-                      <input
-                        disabled
-                        value={device.kodeInventaris ?? "Otomatis"}
-                        className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-sm text-slate-500"
-                      />
-                    </div>
+            <div
+              className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header Modal */}
+              <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/70 px-6 py-4">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                    <MonitorSmartphone className="h-5 w-5" />
                   </div>
-
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-slate-600">
-                        Jenis Perangkat
-                      </label>
-                      <SearchableSelect
-                        name="type_id"
-                        value={typeId}
-                        onChange={setTypeId}
-                        options={typeOptions}
-                        placeholder="Ketik atau pilih jenis…"
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-slate-600">
-                        Merk
-                      </label>
-                      <input
-                        name="merk"
-                        defaultValue={device.merk ?? ""}
-                        className={inputClass}
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-slate-600">
-                        Tipe / Model
-                      </label>
-                      <input
-                        name="tipe"
-                        defaultValue={device.tipe ?? ""}
-                        className={inputClass}
-                      />
-                    </div>
-                  </div>
-
-                  {dynamicFields.length > 0 && (
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5">
-                      <p className="mb-2 text-xs font-semibold text-slate-600">
-                        Spesifikasi {selectedTypeName}
+                  <div className="min-w-0">
+                    <h2 className="truncate text-base font-bold text-slate-900">
+                      {editing
+                        ? `Edit Perangkat${device ? ` · ${device.nama}` : ""}`
+                        : (device?.nama ?? "Detail Perangkat")}
+                    </h2>
+                    {device && (
+                      <p className="truncate text-xs text-slate-500">
+                        {[device.kodeInventaris, device.type?.nama]
+                          .filter(Boolean)
+                          .join(" · ") || "Inventaris Perangkat"}
                       </p>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        {dynamicFields.map((field) => (
-                          <div key={field}>
-                            <label className="mb-1 block text-xs font-medium text-slate-600">
-                              {field}
-                            </label>
-                            <input
-                              name={"attr_" + field}
-                              defaultValue={attrValue(field)}
-                              placeholder={field}
-                              className={inputClass}
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-slate-600">
-                        No. Seri
-                      </label>
-                      <input
-                        name="serial_number"
-                        defaultValue={device.serialNumber ?? ""}
-                        className={inputClass}
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-slate-600">
-                        Tanggal Beli
-                      </label>
-                      <input
-                        type="date"
-                        name="tgl_beli"
-                        defaultValue={toDateInput(device.tglBeli)}
-                        className={inputClass}
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-slate-600">
-                        Harga Beli (Rp)
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        name="harga_beli"
-                        defaultValue={
-                          device.hargaBeli != null
-                            ? String(device.hargaBeli)
-                            : ""
-                        }
-                        className={inputClass}
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-slate-600">
-                        Status
-                      </label>
-                      <SearchableSelect
-                        name="status"
-                        value={status}
-                        onChange={(val) => setStatus(val || device.status)}
-                        options={statusSelectOptions}
-                        allowClear={false}
-                        placeholder="Pilih status…"
-                      />
-                    </div>
+                    )}
                   </div>
+                </div>
 
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-slate-600">
-                        Pemegang Saat Ini
-                      </label>
-                      <SearchableSelect
-                        name="user_id"
-                        value={userId}
-                        onChange={setUserId}
-                        options={userOptions}
-                        placeholder="Ketik nama pengguna…"
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-slate-600">
-                        Perusahaan
-                      </label>
-                      <SearchableSelect
-                        name="company_id"
-                        value={companyId}
-                        onChange={handleCompanyChange}
-                        options={companyOptions}
-                        placeholder="Ketik perusahaan…"
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-slate-600">
-                        Cabang
-                      </label>
-                      <SearchableSelect
-                        name="branch_id"
-                        value={branchId}
-                        onChange={setBranchId}
-                        options={branchOptions}
-                        disabled={!companyId}
-                        placeholder={
-                          companyId ? "Ketik cabang…" : "Pilih PT dulu"
-                        }
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-slate-600">
-                      Keterangan
-                    </label>
-                    <textarea
-                      name="keterangan"
-                      rows={3}
-                      defaultValue={device.keterangan ?? ""}
-                      className={inputClass + " resize-y"}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-4">
+                <div className="flex shrink-0 items-center gap-2">
+                  {editing && (
                     <button
                       type="button"
                       onClick={() => setEditing(false)}
-                      disabled={saving}
-                      className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
                     >
-                      Batal
+                      <ArrowLeft className="h-3.5 w-3.5" />
+                      Kembali ke Detail
                     </button>
-                    <button
-                      type="submit"
-                      disabled={saving}
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-xs hover:bg-indigo-700 disabled:opacity-60"
-                    >
-                      <Save className="h-4 w-4" />
-                      {saving ? "Menyimpan..." : "Simpan Perubahan"}
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                /* ================= MODE DETAIL READ-ONLY ================= */
-                <div className="space-y-4">
-                  {/* Informasi Utama */}
-                  <div className="grid grid-cols-1 gap-4 rounded-xl border border-slate-200/80 bg-slate-50/40 p-4 sm:grid-cols-3">
-                    <div>
-                      <span className="text-xs text-slate-400">
-                        Kode Inventaris
-                      </span>
-                      <p className="mt-0.5 font-mono text-sm font-semibold text-slate-800">
-                        {device.kodeInventaris || "-"}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-slate-400">
-                        Jenis Perangkat
-                      </span>
-                      <p className="mt-0.5 text-sm font-semibold text-slate-800">
-                        {device.type?.nama || "-"}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-slate-400">Status</span>
-                      <div className="mt-0.5">
-                        <span
-                          className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${statusBadgeColor(device.status)}`}
-                        >
-                          {device.status}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div>
-                      <span className="text-xs text-slate-400">
-                        Merk & Tipe
-                      </span>
-                      <p className="mt-0.5 text-sm font-semibold text-slate-800">
-                        {[device.merk, device.tipe]
-                          .filter(Boolean)
-                          .join(" · ") || "-"}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-slate-400">
-                        Serial Number
-                      </span>
-                      <p className="mt-0.5 font-mono text-sm font-semibold text-slate-800">
-                        {device.serialNumber || "-"}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-slate-400">
-                        Tanggal Beli
-                      </span>
-                      <p className="mt-0.5 text-sm font-semibold text-slate-800">
-                        {fmtTanggal(device.tglBeli)}
-                      </p>
-                    </div>
-
-                    <div>
-                      <span className="text-xs text-slate-400">
-                        Pemegang Saat Ini
-                      </span>
-                      <p className="mt-0.5 text-sm font-semibold text-slate-800">
-                        {device.user?.nama || "-"}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-slate-400">Perusahaan</span>
-                      <p className="mt-0.5 text-sm font-semibold text-slate-800">
-                        {device.company?.nama || "-"}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-slate-400">Cabang</span>
-                      <p className="mt-0.5 text-sm font-semibold text-slate-800">
-                        {device.branch?.nama || "-"}
-                      </p>
-                    </div>
-
-                    <div className="sm:col-span-3">
-                      <span className="text-xs text-slate-400">Keterangan</span>
-                      <p className="mt-0.5 text-sm text-slate-700">
-                        {device.keterangan || "-"}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Spesifikasi Teknis */}
-                  {device.attributes && device.attributes.length > 0 && (
-                    <div className="rounded-xl border border-slate-200 bg-white p-4">
-                      <h3 className="mb-3 text-xs font-semibold tracking-wider text-slate-500 uppercase">
-                        Spesifikasi Teknis
-                      </h3>
-                      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                        {device.attributes.map((attr) => (
-                          <div
-                            key={attr.key}
-                            className="flex items-start justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2 text-xs"
-                          >
-                            <span className="shrink-0 font-medium text-slate-500">
-                              {attr.key}
-                            </span>
-                            <span className="text-right font-semibold text-slate-800">
-                              {attr.value || "-"}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
                   )}
 
-                  {/* Riwayat Pemegang */}
-                  <div className="rounded-xl border border-slate-200 bg-white p-4">
-                    <div className="mb-3 flex items-center gap-2">
-                      <History className="h-4 w-4 text-slate-500" />
-                      <h3 className="text-xs font-semibold tracking-wider text-slate-600 uppercase">
-                        Riwayat Pemegang ({device.assignments?.length ?? 0})
-                      </h3>
-                    </div>
+                  <button
+                    type="button"
+                    onClick={tutupModal}
+                    aria-label="Tutup modal"
+                    className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-200/70 hover:text-slate-700"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+              </div>
 
-                    {!device.assignments?.length ? (
-                      <p className="py-3 text-center text-xs text-slate-400">
-                        Belum ada riwayat pemegang.
-                      </p>
-                    ) : (
-                      <div className="divide-y divide-slate-100">
-                        {device.assignments.map((item) => (
-                          <div
-                            key={item.id}
-                            className="flex items-center justify-between gap-3 py-2 text-xs first:pt-0 last:pb-0"
-                          >
-                            <span className="font-semibold text-slate-800">
-                              {item.user?.nama || "Tidak diketahui"}
-                            </span>
-                            <span className="text-slate-500">
-                              {fmtTanggal(item.tglMulai)} —{" "}
-                              {fmtTanggal(item.tglSelesai, "Sekarang")}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+              {/* Body Modal */}
+              <div className="flex-1 overflow-y-auto p-6">
+                {loading ? (
+                  <div className="flex items-center justify-center gap-2 py-12 text-sm text-slate-500">
+                    <Loader2 className="h-5 w-5 animate-spin text-indigo-600" />
+                    Memuat detail perangkat...
                   </div>
+                ) : errorMsg ? (
+                  <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                    {errorMsg}
+                  </div>
+                ) : !device ? null : editing ? (
+                  /* ================= MODE EDIT (DENGAN SEARCHABLE SELECT) ================= */
+                  <form onSubmit={handleSubmitEdit} className="space-y-4">
+                    <input type="hidden" name="id" value={device.id} />
 
-                  {/* Riwayat Troubleshooting */}
-                  <div className="rounded-xl border border-slate-200 bg-white p-4">
-                    <div className="mb-3 flex items-center gap-2">
-                      <Wrench className="h-4 w-4 text-rose-500" />
-                      <h3 className="text-xs font-semibold tracking-wider text-slate-600 uppercase">
-                        Riwayat Troubleshooting ({device.tickets?.length ?? 0})
-                      </h3>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-slate-600">
+                          Nama Perangkat
+                        </label>
+                        <input
+                          name="nama"
+                          required
+                          defaultValue={device.nama}
+                          className={inputClass}
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-slate-600">
+                          Kode Inventaris
+                        </label>
+                        <input
+                          disabled
+                          value={device.kodeInventaris ?? "Otomatis"}
+                          className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-sm text-slate-500"
+                        />
+                      </div>
                     </div>
 
-                    {!device.tickets?.length ? (
-                      <p className="py-3 text-center text-xs text-slate-400">
-                        Belum ada tiket troubleshooting untuk perangkat ini.
-                      </p>
-                    ) : (
-                      <div className="divide-y divide-slate-100">
-                        {device.tickets.map((t) => (
-                          <div
-                            key={t.id}
-                            className="flex items-center justify-between gap-3 py-2 text-xs first:pt-0 last:pb-0"
-                          >
-                            <div>
-                              <a
-                                href={`/troubleshooting/${t.id}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="font-semibold text-indigo-600 hover:underline"
-                              >
-                                {t.judul}
-                              </a>
-                              <p className="text-[11px] text-slate-400">
-                                {fmtTanggal(t.tglLapor)}
-                                {t.noTiket ? ` · ${t.noTiket}` : ""}
-                              </p>
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-slate-600">
+                          Jenis Perangkat
+                        </label>
+                        <SearchableSelect
+                          name="type_id"
+                          value={typeId}
+                          onChange={setTypeId}
+                          options={typeOptions}
+                          placeholder="Ketik atau pilih jenis…"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-slate-600">
+                          Merk
+                        </label>
+                        <input
+                          name="merk"
+                          defaultValue={device.merk ?? ""}
+                          className={inputClass}
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-slate-600">
+                          Tipe / Model
+                        </label>
+                        <input
+                          name="tipe"
+                          defaultValue={device.tipe ?? ""}
+                          className={inputClass}
+                        />
+                      </div>
+                    </div>
+
+                    {dynamicFields.length > 0 && (
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5">
+                        <p className="mb-2 text-xs font-semibold text-slate-600">
+                          Spesifikasi {selectedTypeName}
+                        </p>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {dynamicFields.map((field) => (
+                            <div key={field}>
+                              <label className="mb-1 block text-xs font-medium text-slate-600">
+                                {field}
+                              </label>
+                              <input
+                                name={"attr_" + field}
+                                defaultValue={attrValue(field)}
+                                placeholder={field}
+                                className={inputClass}
+                              />
                             </div>
-                            <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-medium text-slate-700">
-                              {t.status}
-                            </span>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
                     )}
+
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-slate-600">
+                          No. Seri
+                        </label>
+                        <input
+                          name="serial_number"
+                          defaultValue={device.serialNumber ?? ""}
+                          className={inputClass}
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-slate-600">
+                          Tanggal Beli
+                        </label>
+                        <input
+                          type="date"
+                          name="tgl_beli"
+                          defaultValue={toDateInput(device.tglBeli)}
+                          className={inputClass}
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-slate-600">
+                          Harga Beli (Rp)
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          name="harga_beli"
+                          defaultValue={
+                            device.hargaBeli != null
+                              ? String(device.hargaBeli)
+                              : ""
+                          }
+                          className={inputClass}
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-slate-600">
+                          Status
+                        </label>
+                        <SearchableSelect
+                          name="status"
+                          value={status}
+                          onChange={(val) => setStatus(val || device.status)}
+                          options={statusSelectOptions}
+                          allowClear={false}
+                          placeholder="Pilih status…"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-slate-600">
+                          Pemegang Saat Ini
+                        </label>
+                        <SearchableSelect
+                          name="user_id"
+                          value={userId}
+                          onChange={setUserId}
+                          options={userOptions}
+                          placeholder="Ketik nama pengguna…"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-slate-600">
+                          Perusahaan
+                        </label>
+                        <SearchableSelect
+                          name="company_id"
+                          value={companyId}
+                          onChange={handleCompanyChange}
+                          options={companyOptions}
+                          placeholder="Ketik perusahaan…"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-slate-600">
+                          Cabang
+                        </label>
+                        <SearchableSelect
+                          name="branch_id"
+                          value={branchId}
+                          onChange={setBranchId}
+                          options={branchOptions}
+                          disabled={!companyId}
+                          placeholder={
+                            companyId ? "Ketik cabang…" : "Pilih PT dulu"
+                          }
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-slate-600">
+                        Keterangan
+                      </label>
+                      <textarea
+                        name="keterangan"
+                        rows={3}
+                        defaultValue={device.keterangan ?? ""}
+                        className={inputClass + " resize-y"}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-4">
+                      <button
+                        type="button"
+                        onClick={() => setEditing(false)}
+                        disabled={saving}
+                        className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                      >
+                        Batal
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={saving}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-xs hover:bg-indigo-700 disabled:opacity-60"
+                      >
+                        <Save className="h-4 w-4" />
+                        {saving ? "Menyimpan..." : "Simpan Perubahan"}
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  /* ================= MODE DETAIL READ-ONLY ================= */
+                  <div className="space-y-4">
+                    {/* Informasi Utama */}
+                    <div className="grid grid-cols-1 gap-4 rounded-xl border border-slate-200/80 bg-slate-50/40 p-4 sm:grid-cols-3">
+                      <div>
+                        <span className="text-xs text-slate-400">
+                          Kode Inventaris
+                        </span>
+                        <p className="mt-0.5 font-mono text-sm font-semibold text-slate-800">
+                          {device.kodeInventaris || "-"}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-xs text-slate-400">
+                          Jenis Perangkat
+                        </span>
+                        <p className="mt-0.5 text-sm font-semibold text-slate-800">
+                          {device.type?.nama || "-"}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-xs text-slate-400">Status</span>
+                        <div className="mt-0.5">
+                          <span
+                            className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${statusBadgeColor(device.status)}`}
+                          >
+                            {device.status}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div>
+                        <span className="text-xs text-slate-400">
+                          Merk & Tipe
+                        </span>
+                        <p className="mt-0.5 text-sm font-semibold text-slate-800">
+                          {[device.merk, device.tipe]
+                            .filter(Boolean)
+                            .join(" · ") || "-"}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-xs text-slate-400">
+                          Serial Number
+                        </span>
+                        <p className="mt-0.5 font-mono text-sm font-semibold text-slate-800">
+                          {device.serialNumber || "-"}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-xs text-slate-400">
+                          Tanggal Beli
+                        </span>
+                        <p className="mt-0.5 text-sm font-semibold text-slate-800">
+                          {fmtTanggal(device.tglBeli)}
+                        </p>
+                      </div>
+
+                      <div>
+                        <span className="text-xs text-slate-400">
+                          Pemegang Saat Ini
+                        </span>
+                        <p className="mt-0.5 text-sm font-semibold text-slate-800">
+                          {device.user?.nama || "-"}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-xs text-slate-400">
+                          Perusahaan
+                        </span>
+                        <p className="mt-0.5 text-sm font-semibold text-slate-800">
+                          {device.company?.nama || "-"}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-xs text-slate-400">Cabang</span>
+                        <p className="mt-0.5 text-sm font-semibold text-slate-800">
+                          {device.branch?.nama || "-"}
+                        </p>
+                      </div>
+
+                      <div className="sm:col-span-3">
+                        <span className="text-xs text-slate-400">
+                          Keterangan
+                        </span>
+                        <p className="mt-0.5 text-sm text-slate-700">
+                          {device.keterangan || "-"}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Spesifikasi Teknis */}
+                    {device.attributes && device.attributes.length > 0 && (
+                      <div className="rounded-xl border border-slate-200 bg-white p-4">
+                        <h3 className="mb-3 text-xs font-semibold tracking-wider text-slate-500 uppercase">
+                          Spesifikasi Teknis
+                        </h3>
+                        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                          {device.attributes.map((attr) => (
+                            <div
+                              key={attr.key}
+                              className="flex items-start justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2 text-xs"
+                            >
+                              <span className="shrink-0 font-medium text-slate-500">
+                                {attr.key}
+                              </span>
+                              <span className="text-right font-semibold text-slate-800">
+                                {attr.value || "-"}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Riwayat Pemegang */}
+                    <div className="rounded-xl border border-slate-200 bg-white p-4">
+                      <div className="mb-3 flex items-center gap-2">
+                        <History className="h-4 w-4 text-slate-500" />
+                        <h3 className="text-xs font-semibold tracking-wider text-slate-600 uppercase">
+                          Riwayat Pemegang ({device.assignments?.length ?? 0})
+                        </h3>
+                      </div>
+
+                      {!device.assignments?.length ? (
+                        <p className="py-3 text-center text-xs text-slate-400">
+                          Belum ada riwayat pemegang.
+                        </p>
+                      ) : (
+                        <div className="divide-y divide-slate-100">
+                          {device.assignments.map((item) => (
+                            <div
+                              key={item.id}
+                              className="flex items-center justify-between gap-3 py-2 text-xs first:pt-0 last:pb-0"
+                            >
+                              <span className="font-semibold text-slate-800">
+                                {item.user?.nama || "Tidak diketahui"}
+                              </span>
+                              <span className="text-slate-500">
+                                {fmtTanggal(item.tglMulai)} —{" "}
+                                {fmtTanggal(item.tglSelesai, "Sekarang")}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Riwayat Troubleshooting */}
+                    <div className="rounded-xl border border-slate-200 bg-white p-4">
+                      <div className="mb-3 flex items-center gap-2">
+                        <Wrench className="h-4 w-4 text-rose-500" />
+                        <h3 className="text-xs font-semibold tracking-wider text-slate-600 uppercase">
+                          Riwayat Troubleshooting ({device.tickets?.length ?? 0}
+                          )
+                        </h3>
+                      </div>
+
+                      {!device.tickets?.length ? (
+                        <p className="py-3 text-center text-xs text-slate-400">
+                          Belum ada tiket troubleshooting untuk perangkat ini.
+                        </p>
+                      ) : (
+                        <div className="divide-y divide-slate-100">
+                          {device.tickets.map((t) => (
+                            <div
+                              key={t.id}
+                              className="flex items-center justify-between gap-3 py-2 text-xs first:pt-0 last:pb-0"
+                            >
+                              <div>
+                                <a
+                                  href={`/troubleshooting/${t.id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="font-semibold text-indigo-600 hover:underline"
+                                >
+                                  {t.judul}
+                                </a>
+                                <p className="text-[11px] text-slate-400">
+                                  {fmtTanggal(t.tglLapor)}
+                                  {t.noTiket ? ` · ${t.noTiket}` : ""}
+                                </p>
+                              </div>
+                              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-medium text-slate-700">
+                                {t.status}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
+                )}
+              </div>
+
+              {/* Footer Modal (Mode Detail): Urutan Buka Halaman -> Edit -> Tutup */}
+              {!editing && (
+                <div className="flex shrink-0 items-center justify-end gap-2 border-t border-slate-100 bg-slate-50/70 px-6 py-3.5">
+                  <a
+                    href={`/devices/${deviceId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Buka halaman detail perangkat di tab baru"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-medium text-slate-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    Buka Halaman
+                  </a>
+
+                  {device && (
+                    <button
+                      type="button"
+                      onClick={masukModeEdit}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-indigo-700"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                      Edit
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={tutupModal}
+                    className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-100"
+                  >
+                    Tutup
+                  </button>
                 </div>
               )}
             </div>
-
-            {/* Footer Modal (Mode Detail): Urutan Buka Halaman -> Edit -> Tutup */}
-            {!editing && (
-              <div className="flex shrink-0 items-center justify-end gap-2 border-t border-slate-100 bg-slate-50/70 px-6 py-3.5">
-                <a
-                  href={`/devices/${deviceId}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title="Buka halaman detail perangkat di tab baru"
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-medium text-slate-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600"
-                >
-                  <ExternalLink className="h-3.5 w-3.5" />
-                  Buka Halaman
-                </a>
-
-                {device && (
-                  <button
-                    type="button"
-                    onClick={masukModeEdit}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-indigo-700"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                    Edit
-                  </button>
-                )}
-
-                <button
-                  type="button"
-                  onClick={tutupModal}
-                  className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-100"
-                >
-                  Tutup
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
     </>
   );
 }

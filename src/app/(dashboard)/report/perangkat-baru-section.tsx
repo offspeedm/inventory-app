@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import ExcelJS from "exceljs";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -9,7 +8,6 @@ import {
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
-  ExternalLink,
   FileSpreadsheet,
   FileText,
   Laptop,
@@ -17,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import type { DeviceBaruItem } from "./actions";
+import { DeviceReportLink } from "./device-report-link";
 
 type SortField =
   | "tglBeli"
@@ -108,11 +107,13 @@ export function PerangkatBaruTabSection({
   startDate,
   endDate,
   initialJenis = "ALL",
+  onDeviceUpdated,
 }: {
   devices: DeviceBaruItem[];
   startDate: string;
   endDate: string;
   initialJenis?: string;
+  onDeviceUpdated?: () => void;
 }) {
   const [jenisFilter, setJenisFilter] = useState<string>(initialJenis);
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
@@ -506,18 +507,12 @@ export function PerangkatBaruTabSection({
                   className="border-t border-slate-100 hover:bg-slate-50/70"
                 >
                   <td className="px-3 py-2.5">
-                    <Link
-                      href={`/devices/${d.id}`}
-                      className="inline-flex items-center gap-1 font-medium text-slate-800 hover:text-indigo-600 hover:underline"
-                    >
-                      <span>{d.nama}</span>
-                      <ExternalLink className="h-3 w-3 text-slate-400" />
-                    </Link>
-                    {d.kodeInventaris && (
-                      <p className="font-mono text-xs text-slate-400">
-                        {d.kodeInventaris}
-                      </p>
-                    )}
+                    <DeviceReportLink
+                      deviceId={d.id}
+                      nama={d.nama}
+                      kodeInventaris={d.kodeInventaris}
+                      onSaved={onDeviceUpdated}
+                    />
                   </td>
                   <td className="px-3 py-2.5">
                     <span
@@ -580,6 +575,7 @@ export function PerangkatBaruModal({
   hideJenisFilter = false,
   onClose,
   onBukaSubMenu,
+  onDeviceUpdated,
 }: {
   title: string;
   subtitle?: string;
@@ -587,6 +583,7 @@ export function PerangkatBaruModal({
   hideJenisFilter?: boolean;
   onClose: () => void;
   onBukaSubMenu?: (jenisTerpilih: string) => void;
+  onDeviceUpdated?: () => void;
 }) {
   const [jenisFilter, setJenisFilter] = useState<string>("ALL");
   const [search, setSearch] = useState("");
@@ -768,18 +765,12 @@ export function PerangkatBaruModal({
                       className="border-t border-slate-100 hover:bg-slate-50/70"
                     >
                       <td className="px-3 py-2.5">
-                        <Link
-                          href={`/devices/${d.id}`}
-                          className="inline-flex items-center gap-1 font-medium text-slate-800 hover:text-indigo-600 hover:underline"
-                        >
-                          <span>{d.nama}</span>
-                          <ExternalLink className="h-3 w-3 text-slate-400" />
-                        </Link>
-                        {d.kodeInventaris && (
-                          <p className="font-mono text-xs text-slate-400">
-                            {d.kodeInventaris}
-                          </p>
-                        )}
+                        <DeviceReportLink
+                          deviceId={d.id}
+                          nama={d.nama}
+                          kodeInventaris={d.kodeInventaris}
+                          onSaved={onDeviceUpdated}
+                        />
                       </td>
                       <td className="px-3 py-2.5">
                         <span

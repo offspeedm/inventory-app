@@ -19,6 +19,7 @@ import {
   type DetailDeviceRow,
   type RiwayatPerubahanRow,
 } from "./actions";
+import { DeviceReportLink } from "./device-report-link";
 
 type SortField = "nama" | "jenis" | "perusahaan" | "cabang" | "status";
 type SortDir = "asc" | "desc";
@@ -103,6 +104,7 @@ export function DevicesDetailSection({
   // benar mengalami perubahan pada periode ini. Bisa dialihkan ke "semua"
   // lewat toggle di bawah.
   const [tampilan, setTampilan] = useState<TampilanData>("berubah");
+  const [reloadTick, setReloadTick] = useState(0);
 
   useEffect(() => {
     let batal = false;
@@ -129,7 +131,7 @@ export function DevicesDetailSection({
     return () => {
       batal = true;
     };
-  }, [startDate, endDate, companyId, branchId]);
+  }, [startDate, endDate, companyId, branchId, reloadTick]);
 
   function toggleSort(field: SortField) {
     if (sortField === field) {
@@ -423,10 +425,12 @@ export function DevicesDetailSection({
                 {dataTersortir.map((d) => (
                   <tr key={d.id} className="border-t border-slate-100 hover:bg-slate-50/60">
                     <td className="px-3 py-2.5">
-                      <p className="font-medium text-slate-700">{d.nama}</p>
-                      {d.kodeInventaris && (
-                        <p className="font-mono text-xs text-slate-400">{d.kodeInventaris}</p>
-                      )}
+                      <DeviceReportLink
+                        deviceId={d.id}
+                        nama={d.nama}
+                        kodeInventaris={d.kodeInventaris}
+                        onSaved={() => setReloadTick((t) => t + 1)}
+                      />
                     </td>
                     <td className="px-3 py-2.5 text-slate-600">{d.jenis}</td>
                     <td className="px-3 py-2.5 text-slate-600">{d.perusahaan}</td>
@@ -502,10 +506,12 @@ export function DevicesDetailSection({
                 {riwayat.map((r, idx) => (
                   <tr key={idx} className="border-t border-slate-100 hover:bg-slate-50/60">
                     <td className="px-3 py-2.5">
-                      <p className="font-medium text-slate-700">{r.deviceNama}</p>
-                      {r.kodeInventaris && (
-                        <p className="font-mono text-xs text-slate-400">{r.kodeInventaris}</p>
-                      )}
+                      <DeviceReportLink
+                        deviceId={r.deviceId}
+                        nama={r.deviceNama}
+                        kodeInventaris={r.kodeInventaris}
+                        onSaved={() => setReloadTick((t) => t + 1)}
+                      />
                     </td>
                     <td className="px-3 py-2.5">
                       <span

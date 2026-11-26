@@ -6,7 +6,7 @@ import { TabelCabang } from "./tabel-cabang";
 import { WHERE_DEVICE_AKTIF, WHERE_USER_AKTIF } from "@/lib/status-filter";
 
 export default async function CabangPage() {
-  const [branches, companies] = await Promise.all([
+  const [branchesRaw, companies] = await Promise.all([
     prisma.branch.findMany({
       orderBy: { nama: "asc" },
       include: {
@@ -15,7 +15,6 @@ export default async function CabangPage() {
           select: {
             devices: { where: WHERE_DEVICE_AKTIF },
             users: { where: WHERE_USER_AKTIF },
-            tickets: true,
           },
         },
       },
@@ -25,6 +24,16 @@ export default async function CabangPage() {
       orderBy: { nama: "asc" },
     }),
   ]);
+
+  const branches = branchesRaw.map((b) => ({
+    id: b.id,
+    nama: b.nama,
+    kota: b.kota,
+    companyId: b.companyId,
+    company: b.company,
+    user: b._count.users,
+    device: b._count.devices,
+  }));
 
   return (
     <div>

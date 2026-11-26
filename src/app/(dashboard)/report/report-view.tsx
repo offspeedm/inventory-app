@@ -603,6 +603,9 @@ export function ReportView() {
                 startDate={startDate}
                 endDate={endDate}
                 initialJenis={subTabJenisAwal}
+                onDeviceUpdated={() =>
+                  muatData(startDate, endDate, bandingkan, companyId, branchId)
+                }
               />
             )}
 
@@ -634,6 +637,9 @@ export function ReportView() {
             setSubTabJenisAwal(jenisTerpilih);
             setDeviceSubTab("perangkat-baru");
           }}
+          onDeviceUpdated={() =>
+            muatData(startDate, endDate, bandingkan, companyId, branchId)
+          }
         />
       )}
     </div>
